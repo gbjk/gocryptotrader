@@ -805,14 +805,14 @@ func (ok *Okx) SubmitOrder(ctx context.Context, s *order.Submit) (*order.SubmitR
 	}
 
 	var orderRequest = &PlaceOrderRequestParam{
-		InstrumentID:          instrumentID,
-		TradeMode:             tradeMode,
-		Side:                  sideType,
-		OrderType:             s.Type.Lower(),
-		Amount:                amount,
-		ClientSupplierOrderID: s.ClientOrderID,
-		Price:                 s.Price,
-		QuantityType:          targetCurrency,
+		InstrumentID:  instrumentID,
+		TradeMode:     tradeMode,
+		Side:          sideType,
+		OrderType:     s.Type.Lower(),
+		Amount:        amount,
+		ClientOrderID: s.ClientOrderID,
+		Price:         s.Price,
+		QuantityType:  targetCurrency,
 	}
 	switch s.Type.Lower() {
 	case OkxOrderLimit, OkxOrderPostOnly, OkxOrderFOK, OkxOrderIOC:
@@ -868,10 +868,10 @@ func (ok *Okx) ModifyOrder(ctx context.Context, action *order.Modify) (*order.Mo
 		return nil, err
 	}
 	amendRequest := AmendOrderRequestParams{
-		InstrumentID:          instrumentID,
-		NewQuantity:           action.Amount,
-		OrderID:               action.OrderID,
-		ClientSuppliedOrderID: action.ClientOrderID,
+		InstrumentID:  instrumentID,
+		NewQuantity:   action.Amount,
+		OrderID:       action.OrderID,
+		ClientOrderID: action.ClientOrderID,
 	}
 	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		_, err = ok.WsAmendOrder(&amendRequest)
@@ -901,9 +901,9 @@ func (ok *Okx) CancelOrder(ctx context.Context, ord *order.Cancel) error {
 	}
 	instrumentID := format.Format(ord.Pair)
 	req := CancelOrderRequestParam{
-		InstrumentID:          instrumentID,
-		OrderID:               ord.OrderID,
-		ClientSupplierOrderID: ord.ClientOrderID,
+		InstrumentID:  instrumentID,
+		OrderID:       ord.OrderID,
+		ClientOrderID: ord.ClientOrderID,
 	}
 	if ok.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		_, err = ok.WsCancelOrder(req)
@@ -946,9 +946,9 @@ func (ok *Okx) CancelBatchOrders(ctx context.Context, o []order.Cancel) (*order.
 			return nil, err
 		}
 		cancelOrderParams[x] = CancelOrderRequestParam{
-			InstrumentID:          instrumentID,
-			OrderID:               ord.OrderID,
-			ClientSupplierOrderID: ord.ClientOrderID,
+			InstrumentID:  instrumentID,
+			OrderID:       ord.OrderID,
+			ClientOrderID: ord.ClientOrderID,
 		}
 	}
 	var canceledOrders []OrderData
@@ -1014,25 +1014,25 @@ ordersLoop:
 		switch {
 		case orderCancellation.OrderID != "" || orderCancellation.ClientOrderID != "":
 			if myOrders[x].OrderID == orderCancellation.OrderID ||
-				myOrders[x].ClientSupplierOrderID == orderCancellation.ClientOrderID {
+				myOrders[x].ClientOrderID == orderCancellation.ClientOrderID {
 				cancelAllOrdersRequestParams[x] = CancelOrderRequestParam{
-					OrderID:               myOrders[x].OrderID,
-					ClientSupplierOrderID: myOrders[x].ClientSupplierOrderID,
+					OrderID:       myOrders[x].OrderID,
+					ClientOrderID: myOrders[x].ClientOrderID,
 				}
 				break ordersLoop
 			}
 		case orderCancellation.Side == order.Buy || orderCancellation.Side == order.Sell:
 			if myOrders[x].Side == order.Buy || myOrders[x].Side == order.Sell {
 				cancelAllOrdersRequestParams[x] = CancelOrderRequestParam{
-					OrderID:               myOrders[x].OrderID,
-					ClientSupplierOrderID: myOrders[x].ClientSupplierOrderID,
+					OrderID:       myOrders[x].OrderID,
+					ClientOrderID: myOrders[x].ClientOrderID,
 				}
 				continue
 			}
 		default:
 			cancelAllOrdersRequestParams[x] = CancelOrderRequestParam{
-				OrderID:               myOrders[x].OrderID,
-				ClientSupplierOrderID: myOrders[x].ClientSupplierOrderID,
+				OrderID:       myOrders[x].OrderID,
+				ClientOrderID: myOrders[x].ClientOrderID,
 			}
 		}
 	}
@@ -1105,7 +1105,7 @@ func (ok *Okx) GetOrderInfo(ctx context.Context, orderID string, pair currency.P
 		Amount:         orderDetail.Size.Float64(),
 		Exchange:       ok.Name,
 		OrderID:        orderDetail.OrderID,
-		ClientOrderID:  orderDetail.ClientSupplierOrderID,
+		ClientOrderID:  orderDetail.ClientOrderID,
 		Side:           orderDetail.Side,
 		Type:           orderType,
 		Pair:           pair,
@@ -1270,7 +1270,7 @@ allOrders:
 				FeeAsset:        currency.NewCode(orderList[i].FeeCurrency),
 				Exchange:        ok.Name,
 				OrderID:         orderList[i].OrderID,
-				ClientOrderID:   orderList[i].ClientSupplierOrderID,
+				ClientOrderID:   orderList[i].ClientOrderID,
 				Type:            oType,
 				Side:            orderSide,
 				Status:          orderStatus,
@@ -1371,7 +1371,7 @@ allOrders:
 					FeeAsset:             currency.NewCode(orderList[i].FeeCurrency),
 					Exchange:             ok.Name,
 					OrderID:              orderList[i].OrderID,
-					ClientOrderID:        orderList[i].ClientSupplierOrderID,
+					ClientOrderID:        orderList[i].ClientOrderID,
 					Type:                 oType,
 					Side:                 orderSide,
 					Status:               orderStatus,
