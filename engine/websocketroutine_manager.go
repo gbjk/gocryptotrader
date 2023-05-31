@@ -22,9 +22,6 @@ func setupWebsocketRoutineManager(exchangeManager iExchangeManager, orderManager
 	if exchangeManager == nil {
 		return nil, errNilExchangeManager
 	}
-	if orderManager == nil {
-		return nil, errNilOrderManager
-	}
 	if syncer == nil {
 		return nil, errNilCurrencyPairSyncer
 	}
@@ -287,6 +284,9 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 		}
 		m.syncer.PrintOrderbookSummary(base, "websocket", nil)
 	case *order.Detail:
+		if !m.orderManager.IsRunning() {
+			return nil
+		}
 		if !m.orderManager.Exists(d) {
 			err := m.orderManager.Add(d)
 			if err != nil {
