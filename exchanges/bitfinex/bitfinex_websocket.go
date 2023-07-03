@@ -1533,7 +1533,7 @@ func (b *Bitfinex) WsUpdateOrderbook(p currency.Pair, assetType asset.Item, book
 // GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
 func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
 	var wsPairFormat = currency.PairFormat{Uppercase: true}
-	var channels = []string{wsBook, wsTrades, wsTicker, wsCandles}
+	var channels = []string{wsBook}
 
 	var subscriptions []stream.ChannelSubscription
 	assets := b.GetAssetTypes(true)
