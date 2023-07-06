@@ -3058,6 +3058,8 @@ func (ok *Okx) GetInstrumentTypeFromAssetItem(a asset.Item) string {
 		return okxInstTypeSpot
 	case asset.Futures:
 		return okxInstTypeFutures
+	case asset.Margin:
+		return okxInstTypeMargin
 	default:
 		return strings.ToUpper(a.String())
 	}
