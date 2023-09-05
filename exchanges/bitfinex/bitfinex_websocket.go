@@ -145,22 +145,24 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 			if !ok {
 				return errors.New("unable to type assert channel")
 			}
-			if symbol, ok := d["symbol"].(string); ok {
-				if err := b.WsAddSubscriptionChannel(int(chanID), channel, symbol); err != nil {
+			symbol, ok := d["symbol"].(string)
+			if !ok {
+				key, ok := d["key"].(string)
+				if !ok {
+					return fmt.Errorf("subscribed to channel but no symbol or key: %v", channel)
+				}
+				if channel != wsCandles {
+					// status channel not implemented at all yet.
+					return fmt.Errorf("%v channel subscription keys: %w", channel, common.ErrNotYetImplemented)
+				}
+				var err error
+				symbol, err = symbolFromCandleKey(key)
+				if err != nil {
 					return err
 				}
-			} else if key, ok := d["key"].(string); ok {
-				// Capture trading subscriptions
-				if contents := strings.Split(key, ":"); len(contents) > 3 {
-					// Edge case to parse margin strings.
-					// map[chanId:139136 channel:candles event:subscribed key:trade:1m:tXAUTF0:USTF0]
-					if contents[2][0] == 't' {
-						key = contents[2] + ":" + contents[3]
-					}
-				}
-				if err := b.WsAddSubscriptionChannel(int(chanID), channel, key); err != nil {
-					return err
-				}
+			}
+			if err := b.WsAddSubscriptionChannel(int(chanID), channel, symbol); err != nil {
+				return err
 			}
 		case "unsubscribed":
 			chanID, ok := d["chanId"].(float64)
@@ -187,7 +189,7 @@ func (b *Bitfinex) wsHandleData(respRaw []byte) error {
 		var chanID int
 		if f, ok := d[0].(float64); !ok {
 			return common.GetTypeAssertError("float64", d[0], "chanID")
-		} else {
+		} else { //nolint:revive // using lexical variable requires else statement
 			chanID = int(f)
 		}
 
@@ -496,14 +498,14 @@ func (b *Bitfinex) handleWSChecksum(chanID int, d []interface{}) error {
 	var token int
 	if f, ok := d[2].(float64); !ok {
 		return common.GetTypeAssertError("float64", d[2], "checksum")
-	} else {
+	} else { //nolint:revive // using lexical variable requires else statement
 		token = int(f)
 	}
 
 	var seqNo int64
 	if f, ok := d[3].(float64); !ok {
 		return common.GetTypeAssertError("float64", d[3], "seqNo")
-	} else {
+	} else { //nolint:revive // using lexical variable requires else statement
 		seqNo = int64(f)
 	}
 
@@ -814,9 +816,8 @@ func (b *Bitfinex) handleWSTradesUpdate(c *stream.ChannelSubscription, eventType
 			tradeHolder = append(tradeHolder, wsTrade)
 		}
 	case 3:
-		if eventType != wsFundingTradeUpdate &&
-			eventType != wsTradeExecutionUpdate {
-			return nil
+		if eventType != wsFundingTradeUpdate && eventType != wsTradeExecutionUpdate {
+			return fmt.Errorf("unhandled WS trade update event: %s", eventType)
 		}
 		data, ok := d[2].([]interface{})
 		if !ok {
@@ -956,17 +957,17 @@ func (b *Bitfinex) handleWSNotification(d []interface{}, respRaw []byte) error {
 
 func (b *Bitfinex) handleWSPositionSnapshot(d []interface{}) error {
 	snapBundle, ok := d[2].([]interface{})
-	if !ok || len(snapBundle) == 0 {
-		return nil
+	if !ok {
+		return common.GetTypeAssertError("[]interface{}", d[2], "positionSnapshotBundle")
 	}
-	if _, ok := snapBundle[0].([]interface{}); !ok {
+	if len(snapBundle) == 0 {
 		return nil
 	}
 	snapshot := make([]WebsocketPosition, len(snapBundle))
 	for i := range snapBundle {
 		positionData, ok := snapBundle[i].([]interface{})
 		if !ok {
-			return errors.New("unable to type assert wsPositionSnapshot positionData")
+			return common.GetTypeAssertError("[]interface{}", snapBundle[i], "positionSnapshot")
 		}
 		var position WebsocketPosition
 		if position.Pair, ok = positionData[0].(string); !ok {
@@ -1009,7 +1010,10 @@ func (b *Bitfinex) handleWSPositionSnapshot(d []interface{}) error {
 
 func (b *Bitfinex) handleWSPositionUpdate(d []interface{}) error {
 	positionData, ok := d[2].([]interface{})
-	if !ok || len(positionData) == 0 {
+	if !ok {
+		return common.GetTypeAssertError("[]interface{}", d[2], "positionUpdate")
+	}
+	if len(positionData) == 0 {
 		return nil
 	}
 	var position WebsocketPosition
@@ -1051,7 +1055,10 @@ func (b *Bitfinex) handleWSPositionUpdate(d []interface{}) error {
 
 func (b *Bitfinex) handleWSTradeUpdate(d []interface{}, eventType string) error {
 	tradeData, ok := d[2].([]interface{})
-	if !ok || len(tradeData) <= 4 {
+	if !ok {
+		return common.GetTypeAssertError("[]interface{}", d[2], "tradeUpdate")
+	}
+	if len(tradeData) <= 4 {
 		return nil
 	}
 	var tData WebsocketTradeData
@@ -1569,6 +1576,9 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 	var subscriptions []stream.ChannelSubscription
 	assets := b.GetAssetTypes(true)
 	for i := range assets {
+		if !b.IsAssetWebsocketSupported(assets[i]) {
+			continue
+		}
 		enabledPairs, err := b.GetEnabledPairs(assets[i])
 		if err != nil {
 			return nil, err
@@ -1582,17 +1592,29 @@ func (b *Bitfinex) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription,
 					params["len"] = "100"
 				}
 
+				prefix := "t"
+				if assets[i] == asset.MarginFunding {
+					prefix = "f"
+				}
+
+				needsDelimiter := enabledPairs[k].Len() > 6
+
+				var formattedPair string
+				if needsDelimiter {
+					formattedPair = enabledPairs[k].Format(currency.PairFormat{Uppercase: true, Delimiter: ":"}).String()
+				} else {
+					formattedPair = wsPairFormat.Format(enabledPairs[k])
+				}
+
 				if channels[j] == wsCandles {
 					// TODO: Add ability to select timescale && funding period
-					var fundingPeriod string
-					prefix := "t"
+					fundingPeriod := ""
 					if assets[i] == asset.MarginFunding {
-						prefix = "f"
 						fundingPeriod = ":p30"
 					}
-					params["key"] = "trade:1m:" + prefix + enabledPairs[k].String() + fundingPeriod
+					params["key"] = "trade:1m:" + prefix + formattedPair + fundingPeriod
 				} else {
-					params["symbol"] = wsPairFormat.Format(enabledPairs[k])
+					params["symbol"] = prefix + formattedPair
 				}
 
 				subscriptions = append(subscriptions, stream.ChannelSubscription{
@@ -1714,7 +1736,7 @@ func (b *Bitfinex) WsAddSubscriptionChannel(chanID int, channel, symbol string) 
 	var c *stream.ChannelSubscription
 	s := b.Websocket.GetSubscriptions()
 	for i := range s {
-		if strings.EqualFold(s[i].Channel, channel) && s[i].Currency.Equal(pair) {
+		if strings.EqualFold(s[i].Channel, channel) && s[i].Currency.Equal(pair) && s[i].Asset == assetType {
 			c = &s[i]
 			break
 		}
@@ -1722,11 +1744,12 @@ func (b *Bitfinex) WsAddSubscriptionChannel(chanID int, channel, symbol string) 
 
 	if c == nil {
 		log.Errorf(log.ExchangeSys,
-			"%s Could not find an existing channel subscription: %s Pair: %s ChannelID: %d\n",
+			"%s Could not find an existing channel subscription: %s Pair: %s ChannelID: %d Asset: %s\n",
 			b.Name,
 			channel,
 			pair,
-			chanID)
+			chanID,
+			assetType)
 		c = &stream.ChannelSubscription{
 			Channel:  channel,
 			Currency: pair,
@@ -2072,26 +2095,34 @@ func assetPairFromSymbol(symbol string) (asset.Item, currency.Pair, error) {
 		return assetType, currency.EMPTYPAIR, nil
 	}
 
-	pairInfo := strings.Split(symbol, ":")
-	switch len(pairInfo) {
-	case 1:
-		newPair := pairInfo[0]
-		if newPair[0] == 'f' {
-			assetType = asset.MarginFunding
-		}
-		symbol = newPair[1:]
-	case 2:
-		assetType = asset.Margin
-		symbol = symbol[1:]
+	switch symbol[0] {
+	case 'f':
+		assetType = asset.MarginFunding
+	case 't':
+		assetType = asset.Spot
 	default:
-		newPair := pairInfo[2]
-		if newPair[0] == 'f' {
-			assetType = asset.MarginFunding
-		}
-		symbol = newPair[1:]
+		return assetType, currency.EMPTYPAIR, fmt.Errorf("unknown pair prefix: %v", symbol[0])
 	}
 
-	pair, err := currency.NewPairFromString(symbol)
+	pair, err := currency.NewPairFromString(symbol[1:])
 
 	return assetType, pair, err
+}
+
+// symbolFromCandleKey extracts the symbol or pair from a subscribed channel key
+// e.g. trade:1h:tBTC, trade:1h:tBTC:CNHT, trade:1m:fBTC:p30 and trade:1m:fBTC:a30:p2:p30
+func symbolFromCandleKey(key string) (string, error) {
+	parts := strings.Split(key, ":")
+	if len(parts) < 3 {
+		return "", fmt.Errorf("subscription key has too few parts, need 3: %v", key)
+	}
+	parts = parts[2:]
+	if parts[0][0] == 'f' {
+		// Margin Funding subscription has one currency, and suffixes
+		return parts[0], nil
+	}
+	if len(parts) > 2 {
+		return "", fmt.Errorf("subscription key has too many parts for trade types: %v", key)
+	}
+	return strings.Join(parts, ":"), nil
 }
