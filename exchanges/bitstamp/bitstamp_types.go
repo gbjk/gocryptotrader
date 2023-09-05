@@ -1,10 +1,12 @@
 package bitstamp
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
 // Transaction types
@@ -195,11 +197,14 @@ type websocketEventRequest struct {
 
 type websocketData struct {
 	Channel string `json:"channel"`
+	Auth    string `json:"auth,omitempty"`
 }
 
 type websocketResponse struct {
-	Event   string `json:"event"`
-	Channel string `json:"channel"`
+	Event       string `json:"event"`
+	Channel     string `json:"channel"`
+	channelType string
+	pair        currency.Pair
 }
 
 type websocketTradeResponse struct {
@@ -218,6 +223,12 @@ type websocketTradeData struct {
 	Price          float64 `json:"price"`
 	Type           int     `json:"type"`
 	ID             int64   `json:"id"`
+}
+
+type websocketAuthResponse struct {
+	Token     string      `json:"token"`
+	UserID    json.Number `json:"user_id"`
+	ValidSecs int64       `json:"valid_sec"`
 }
 
 type websocketOrderBookResponse struct {
@@ -245,4 +256,21 @@ type OHLCResponse struct {
 			Volume    float64 `json:"volume,string"`
 		} `json:"ohlc"`
 	} `json:"data"`
+}
+
+type websocketOrderResponse struct {
+	websocketResponse
+	Order websocketOrderData `json:"data"`
+}
+type websocketOrderData struct {
+	ID              int64      `json:"id"`
+	IDStr           string     `json:"id_str"`
+	ClientOrderID   string     `json:"client_order_id"`
+	RemainingAmount float64    `json:"amount"`
+	ExecutedAmount  float64    `json:"amount_traded,string"` // Not Cumulative; Partial fill amount
+	Amount          float64    `json:"amount_at_create,string"`
+	Price           float64    `json:"price"`
+	Side            order.Side `json:"order_type"`
+	Datetime        time.Time  `json:"datetime"`
+	Microtimestamp  time.Time  `json:"microtimestamp"`
 }

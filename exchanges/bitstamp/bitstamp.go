@@ -43,7 +43,14 @@ const (
 	bitstampAPITransferFromMain   = "transfer-from-main"
 	bitstampAPIReturnType         = "string"
 	bitstampAPITradingPairsInfo   = "trading-pairs-info"
-	bitstampOHLC                  = "ohlc"
+	bitstampAPIWSAuthToken        = "websockets_token"
+	bitstampAPIWSTrades           = "live_trades"
+	bitstampAPIWSOrders           = "live_orders"
+	bitstampAPIWSOrderbook        = "order_book"
+	bitstampAPIWSMyOrders         = "my_orders"
+	bitstampAPIWSMyTrades         = "my_trades"
+
+	bitstampOHLC = "ohlc"
 
 	bitstampRateInterval = time.Minute * 10
 	bitstampRequestRate  = 8000
@@ -53,6 +60,8 @@ const (
 // Bitstamp is the overarching type across the bitstamp package
 type Bitstamp struct {
 	exchange.Base
+
+	wsAuthToken websocketAuthResponse
 }
 
 // GetFee returns an estimate of fee based on type of transaction
