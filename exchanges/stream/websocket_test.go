@@ -538,7 +538,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	}
 	assert.Nil(t, ws.GetSubscription(nil), "GetSubscription by nil should return nil")
 	assert.Nil(t, ws.GetSubscription(45), "GetSubscription by invalid key should return nil")
-	assert.ErrorIs(t, ws.SubscribeToChannels(subs), errChannelAlreadySubscribed, "Subscribe should error when already subscribed")
+	assert.ErrorIs(t, ws.SubscribeToChannels(subs), ErrSubscribedAlready, "Subscribe should error when already subscribed")
 	assert.ErrorIs(t, ws.SubscribeToChannels(nil), errNoSubscriptionsSupplied, "Subscribe to nil should error")
 	assert.NoError(t, ws.UnsubscribeChannels(subs), "Unsubscribing should not error")
 }
@@ -1431,27 +1431,19 @@ func TestCheckSubscriptions(t *testing.T) {
 	t.Parallel()
 	ws := Websocket{}
 	err := ws.checkSubscriptions(nil)
-	if !errors.Is(err, errNoSubscriptionsSupplied) {
-		t.Fatalf("received: %v, but expected: %v", err, errNoSubscriptionsSupplied)
-	}
+	assert.ErrorIs(t, err, errNoSubscriptionsSupplied, "checkSubscriptions should error correctly")
 
 	ws.MaxSubscriptionsPerConnection = 1
 
 	err = ws.checkSubscriptions([]subscription.Subscription{{}, {}})
-	if !errors.Is(err, errSubscriptionsExceedsLimit) {
-		t.Fatalf("received: %v, but expected: %v", err, errSubscriptionsExceedsLimit)
-	}
+	assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "checkSubscriptions should error correctly")
 
 	ws.MaxSubscriptionsPerConnection = 2
 
 	ws.subscriptions = subscriptionMap{42: {Key: 42, Channel: "test"}}
 	err = ws.checkSubscriptions([]subscription.Subscription{{Key: 42, Channel: "test"}})
-	if !errors.Is(err, errChannelAlreadySubscribed) {
-		t.Fatalf("received: %v, but expected: %v", err, errChannelAlreadySubscribed)
-	}
+	assert.ErrorIs(t, err, ErrSubscribedAlready, "checkSubscriptions should error correctly")
 
 	err = ws.checkSubscriptions([]subscription.Subscription{{}})
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v, but expected: %v", err, nil)
-	}
+	assert.NoError(t, err, "checkSubscriptions should not error")
 }
