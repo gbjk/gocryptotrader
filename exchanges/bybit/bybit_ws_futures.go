@@ -16,6 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -83,7 +84,7 @@ func (by *Bybit) WsFuturesAuth(ctx context.Context) error {
 }
 
 // SubscribeFutures sends a websocket message to receive data from the channel
-func (by *Bybit) SubscribeFutures(channelsToSubscribe []stream.ChannelSubscription) error {
+func (by *Bybit) SubscribeFutures(channelsToSubscribe []subscription.Subscription) error {
 	var errs error
 	for i := range channelsToSubscribe {
 		var sub WsFuturesReq
@@ -101,7 +102,7 @@ func (by *Bybit) SubscribeFutures(channelsToSubscribe []stream.ChannelSubscripti
 }
 
 // UnsubscribeFutures sends a websocket message to stop receiving data from the channel
-func (by *Bybit) UnsubscribeFutures(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (by *Bybit) UnsubscribeFutures(channelsToUnsubscribe []subscription.Subscription) error {
 	var errs error
 	for i := range channelsToUnsubscribe {
 		var unSub WsFuturesReq

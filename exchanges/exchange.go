@@ -26,6 +26,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
@@ -1132,7 +1133,7 @@ func (b *Base) FlushWebsocketChannels() error {
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle subscribing
-func (b *Base) SubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
+func (b *Base) SubscribeToWebsocketChannels(channels []subscription.Subscription) error {
 	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
@@ -1141,7 +1142,7 @@ func (b *Base) SubscribeToWebsocketChannels(channels []stream.ChannelSubscriptio
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
 // which lets websocket.manageSubscriptions handle unsubscribing
-func (b *Base) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscription) error {
+func (b *Base) UnsubscribeToWebsocketChannels(channels []subscription.Subscription) error {
 	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
@@ -1149,7 +1150,7 @@ func (b *Base) UnsubscribeToWebsocketChannels(channels []stream.ChannelSubscript
 }
 
 // GetSubscriptions returns a copied list of subscriptions
-func (b *Base) GetSubscriptions() ([]stream.ChannelSubscription, error) {
+func (b *Base) GetSubscriptions() ([]subscription.Subscription, error) {
 	if b.Websocket == nil {
 		return nil, common.ErrFunctionNotSupported
 	}

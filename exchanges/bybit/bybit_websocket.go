@@ -18,6 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -114,7 +115,7 @@ func (by *Bybit) WsAuth(ctx context.Context) error {
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (by *Bybit) Subscribe(channelsToSubscribe []stream.ChannelSubscription) error {
+func (by *Bybit) Subscribe(channelsToSubscribe []subscription.Subscription) error {
 	var errs error
 	for i := range channelsToSubscribe {
 		var subReq WsReq
@@ -149,7 +150,7 @@ func (by *Bybit) Subscribe(channelsToSubscribe []stream.ChannelSubscription) err
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
-func (by *Bybit) Unsubscribe(channelsToUnsubscribe []stream.ChannelSubscription) error {
+func (by *Bybit) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	var errs error
 
 	for i := range channelsToUnsubscribe {
@@ -188,8 +189,8 @@ func (by *Bybit) wsReadData(ws stream.Connection) {
 }
 
 // GenerateDefaultSubscriptions generates default subscription
-func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, error) {
-	var subscriptions []stream.ChannelSubscription
+func (by *Bybit) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
+	var subscriptions []subscription.Subscription
 	var channels = []string{wsTicker, wsTrades, wsOrderbook, wsKlines}
 	pairs, err := by.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -198,7 +199,7 @@ func (by *Bybit) GenerateDefaultSubscriptions() ([]stream.ChannelSubscription, e
 	for z := range pairs {
 		for x := range channels {
 			subscriptions = append(subscriptions,
-				stream.ChannelSubscription{
+				subscription.Subscription{
 					Channel:  channels[x],
 					Currency: pairs[z],
 					Asset:    asset.Spot,
