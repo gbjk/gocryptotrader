@@ -122,7 +122,7 @@ func (by *Bybit) Subscribe(channelsToSubscribe []subscription.Subscription) erro
 		subReq.Topic = channelsToSubscribe[i].Channel
 		subReq.Event = sub
 
-		formattedPair, err := by.FormatExchangeCurrency(channelsToSubscribe[i].Currency, asset.Spot)
+		formattedPair, err := by.FormatExchangeCurrency(channelsToSubscribe[i].Pair, asset.Spot)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
@@ -158,7 +158,7 @@ func (by *Bybit) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) 
 		unSub.Event = cancel
 		unSub.Topic = channelsToUnsubscribe[i].Channel
 
-		formattedPair, err := by.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency, asset.Spot)
+		formattedPair, err := by.FormatExchangeCurrency(channelsToUnsubscribe[i].Pair, asset.Spot)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
@@ -200,9 +200,9 @@ func (by *Bybit) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 		for x := range channels {
 			subscriptions = append(subscriptions,
 				subscription.Subscription{
-					Channel:  channels[x],
-					Currency: pairs[z],
-					Asset:    asset.Spot,
+					Channel: channels[x],
+					Pair:    pairs[z],
+					Asset:   asset.Spot,
 				})
 		}
 	}

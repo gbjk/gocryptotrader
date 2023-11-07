@@ -9,9 +9,9 @@ import (
 
 // DefaultKey is the fallback key for AddSuccessfulSubscriptions
 type DefaultKey struct {
-	Channel  string
-	Currency currency.Pair
-	Asset    asset.Item
+	Channel string
+	Pair    currency.Pair
+	Asset   asset.Item
 }
 
 // State tracks the status of a subscription channel
@@ -26,12 +26,12 @@ const (
 
 // Subscription container for streaming subscriptions
 type Subscription struct {
-	Key      any
-	Channel  string
-	Currency currency.Pair
-	Asset    asset.Item
-	Params   map[string]interface{}
-	State    State
+	Key     any
+	Channel string
+	Pair    currency.Pair
+	Asset   asset.Item
+	Params  map[string]interface{}
+	State   State
 }
 
 // String implements the Stringer interface for Subscription, giving a human representation of the subscription

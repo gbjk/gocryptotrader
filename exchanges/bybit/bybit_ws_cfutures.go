@@ -156,7 +156,7 @@ func (by *Bybit) UnsubscribeCoin(channelsToUnsubscribe []subscription.Subscripti
 		var unSub WsFuturesReq
 		unSub.Topic = unsubscribe
 
-		formattedPair, err := by.FormatExchangeCurrency(channelsToUnsubscribe[i].Currency, asset.CoinMarginedFutures)
+		formattedPair, err := by.FormatExchangeCurrency(channelsToUnsubscribe[i].Pair, asset.CoinMarginedFutures)
 		if err != nil {
 			errs = common.AppendError(errs, err)
 			continue
