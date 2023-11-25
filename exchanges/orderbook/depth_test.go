@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -2036,56 +2037,30 @@ func TestLiftTheAsksFromBest(t *testing.T) {
 func TestLiftTheAsksFromBest_BaseRequired(t *testing.T) {
 	t.Parallel()
 	_, err := getInvalidDepth().LiftTheAsksFromBest(10, false)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Should error invalid orderbook")
 
 	depth := NewDepth(id)
 	_, err = depth.LiftTheAsksFromBest(10, false)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	mov, err := depth.LiftTheAsksFromBest(21, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.ErrorIs(t, err, errNoLiquidity, "Should error no liquidity")
 
-	if !mov.FullBookSideConsumed {
-		t.Fatal("entire side should be consumed by this value")
-	}
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	assert.NoError(t, err, "LoadSnapshot should not error")
+
+	mov, err := depth.LiftTheAsksFromBest(21, true)
+	assert.NoError(t, err, "LiftTheAsksFromBest should not error")
+	assert.True(t, mov.FullBookSideConsumed, "entire side should be consumed by this lift")
 
 	mov, err = depth.LiftTheAsksFromBest(1, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0)
-	}
-	if mov.ImpactPercentage != 0.07479431563201197 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 0.07479431563201197)
-	}
-	if mov.SlippageCost != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 0)
-	}
+	assert.NoError(t, err, "LiftTheAsksFromBest should not error")
+	assert.Zero(t, mov.NominalPercentage, "NominalPercentage should be 0")
+	assert.Equal(t, 0.07479431563201197, mov.ImpactPercentage, "ImpactPercentage should be correct")
+	assert.Zero(t, mov.SlippageCost, "SlippageCost should be 0")
 
 	mov, err = depth.LiftTheAsksFromBest(19.97787610619469, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-	if mov.NominalPercentage != 0.7097591258590288 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7097591258590288)
-	}
-	if mov.ImpactPercentage != 1.4210919970082274 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 1.4210919970082274)
-	}
-	if mov.SlippageCost != 189.5796460176971 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 189.5796460176971)
-	}
+	assert.NoError(t, err, "LiftTheAsksFromBest should not error")
+	assert.Equal(t, 0.7097591258590288, mov.NominalPercentage, "NominalPercentage should be correct")
+	assert.Equal(t, 1.4210919970082274, mov.ImpactPercentage, "ImpactPercentage should be correct")
+	assert.InDelta(t, 189.57964601769947, mov.SlippageCost, 0.00000000000001, "SlippageCost should be correct")
 
 	// All the way up to the last price from best bid price
 	mov, err = depth.LiftTheAsksFromBest(20, true)
