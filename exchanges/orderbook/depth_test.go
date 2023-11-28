@@ -727,125 +727,50 @@ func TestIsValid(t *testing.T) {
 func TestHitTheBidsByNominalSlippage(t *testing.T) {
 	t.Parallel()
 	_, err := getInvalidDepth().HitTheBidsByNominalSlippage(10, 1355.5)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Should error invalid orderbook")
 
 	depth := NewDepth(id)
 	_, err = depth.HitTheBidsByNominalSlippage(10, 1355.5)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
+	assert.ErrorIs(t, err, errNoLiquidity, "Should error no liquidity")
 
 	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	// First tranche
 	amt, err := depth.HitTheBidsByNominalSlippage(0, 1336)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if amt.Sold != 1 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 2)
-	}
-
-	if amt.NominalPercentage != 0 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 0)
-	}
-
-	if amt.StartPrice != 1336 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 1336)
-	}
-
-	if amt.EndPrice != 1336 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 1336)
-	}
-
-	if amt.FullBookSideConsumed {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt.FullBookSideConsumed, false)
-	}
+	assert.NoError(t, err, "HitTheBidsByNominalSlippage should not error")
+	assert.Equal(t, 1.0, amt.Sold, "Amount sold should be correct")
+	assert.Zero(t, amt.NominalPercentage, "NominalPercentage should be 0")
+	assert.Equal(t, 1336.0, amt.StartPrice, "Amount StartPrice should be correct")
+	assert.Equal(t, 1336.0, amt.EndPrice, "Amount EndPrice should be correct")
+	assert.False(t, amt.FullBookSideConsumed, "Orderbook should not be entirely consumed")
 
 	// First and second price
 	amt, err = depth.HitTheBidsByNominalSlippage(0.037425149700598806, 1336)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if amt.Sold != 2 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 2)
-	}
-
-	if amt.NominalPercentage != 0.037425149700598806 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 0.037425149700598806)
-	}
-
-	if amt.StartPrice != 1336 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 1336)
-	}
-
-	if amt.EndPrice != 1335 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 1335)
-	}
-
-	if amt.FullBookSideConsumed {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt.FullBookSideConsumed, false)
-	}
+	assert.NoError(t, err, "HitTheBidsByNominalSlippage should not error")
+	assert.Equal(t, 2.0, amt.Sold, "Amount sold should be correct")
+	assert.Equal(t, 0.037425149700598806, amt.NominalPercentage, "NominalPercentage should be correct")
+	assert.Equal(t, 1336.0, amt.StartPrice, "Amount StartPrice should be correct")
+	assert.Equal(t, 1335.0, amt.EndPrice, "Amount EndPrice should be correct")
+	assert.False(t, amt.FullBookSideConsumed, "Orderbook should not be entirely consumed")
 
 	// First and half of second tranche
 	amt, err = depth.HitTheBidsByNominalSlippage(0.02495009980039353, 1336)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if amt.Sold != 1.4999999999998295 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 1.4999999999998295)
-	}
-
-	if amt.NominalPercentage != 0.02495009980039353 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 0.02495009980039353)
-	}
-
-	if amt.StartPrice != 1336 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 1336)
-	}
-
-	if amt.EndPrice != 1335 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 1335)
-	}
-
-	if amt.FullBookSideConsumed {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt.FullBookSideConsumed, false)
-	}
+	assert.NoError(t, err, "HitTheBidsByNominalSlippage should not error")
+	assert.InDelta(t, 1.5, amt.Sold, 0.00000000001, "Amount sold should be correct")
+	assert.Equal(t, 0.02495009980039353, amt.NominalPercentage, "NominalPercentage should be correct")
+	assert.Equal(t, 1336.0, amt.StartPrice, "Amount StartPrice should be correct")
+	assert.Equal(t, 1335.0, amt.EndPrice, "Amount EndPrice should be correct")
+	assert.False(t, amt.FullBookSideConsumed, "Orderbook should not be entirely consumed")
 
 	// All the way up to the last price
 	amt, err = depth.HitTheBidsByNominalSlippage(0.7110778443113772, 1336)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	// This exceeds the entire total base available - should be 20.
-	if amt.Sold != 20 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 20.00721336370539)
-	}
-
-	if amt.NominalPercentage != 0.7110778443113772 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 0.7110778443113772)
-	}
-
-	if amt.StartPrice != 1336 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 1336)
-	}
-
-	if amt.EndPrice != 1317 {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt, 1317)
-	}
-
-	if !amt.FullBookSideConsumed {
-		t.Fatalf("received: '%+v' but expected: '%v'", amt.FullBookSideConsumed, true)
-	}
+	assert.NoError(t, err, "HitTheBidsByNominalSlippage should not error")
+	assert.Equal(t, 20.0, amt.Sold, "Amount sold should be correct")
+	assert.Equal(t, 0.71107784431137723, amt.NominalPercentage, "NominalPercentage should be correct")
+	assert.Equal(t, 1336.0, amt.StartPrice, "Amount StartPrice should be correct")
+	assert.Equal(t, 1317.0, amt.EndPrice, "Amount EndPrice should be correct")
+	assert.True(t, amt.FullBookSideConsumed, "Orderbook should be entirely consumed")
 }
 
 func TestHitTheBidsByNominalSlippageFromMid(t *testing.T) {
