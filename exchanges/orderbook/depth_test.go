@@ -158,100 +158,74 @@ func TestInvalidate(t *testing.T) {
 	d.exchange = "testexchange"
 	d.pair = currency.NewPair(currency.BTC, currency.WABI)
 	d.asset = asset.Spot
+
 	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}}, 0, time.Now(), false)
 	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	ob, err := d.Retrieve()
 	assert.NoError(t, err, "Retrieve should not error")
-
 	assert.NotNil(t, ob, "ob should not be nil")
 
 	testReason := errors.New("random reason")
 
 	err = d.Invalidate(testReason)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Invalidate should error correctly")
 
 	_, err = d.Retrieve()
-	if !errors.Is(err, ErrOrderbookInvalid) && !errors.Is(err, testReason) {
-		t.Fatalf("received: '%v' but expected: '%v' && '%v'", err, ErrOrderbookInvalid, testReason)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Retrieve should error correctly")
+	assert.ErrorIs(t, err, testReason, "Invalidate should error correctly")
 
 	d.validationError = nil
 
 	ob, err = d.Retrieve()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.NoError(t, err, "Retrieve should not error")
 
-	if len(ob.Asks) != 0 || len(ob.Bids) != 0 {
-		t.Fatalf("not flushed")
-	}
+	assert.Empty(t, ob.Asks, "Orderbook Asks should be flushed")
+	assert.Empty(t, ob.Bids, "Orderbook Bids should be flushed")
 }
 
 func TestUpdateBidAskByPrice(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
-	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = d.UpdateBidAskByPrice(&Update{})
-	if !errors.Is(err, errLastUpdatedNotSet) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errLastUpdatedNotSet)
-	}
+	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1338, Amount: 10, ID: 2}}, 0, time.Now(), false)
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
-	// empty
+	err = d.UpdateBidAskByPrice(&Update{})
+	assert.ErrorIs(t, err, errLastUpdatedNotSet, "UpdateBidAskByPrice should error correctly")
+
 	err = d.UpdateBidAskByPrice(&Update{UpdateTime: time.Now()})
-	if err != nil {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.NoError(t, err, "UpdateBidAskByPrice should not error")
 
 	updates := &Update{
 		Bids:       Items{{Price: 1337, Amount: 2, ID: 1}},
-		Asks:       Items{{Price: 1337, Amount: 2, ID: 2}},
+		Asks:       Items{{Price: 1338, Amount: 3, ID: 2}},
 		UpdateID:   1,
 		UpdateTime: time.Now(),
 	}
 	err = d.UpdateBidAskByPrice(updates)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "UpdateBidAskByPrice should not error")
 
 	ob, err := d.Retrieve()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if ob.Asks[0].Amount != 2 || ob.Bids[0].Amount != 2 {
-		t.Fatalf("orderbook amounts not updated correctly")
-	}
+	assert.NoError(t, err, "Retrieve should not error")
+	assert.Equal(t, 3.0, ob.Asks[0].Amount, "Asks amount should be correct")
+	assert.Equal(t, 2.0, ob.Bids[0].Amount, "Bids amount should be correct")
 
 	updates = &Update{
 		Bids:       Items{{Price: 1337, Amount: 0, ID: 1}},
-		Asks:       Items{{Price: 1337, Amount: 0, ID: 2}},
+		Asks:       Items{{Price: 1338, Amount: 0, ID: 2}},
 		UpdateID:   2,
 		UpdateTime: time.Now(),
 	}
 	err = d.UpdateBidAskByPrice(updates)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "UpdateBidAskByPrice should not error")
 
 	askLen, err := d.GetAskLength()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.NoError(t, err, "GetAskLength should not error")
+	assert.Zero(t, askLen, "Ask Length should be correct")
 
 	bidLen, err := d.GetBidLength()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if askLen != 0 || bidLen != 0 {
-		t.Fatalf("orderbook amounts not updated correctly")
-	}
+	assert.NoError(t, err, "GetBidLength should not error")
+	assert.Zero(t, bidLen, "Bid Length should be correct")
 }
 
 func TestDeleteBidAskByID(t *testing.T) {
