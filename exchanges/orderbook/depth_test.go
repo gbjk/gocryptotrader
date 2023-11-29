@@ -12,7 +12,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-var id = uuid.Must(uuid.NewV4())
+var (
+	id         = uuid.Must(uuid.NewV4())
+	fPAccuracy = 0.0000000000005 // 1e-12 accuracy, Delta tolerance 5e-13
+)
 
 func TestGetLength(t *testing.T) {
 	t.Parallel()
@@ -566,7 +569,7 @@ func TestHitTheBidsByNominalSlippage(t *testing.T) {
 	// First and half of second tranche
 	amt, err = depth.HitTheBidsByNominalSlippage(0.02495009980039353, 1336)
 	assert.NoError(t, err, "HitTheBidsByNominalSlippage should not error")
-	assert.InDelta(t, 1.5, amt.Sold, 0.00000000001, "Amount sold should be correct")
+	assert.InDelta(t, 1.5, amt.Sold, fPAccuracy, "Amount sold should be correct")
 	assert.Equal(t, 0.02495009980039353, amt.NominalPercentage, "NominalPercentage should be correct")
 	assert.Equal(t, 1336.0, amt.StartPrice, "Amount StartPrice should be correct")
 	assert.Equal(t, 1335.0, amt.EndPrice, "Amount EndPrice should be correct")
@@ -1699,73 +1702,40 @@ func TestLiftTheAsksFromMid_BaseRequired(t *testing.T) {
 func TestLiftTheAsksFromBest(t *testing.T) {
 	t.Parallel()
 	_, err := getInvalidDepth().LiftTheAsksFromBest(10, false)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "LiftTheAsksFromBest should error correctly")
 
 	depth := NewDepth(id)
 	_, err = depth.LiftTheAsksFromBest(10, false)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
-	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	mov, err := depth.LiftTheAsksFromBest(26931, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.ErrorIs(t, err, errNoLiquidity, "LiftTheAsksFromBest should error correctly")
 
-	if !mov.FullBookSideConsumed {
-		t.Fatal("entire side should be consumed by this value")
-	}
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	assert.NoError(t, err, "LoadSnapshot should not error")
+
+	mov, err := depth.LiftTheAsksFromBest(26931, false)
+	assert.NoError(t, err, "LiftTheAsksFromBest should not error")
+	assert.True(t, mov.FullBookSideConsumed, "Entire side should be consumed by this value")
 
 	mov, err = depth.LiftTheAsksFromBest(1337, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0)
-	}
-	if mov.ImpactPercentage != 0.07479431563201197 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 0.07479431563201197)
-	}
-	if mov.SlippageCost != 0 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 0)
-	}
+	assert.NoError(t, err, "LiftTheAsksFromBest should not error")
+	assert.False(t, mov.FullBookSideConsumed, "Entire side should not be consumed by this value")
+	assert.Zero(t, mov.NominalPercentage, "NominalPercentage should be correct")
+	assert.Equal(t, 0.07479431563201197, mov.ImpactPercentage, "ImpactPercentage should be correct")
+	assert.Zero(t, mov.SlippageCost, "SlippageCost should be correct")
 
 	mov, err = depth.LiftTheAsksFromBest(26900, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.7097591258590459 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7097591258590459)
-	}
-	if mov.ImpactPercentage != 1.4210919970082274 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, 1.4210919970082274)
-	}
-	if mov.SlippageCost != 189.57964601770072 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 189.57964601770072)
-	}
+	assert.NoError(t, err, "LiftTheAsksFromBest should not error")
+	assert.False(t, mov.FullBookSideConsumed, "Entire side should not be consumed by this value")
+	assert.Equal(t, 0.7097591258590459, mov.NominalPercentage, "NominalPercentage should be correct")
+	assert.Equal(t, 1.4210919970082274, mov.ImpactPercentage, "ImpactPercentage should be correct")
+	assert.InDelta(t, 189.579646017701, mov.SlippageCost, fPAccuracy, "SlippageCost should be correct")
 
 	// All the way up to the last price from best bid price
 	mov, err = depth.LiftTheAsksFromBest(26930, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.7105459985041137 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7105459985041137)
-	}
-	if mov.ImpactPercentage != FullLiquidityExhaustedPercentage {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, FullLiquidityExhaustedPercentage)
-	}
-	if mov.SlippageCost != 190 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 190)
-	}
+	assert.NoError(t, err, "LiftTheAsksFromBest should not error")
+	assert.True(t, mov.FullBookSideConsumed, "Entire side should not be consumed by this value")
+	assert.Equal(t, 0.7105459985041137, mov.NominalPercentage, "NominalPercentage should be correct")
+	assert.EqualValues(t, FullLiquidityExhaustedPercentage, mov.ImpactPercentage, "ImpactPercentage should be correct")
+	assert.Equal(t, 190.0, mov.SlippageCost, "SlippageCost should be correct")
 }
 
 func TestLiftTheAsksFromBest_BaseRequired(t *testing.T) {
@@ -1794,23 +1764,14 @@ func TestLiftTheAsksFromBest_BaseRequired(t *testing.T) {
 	assert.NoError(t, err, "LiftTheAsksFromBest should not error")
 	assert.Equal(t, 0.7097591258590288, mov.NominalPercentage, "NominalPercentage should be correct")
 	assert.Equal(t, 1.4210919970082274, mov.ImpactPercentage, "ImpactPercentage should be correct")
-	assert.InDelta(t, 189.57964601769947, mov.SlippageCost, 0.00000000000001, "SlippageCost should be correct")
+	assert.InDelta(t, 189.579646017697, mov.SlippageCost, fPAccuracy, "SlippageCost should be correct")
 
 	// All the way up to the last price from best bid price
 	mov, err = depth.LiftTheAsksFromBest(20, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if mov.NominalPercentage != 0.7105459985041137 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.NominalPercentage, 0.7105459985041137)
-	}
-	if mov.ImpactPercentage != FullLiquidityExhaustedPercentage {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.ImpactPercentage, FullLiquidityExhaustedPercentage)
-	}
-	if mov.SlippageCost != 190 {
-		t.Fatalf("received: '%v' but expected: '%v'", mov.SlippageCost, 190)
-	}
+	assert.NoError(t, err, "LiftTheAsksFromBest should not error")
+	assert.Equal(t, 0.7105459985041137, mov.NominalPercentage, "NominalPercentage should be correct")
+	assert.EqualValues(t, FullLiquidityExhaustedPercentage, mov.ImpactPercentage, "ImpactPercentage should be correct")
+	assert.Equal(t, 190.0, mov.SlippageCost, "SlippageCost should be correct")
 }
 
 func TestGetMidPrice_Depth(t *testing.T) {
