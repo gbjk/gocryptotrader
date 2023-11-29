@@ -51,7 +51,7 @@ func TestGetLength(t *testing.T) {
 
 	bidLen, err := d.GetBidLength()
 	assert.NoError(t, err, "GetBidLength should not error")
-	assert.Zero(t, askLen, "bid length should be zero")
+	assert.Zero(t, bidLen, "bid length should be zero")
 
 	d.bids.load([]Item{{Price: 1337}}, d.stack, time.Now())
 
@@ -297,7 +297,7 @@ func TestUpdateBidAskByID(t *testing.T) {
 	ob, err := d.Retrieve()
 	assert.NoError(t, err, "Retrieve should not error")
 	assert.Equal(t, 2.0, ob.Asks[0].Amount, "First ask amount should be correct")
-	assert.Equal(t, 2.0, ob.Bids[0].Amount, "Fisrt bid amount should be correct")
+	assert.Equal(t, 2.0, ob.Bids[0].Amount, "First bid amount should be correct")
 
 	updates = &Update{
 		Bids:       Items{{Price: 1337, Amount: 2, ID: 666}},
