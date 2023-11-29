@@ -18,73 +18,43 @@ func TestGetLength(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
 	err := d.Invalidate(nil)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Invalidate should error correctly")
+
 	_, err = d.GetAskLength()
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "GetAskLength should error with invalid depth")
 
 	err = d.LoadSnapshot([]Item{{Price: 1337}}, nil, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	askLen, err := d.GetAskLength()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if askLen != 0 {
-		t.Errorf("expected len %v, but received %v", 0, askLen)
-	}
+	assert.NoError(t, err, "GetAskLength should not error")
+	assert.Zero(t, askLen, "ask length should be zero")
 
 	d.asks.load([]Item{{Price: 1337}}, d.stack, time.Now())
 
 	askLen, err = d.GetAskLength()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if askLen != 1 {
-		t.Errorf("expected len %v, but received %v", 1, askLen)
-	}
+	assert.NoError(t, err, "GetAskLength should not error")
+	assert.Equal(t, 1, askLen, "Ask Length should be correct")
 
 	d = NewDepth(id)
 	err = d.Invalidate(nil)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Invalidate should error correctly")
+
 	_, err = d.GetBidLength()
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "GetBidLength should error with invalid depth")
 
 	err = d.LoadSnapshot(nil, []Item{{Price: 1337}}, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	bidLen, err := d.GetBidLength()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if bidLen != 0 {
-		t.Errorf("expected len %v, but received %v", 0, bidLen)
-	}
+	assert.NoError(t, err, "GetBidLength should not error")
+	assert.Zero(t, askLen, "bid length should be zero")
 
 	d.bids.load([]Item{{Price: 1337}}, d.stack, time.Now())
 
 	bidLen, err = d.GetBidLength()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if bidLen != 1 {
-		t.Errorf("expected len %v, but received %v", 1, bidLen)
-	}
+	assert.NoError(t, err, "GetBidLength should not error")
+	assert.Equal(t, 1, bidLen, "Bid Length should be correct")
 }
 
 func TestRetrieve(t *testing.T) {
@@ -112,28 +82,14 @@ func TestRetrieve(t *testing.T) {
 	mirrored := reflect.Indirect(reflect.ValueOf(d.options))
 	for n := 0; n < mirrored.NumField(); n++ {
 		structVal := mirrored.Field(n)
-		if structVal.IsZero() {
-			t.Fatalf("struct value options not set for field %v",
-				mirrored.Type().Field(n).Name)
-		}
+		assert.Falsef(t, structVal.IsZero(), "struct field '%s' not tested", mirrored.Type().Field(n).Name)
 	}
 
 	ob, err := d.Retrieve()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if len(ob.Asks) != 1 {
-		t.Errorf("expected len %v, but received %v", 1, len(ob.Bids))
-	}
-
-	if len(ob.Bids) != 1 {
-		t.Errorf("expected len %v, but received %v", 1, len(ob.Bids))
-	}
-
-	if ob.MaxDepth != 10 {
-		t.Errorf("expected max depth %v, but received %v", 10, ob.MaxDepth)
-	}
+	assert.NoError(t, err, "Retrieve should not error")
+	assert.Len(t, ob.Asks, 1, "Should have correct Asks")
+	assert.Len(t, ob.Bids, 1, "Should have correct Bids")
+	assert.Equal(t, 10, ob.MaxDepth, "Should have correct MaxDepth")
 }
 
 func TestTotalAmounts(t *testing.T) {
@@ -141,104 +97,59 @@ func TestTotalAmounts(t *testing.T) {
 	d := NewDepth(id)
 
 	err := d.Invalidate(nil)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Invalidate should error correctly")
 	_, _, err = d.TotalBidAmounts()
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "TotalBidAmounts should error correctly")
 
 	d.validationError = nil
 	liquidity, value, err := d.TotalBidAmounts()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if liquidity != 0 || value != 0 {
-		t.Fatalf("liquidity expected %f received %f value expected %f received %f",
-			0.,
-			liquidity,
-			0.,
-			value)
-	}
+	assert.NoError(t, err, "TotalBidAmounts should not error")
+	assert.Zero(t, liquidity, "total bid liquidity should be zero")
+	assert.Zero(t, value, "total bid value should be zero")
 
 	err = d.Invalidate(nil)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Invalidate should error correctly")
 
 	_, _, err = d.TotalAskAmounts()
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "TotalAskAmounts should error correctly")
 
 	d.validationError = nil
 
 	liquidity, value, err = d.TotalAskAmounts()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if liquidity != 0 || value != 0 {
-		t.Fatalf("liquidity expected %f received %f value expected %f received %f",
-			0.,
-			liquidity,
-			0.,
-			value)
-	}
+	assert.NoError(t, err, "TotalBidAmounts should not error")
+	assert.Zero(t, liquidity, "total bid liquidity should be zero")
+	assert.Zero(t, value, "total bid value should be zero")
 
 	d.asks.load([]Item{{Price: 1337, Amount: 1}}, d.stack, time.Now())
 	d.bids.load([]Item{{Price: 1337, Amount: 10}}, d.stack, time.Now())
 
 	liquidity, value, err = d.TotalBidAmounts()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if liquidity != 10 || value != 13370 {
-		t.Fatalf("liquidity expected %f received %f value expected %f received %f",
-			10.,
-			liquidity,
-			13370.,
-			value)
-	}
+	assert.NoError(t, err, "TotalBidAmounts should not error")
+	assert.Equal(t, 10.0, liquidity, "total bid liquidity should be correct")
+	assert.Equal(t, 13370.0, value, "total bid value should be correct")
 
 	liquidity, value, err = d.TotalAskAmounts()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if liquidity != 1 || value != 1337 {
-		t.Fatalf("liquidity expected %f received %f value expected %f received %f",
-			1.,
-			liquidity,
-			1337.,
-			value)
-	}
+	assert.NoError(t, err, "TotalAskAmounts should not error")
+	assert.Equal(t, 1.0, liquidity, "total ask liquidity should be correct")
+	assert.Equal(t, 1337.0, value, "total ask value should be correct")
 }
 
 func TestLoadSnapshot(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
 	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}}, 0, time.Time{}, false)
-	if !errors.Is(err, errLastUpdatedNotSet) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errLastUpdatedNotSet)
-	}
+	assert.ErrorIs(t, err, errLastUpdatedNotSet, "LoadSnapshot should error correctly")
 
-	err = d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}}, 0, time.Now(), false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	err = d.LoadSnapshot(Items{{Price: 1337, Amount: 2}}, Items{{Price: 1338, Amount: 10}}, 0, time.Now(), false)
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	ob, err := d.Retrieve()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.NoError(t, err, "Retrieve should not error")
 
-	if ob.Asks[0].Price != 1337 || ob.Bids[0].Price != 1337 {
-		t.Fatalf("not set")
-	}
+	assert.Equal(t, 1338.0, ob.Asks[0].Price, "Top ask price should be correct")
+	assert.Equal(t, 10.0, ob.Asks[0].Amount, "Top ask amount should be correct")
+	assert.Equal(t, 1337.0, ob.Bids[0].Price, "Top bid price should be correct")
+	assert.Equal(t, 2.0, ob.Bids[0].Amount, "Top bid amount should be correct")
 }
 
 func TestInvalidate(t *testing.T) {
@@ -248,18 +159,12 @@ func TestInvalidate(t *testing.T) {
 	d.pair = currency.NewPair(currency.BTC, currency.WABI)
 	d.asset = asset.Spot
 	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1}}, Items{{Price: 1337, Amount: 10}}, 0, time.Now(), false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	ob, err := d.Retrieve()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.NoError(t, err, "Retrieve should not error")
 
-	if ob == nil {
-		t.Fatalf("unexpected value")
-	}
+	assert.NotNil(t, ob, "ob should not be nil")
 
 	testReason := errors.New("random reason")
 
