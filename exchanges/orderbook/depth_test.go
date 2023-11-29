@@ -232,9 +232,7 @@ func TestDeleteBidAskByID(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
 	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates := &Update{
 		Bids: Items{{Price: 1337, Amount: 2, ID: 1}},
@@ -242,60 +240,44 @@ func TestDeleteBidAskByID(t *testing.T) {
 	}
 
 	err = d.DeleteBidAskByID(updates, false)
-	if !errors.Is(err, errLastUpdatedNotSet) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errLastUpdatedNotSet)
-	}
+	assert.ErrorIs(t, err, errLastUpdatedNotSet, "DeleteBidAskByID should error correctly")
 
 	updates.UpdateTime = time.Now()
 	err = d.DeleteBidAskByID(updates, false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "DeleteBidAskByID should not error")
 
 	ob, err := d.Retrieve()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if len(ob.Asks) != 0 || len(ob.Bids) != 0 {
-		t.Fatalf("items not deleted")
-	}
+	assert.NoError(t, err, "Retrieve should not error")
+	assert.Empty(t, ob.Asks, "Asks should be empty")
+	assert.Empty(t, ob.Bids, "Bids should be empty")
 
 	updates = &Update{
 		Bids:       Items{{Price: 1337, Amount: 2, ID: 1}},
 		UpdateTime: time.Now(),
 	}
 	err = d.DeleteBidAskByID(updates, false)
-	if !errors.Is(err, errIDCannotBeMatched) {
-		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
-	}
+	assert.ErrorIs(t, err, errIDCannotBeMatched, "DeleteBidAskByID should error correctly")
 
 	updates = &Update{
 		Asks:       Items{{Price: 1337, Amount: 2, ID: 2}},
 		UpdateTime: time.Now(),
 	}
 	err = d.DeleteBidAskByID(updates, false)
-	if !errors.Is(err, errIDCannotBeMatched) {
-		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
-	}
+	assert.ErrorIs(t, err, errIDCannotBeMatched, "DeleteBidAskByID should error correctly")
 
 	updates = &Update{
 		Asks:       Items{{Price: 1337, Amount: 2, ID: 2}},
 		UpdateTime: time.Now(),
 	}
 	err = d.DeleteBidAskByID(updates, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("error expected %v received %v", nil, err)
-	}
+	assert.NoError(t, err, "DeleteBidAskByID should not error")
 }
 
 func TestUpdateBidAskByID(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
 	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates := &Update{
 		Bids: Items{{Price: 1337, Amount: 2, ID: 1}},
@@ -303,24 +285,16 @@ func TestUpdateBidAskByID(t *testing.T) {
 	}
 
 	err = d.UpdateBidAskByID(updates)
-	if !errors.Is(err, errLastUpdatedNotSet) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errLastUpdatedNotSet)
-	}
+	assert.ErrorIs(t, err, errLastUpdatedNotSet, "UpdateBidAskByID should error correctly")
 
 	updates.UpdateTime = time.Now()
 	err = d.UpdateBidAskByID(updates)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "UpdateBidAskByID should not error")
 
 	ob, err := d.Retrieve()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if ob.Asks[0].Amount != 2 || ob.Bids[0].Amount != 2 {
-		t.Fatalf("orderbook amounts not updated correctly")
-	}
+	assert.NoError(t, err, "Retrieve should not error")
+	assert.Equal(t, 2.0, ob.Asks[0].Amount, "First ask amount should be correct")
+	assert.Equal(t, 2.0, ob.Bids[0].Amount, "Fisrt bid amount should be correct")
 
 	updates = &Update{
 		Bids:       Items{{Price: 1337, Amount: 2, ID: 666}},
@@ -328,47 +302,35 @@ func TestUpdateBidAskByID(t *testing.T) {
 	}
 	// random unmatching IDs
 	err = d.UpdateBidAskByID(updates)
-	if !errors.Is(err, errIDCannotBeMatched) {
-		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
-	}
+	assert.ErrorIs(t, err, errIDCannotBeMatched, "UpdateBidAskByID should error correctly")
 
 	updates = &Update{
 		Asks:       Items{{Price: 1337, Amount: 2, ID: 69}},
 		UpdateTime: time.Now(),
 	}
 	err = d.UpdateBidAskByID(updates)
-	if !errors.Is(err, errIDCannotBeMatched) {
-		t.Fatalf("error expected %v received %v", errIDCannotBeMatched, err)
-	}
+	assert.ErrorIs(t, err, errIDCannotBeMatched, "UpdateBidAskByID should error correctly")
 }
 
 func TestInsertBidAskByID(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
 	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates := &Update{
 		Asks: Items{{Price: 1337, Amount: 2, ID: 3}},
 	}
 	err = d.InsertBidAskByID(updates)
-	if !errors.Is(err, errLastUpdatedNotSet) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errLastUpdatedNotSet)
-	}
+	assert.ErrorIs(t, err, errLastUpdatedNotSet, "InsertBidAskByID should error correctly")
 
 	updates.UpdateTime = time.Now()
 
 	err = d.InsertBidAskByID(updates)
-	if !errors.Is(err, errCollisionDetected) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errCollisionDetected)
-	}
+	assert.ErrorIs(t, err, errCollisionDetected, "InsertBidAskByID should error correctly on collision")
 
 	err = d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates = &Update{
 		Bids:       Items{{Price: 1337, Amount: 2, ID: 3}},
@@ -376,14 +338,10 @@ func TestInsertBidAskByID(t *testing.T) {
 	}
 
 	err = d.InsertBidAskByID(updates)
-	if !errors.Is(err, errCollisionDetected) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errCollisionDetected)
-	}
+	assert.ErrorIs(t, err, errCollisionDetected, "InsertBidAskByID should error correctly on collision")
 
 	err = d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates = &Update{
 		Bids:       Items{{Price: 1338, Amount: 2, ID: 3}},
@@ -391,53 +349,37 @@ func TestInsertBidAskByID(t *testing.T) {
 		UpdateTime: time.Now(),
 	}
 	err = d.InsertBidAskByID(updates)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "InsertBidAskByID should not error")
 
 	ob, err := d.Retrieve()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if len(ob.Asks) != 2 || len(ob.Bids) != 2 {
-		t.Fatalf("items not added correctly")
-	}
+	assert.NoError(t, err, "Retrieve should not error")
+	assert.Len(t, ob.Asks, 2, "Should have correct Asks")
+	assert.Len(t, ob.Bids, 2, "Should have correct Bids")
 }
 
 func TestUpdateInsertByID(t *testing.T) {
 	t.Parallel()
 	d := NewDepth(id)
 	err := d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates := &Update{
 		Bids: Items{{Price: 1338, Amount: 0, ID: 3}},
 		Asks: Items{{Price: 1336, Amount: 2, ID: 4}},
 	}
 	err = d.UpdateInsertByID(updates)
-	if !errors.Is(err, errLastUpdatedNotSet) {
-		t.Fatalf("expected: %v but received: %v", errLastUpdatedNotSet, err)
-	}
+	assert.ErrorIs(t, err, errLastUpdatedNotSet, "UpdateInsertByID should error correctly")
 
 	updates.UpdateTime = time.Now()
 	err = d.UpdateInsertByID(updates)
-	if !errors.Is(err, errAmountCannotBeLessOrEqualToZero) {
-		t.Fatalf("expected: %v but received: %v", errAmountCannotBeLessOrEqualToZero, err)
-	}
+	assert.ErrorIs(t, err, errAmountCannotBeLessOrEqualToZero, "UpdateInsertByID should error correctly")
 
 	// Above will invalidate the book
 	_, err = d.Retrieve()
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Retrieve should error correctly")
 
 	err = d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates = &Update{
 		Bids:       Items{{Price: 1338, Amount: 2, ID: 3}},
@@ -445,20 +387,14 @@ func TestUpdateInsertByID(t *testing.T) {
 		UpdateTime: time.Now(),
 	}
 	err = d.UpdateInsertByID(updates)
-	if !errors.Is(err, errAmountCannotBeLessOrEqualToZero) {
-		t.Fatalf("expected: %v but received: %v", errAmountCannotBeLessOrEqualToZero, err)
-	}
+	assert.ErrorIs(t, err, errAmountCannotBeLessOrEqualToZero, "UpdateInsertByID should error correctly")
 
 	// Above will invalidate the book
 	_, err = d.Retrieve()
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "Retrieve should error correctly")
 
 	err = d.LoadSnapshot(Items{{Price: 1337, Amount: 1, ID: 1}}, Items{{Price: 1337, Amount: 10, ID: 2}}, 0, time.Now(), false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	updates = &Update{
 		Bids:       Items{{Price: 1338, Amount: 2, ID: 3}},
@@ -466,18 +402,12 @@ func TestUpdateInsertByID(t *testing.T) {
 		UpdateTime: time.Now(),
 	}
 	err = d.UpdateInsertByID(updates)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "UpdateInsertByID should not error")
 
 	ob, err := d.Retrieve()
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if len(ob.Asks) != 2 || len(ob.Bids) != 2 {
-		t.Fatalf("items not added correctly")
-	}
+	assert.NoError(t, err, "Retrieve should not error")
+	assert.Len(t, ob.Asks, 2, "Should have correct Asks")
+	assert.Len(t, ob.Bids, 2, "Should have correct Bids")
 }
 
 func TestAssignOptions(t *testing.T) {
