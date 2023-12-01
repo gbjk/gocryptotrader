@@ -473,6 +473,19 @@ func (d *Depth) LiftTheAsksByNominalSlippageFromBest(maxSlippage float64) (*Move
 	return d.asks.liftAsksByNominalSlippage(maxSlippage, head)
 }
 
+func (d *Depth) LiftTheAsksByNominalSlippageFromBestU256(maxSlippage float64) (*Movement, error) {
+	d.m.Lock()
+	defer d.m.Unlock()
+	if d.validationError != nil {
+		return nil, d.validationError
+	}
+	head, err := d.asks.getHeadPriceNoLock()
+	if err != nil {
+		return nil, err
+	}
+	return d.asks.liftAsksByNominalSlippageU256(maxSlippage, head)
+}
+
 // HitTheBidsByImpactSlippage hits the bids by the required impact slippage
 // percentage, calculated from the reference price and returns orderbook
 // movement details for the bid side.

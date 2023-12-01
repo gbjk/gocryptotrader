@@ -5,15 +5,18 @@ go 1.20
 require (
 	github.com/buger/jsonparser v1.1.1
 	github.com/d5/tengo/v2 v2.16.1
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/gofrs/uuid v4.4.0+incompatible
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/websocket v1.5.1
 	github.com/grpc-ecosystem/go-grpc-middleware v1.4.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.18.1
+	github.com/holiman/uint256 v1.2.4
 	github.com/kat-co/vala v0.0.0-20170210184112-42e1d8b61f12
 	github.com/lib/pq v1.10.9
 	github.com/mattn/go-sqlite3 v1.14.18
 	github.com/pkg/errors v0.9.1
+	github.com/pkg/profile v1.7.0
 	github.com/pquerna/otp v1.4.0
 	github.com/shopspring/decimal v1.3.1
 	github.com/spf13/viper v1.17.0
@@ -35,10 +38,11 @@ require (
 require (
 	github.com/boombuler/barcode v1.0.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
-	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/felixge/fgprof v0.9.3 // indirect
 	github.com/friendsofgo/errors v0.9.2 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
+	github.com/google/pprof v0.0.0-20211214055906-6f57359322fd // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect

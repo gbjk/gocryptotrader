@@ -3,8 +3,13 @@ package orderbook
 import (
 	"errors"
 	"fmt"
+	"log"
+	gomath "math"
+	"math/big"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
+	"github.com/holiman/uint256"
 	"github.com/thrasher-corp/gocryptotrader/common/math"
 )
 
@@ -548,6 +553,15 @@ func (ll *bids) hitBidsByNominalSlippage(slippage, refPrice float64) (*Movement,
 			trancheTargetPriceDiff := tip.Value.Price - targetCost
 			trancheAmountExpectation := comparativeDiff / trancheTargetPriceDiff
 			nominal.NominalPercentage = slippage
+			spew.Dump(struct {
+				n                        float64
+				trancheTargetPriceDiff   float64
+				trancheAmountExpectation float64
+			}{
+				targetCost,
+				trancheTargetPriceDiff,
+				trancheAmountExpectation,
+			})
 			nominal.Sold = cumulativeAmounts + trancheAmountExpectation
 			nominal.Purchased += trancheAmountExpectation * tip.Value.Price
 			nominal.AverageOrderCost = nominal.Purchased / nominal.Sold
@@ -639,9 +653,131 @@ func (ll *asks) insertUpdates(updts Items, stack *stack) error {
 	return ll.linkedList.insertUpdates(updts, stack, askCompare)
 }
 
+var accuracy = big.NewFloat(gomath.Pow10(18))
+var accuracyI, _ = accuracy.Int(nil)
+var accuracyU256 = uint256.MustFromBig(accuracyI)
+
+func convertToU256(i float64) *uint256.Int {
+	b, _ := new(big.Float).Mul(big.NewFloat(i), accuracy).Int(nil)
+	u, overflow := uint256.FromBig(b)
+	if overflow {
+		log.Fatal("Unexpected uint256 overflow")
+	}
+	return u
+}
+
 // liftAsksByNominalSlippage lifts the asks by the required nominal slippage
 // percentage, calculated from the reference price and returns orderbook
 // movement details.
+func (ll *asks) liftAsksByNominalSlippageU256(slippageF64, refPriceF64 float64) (*Movement, error) {
+	if slippageF64 < 0 {
+		return nil, errInvalidNominalSlippage
+	}
+
+	if refPriceF64 <= 0 {
+		return nil, errInvalidReferencePrice
+	}
+
+	if ll.head == nil {
+		return nil, errNoLiquidity
+	}
+
+	/*
+		rep := func(ui *uint256.Int) float64 {
+			// Handling for uint256's lack of negative conversion to BigInt
+			bigInt := new(uint256.Int).Abs(ui).ToBig()
+			if ui.Sign() < 0 && bigInt.Sign() >= 0 {
+				// ToBig does not handle negatives
+				bigInt.Neg(bigInt)
+			}
+
+			bigFloat := new(big.Float).Quo(
+				new(big.Float).SetInt(bigInt),
+				accuracy,
+			)
+			f64, _ := bigFloat.Float64()
+			return f64
+		}
+	*/
+
+	slippage := convertToU256(slippageF64)
+	refPrice := convertToU256(refPriceF64)
+
+	nominal := &MovementU256{
+		StartPrice:        refPrice,
+		EndPrice:          refPrice,
+		Sold:              new(uint256.Int),
+		Purchased:         new(uint256.Int),
+		NominalPercentage: new(uint256.Int),
+		ImpactPercentage:  new(uint256.Int),
+		SlippageCost:      new(uint256.Int),
+		AverageOrderCost:  new(uint256.Int),
+	}
+	cumulativeAmounts := new(uint256.Int)
+	runs := 0
+	defer func() {
+		//fmt.Println("UINT256 ", runs)
+	}()
+	for tip := ll.head; tip != nil; tip = tip.Next {
+		runs++
+		tipPrice := convertToU256(tip.Value.Price)
+		tipAmount := convertToU256(tip.Value.Amount)
+		totalTrancheValue := new(uint256.Int).Mul(tipPrice, tipAmount)
+		currentValue := new(uint256.Int).Add(totalTrancheValue, nominal.Sold)
+		currentAmounts := new(uint256.Int).Add(cumulativeAmounts, tipAmount)
+
+		nominal.AverageOrderCost = new(uint256.Int).Div(currentValue, currentAmounts)
+		// TODO: If this plane flies then move to CalculatePercentageGainOrLoss
+		p1 := new(uint256.Int).Sub(nominal.AverageOrderCost, refPrice)
+		percent := new(uint256.Int).Div(
+			new(uint256.Int).Mul(
+				new(uint256.Int).Mul(p1, accuracyU256),
+				uint256.NewInt(100),
+			),
+			refPrice,
+		)
+
+		/*
+			if runs == 0 {
+				fmt.Printf("U256 AOC: %.12f RP: %d P1: %d\n", rep(nominal.AverageOrderCost), refPrice, p1)
+				u, o := percent.Uint64WithOverflow()
+				fmt.Printf("U256 %.12f < %.12f (%d %v)\n", rep(slippage), rep(percent), u, o)
+			}
+		*/
+
+		if slippage.Lt(percent) {
+			targetCost := new(uint256.Int).Mul(new(uint256.Int).Add(convertToU256(1), new(uint256.Int).Div(slippage, convertToU256(100))), refPrice)
+
+			if targetCost.Eq(refPrice) {
+				nominal.AverageOrderCost = new(uint256.Int).Div(nominal.Sold, nominal.Purchased)
+				return nominal.Float64(), nil
+			}
+
+			comparative := new(uint256.Int).Mul(targetCost, cumulativeAmounts)
+			comparativeDiff := new(uint256.Int).Sub(comparative, nominal.Sold)
+			trancheTargetPriceDiff := new(uint256.Int).Sub(tipPrice, targetCost)
+			trancheAmountExpectation := new(uint256.Int).Div(comparativeDiff, trancheTargetPriceDiff)
+			nominal.NominalPercentage = slippage
+			nominal.Sold = new(uint256.Int).Add(nominal.Sold, new(uint256.Int).Mul(trancheAmountExpectation, tipPrice))
+			nominal.Purchased = new(uint256.Int).Add(nominal.Purchased, trancheAmountExpectation)
+			nominal.AverageOrderCost = new(uint256.Int).Div(nominal.Sold, nominal.Purchased)
+			nominal.EndPrice = tipPrice
+			return nominal.Float64(), nil
+		}
+
+		nominal.EndPrice = tipPrice
+		nominal.Sold = currentValue
+		nominal.Purchased = new(uint256.Int).Add(nominal.Purchased, tipAmount)
+		nominal.NominalPercentage = percent
+		if slippage.Eq(percent) {
+			return nominal.Float64(), nil
+		}
+		cumulativeAmounts = currentAmounts
+	}
+	nominal.FullBookSideConsumed = true
+	return nominal.Float64(), nil
+}
+
 func (ll *asks) liftAsksByNominalSlippage(slippage, refPrice float64) (*Movement, error) {
 	if slippage < 0 {
 		return nil, errInvalidNominalSlippage
@@ -657,13 +793,25 @@ func (ll *asks) liftAsksByNominalSlippage(slippage, refPrice float64) (*Movement
 
 	nominal := &Movement{StartPrice: refPrice, EndPrice: refPrice}
 	var cumulativeAmounts float64
+	runs := 0
+	defer func() {
+		//fmt.Println("Standard ", runs)
+	}()
 	for tip := ll.head; tip != nil; tip = tip.Next {
+		runs++
 		totalTrancheValue := tip.Value.Price * tip.Value.Amount
 		currentValue := totalTrancheValue + nominal.Sold
 		currentAmounts := cumulativeAmounts + tip.Value.Amount
 
 		nominal.AverageOrderCost = currentValue / currentAmounts
 		percent := math.CalculatePercentageGainOrLoss(nominal.AverageOrderCost, refPrice)
+
+		/*
+			if runs == 2 {
+				fmt.Printf("Std AOC: %.12f RP: %.12f\n", nominal.AverageOrderCost, refPrice)
+				fmt.Printf("Std: %.12f < %.12f\n", slippage, percent)
+			}
+		*/
 
 		if slippage < percent {
 			targetCost := (1 + slippage/100) * refPrice
@@ -929,3 +1077,10 @@ func (m *Movement) finalizeFields(cost, amount, headPrice, leftover float64, swa
 
 	return m, nil
 }
+
+/*
+26900
+1337
+19.97787610619469
+189.5796460177011
+*/

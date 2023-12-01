@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gofrs/uuid"
+	"github.com/holiman/uint256"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
@@ -192,6 +193,53 @@ type Movement struct {
 	// exchange as they might restrict the amount of information being passed
 	// back from either a REST request or websocket stream.
 	FullBookSideConsumed bool
+}
+
+// MovementU256 defines orderbook traversal details from either hitting the bids or
+// lifting the asks.
+type MovementU256 struct {
+	// NominalPercentage (real-world) defines how far in percentage terms is
+	// your average order price away from the reference price.
+	NominalPercentage *uint256.Int
+	// ImpactPercentage defines how far the price has moved on the order book
+	// from the reference price.
+	ImpactPercentage *uint256.Int
+	// SlippageCost is the cost of the slippage. This is priced in quotation.
+	SlippageCost *uint256.Int
+	// StartPrice defines the reference price or the head of the orderbook side.
+	StartPrice *uint256.Int
+	// EndPrice defines where the price has ended on the orderbook side.
+	EndPrice *uint256.Int
+	// Sold defines the amount of currency sold.
+	Sold *uint256.Int
+	// Purchases defines the amount of currency purchased.
+	Purchased *uint256.Int
+	// AverageOrderCost defines the average order cost of position as it slips
+	// through the orderbook tranches.
+	AverageOrderCost *uint256.Int
+	// FullBookSideConsumed defines if the orderbook liquidty has been consumed
+	// by the requested amount. This might not represent the actual book on the
+	// exchange as they might restrict the amount of information being passed
+	// back from either a REST request or websocket stream.
+	FullBookSideConsumed bool
+}
+
+func (m *MovementU256) Float64() *Movement {
+	/*
+		fmt.Printf("%d\n", m.Sold.Uint64())
+		fmt.Printf("%.24f\n", m.Sold.Float64())
+	*/
+	return &Movement{
+		m.NominalPercentage.Float64(),
+		m.ImpactPercentage.Float64(),
+		m.SlippageCost.Float64(),
+		m.StartPrice.Float64(),
+		m.EndPrice.Float64(),
+		m.Sold.Float64(),
+		m.Purchased.Float64(),
+		m.AverageOrderCost.Float64(),
+		m.FullBookSideConsumed,
+	}
 }
 
 // SideAmounts define the amounts total for the tranches, total value in

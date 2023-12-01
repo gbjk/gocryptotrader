@@ -751,41 +751,68 @@ func TestLiftTheAsksByNominalSlippageFromMid(t *testing.T) {
 func TestLiftTheAsksByNominalSlippageFromBest(t *testing.T) {
 	t.Parallel()
 	_, err := getInvalidDepth().LiftTheAsksByNominalSlippageFromBest(10)
-	if !errors.Is(err, ErrOrderbookInvalid) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrOrderbookInvalid)
-	}
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "LiftTheAsksByNominalSlippageFromBest should error correctly")
 
 	depth := NewDepth(id)
 
 	_, err = depth.LiftTheAsksByNominalSlippageFromBest(10)
-	if !errors.Is(err, errNoLiquidity) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, errNoLiquidity)
-	}
+	assert.ErrorIs(t, err, errNoLiquidity, "LiftTheAsksByNominalSlippageFromBest should error correctly")
 
 	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err, "LoadSnapshot should not error")
 
 	// First and second price from best bid
 	amt, err := depth.LiftTheAsksByNominalSlippageFromBest(0.037397157816006)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if amt.Sold != 2675 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt, 2675)
-	}
+	assert.NoError(t, err, "LiftTheAsksByNominalSlippageFromBest should not error")
+	assert.Equal(t, 2675.0, amt.Sold, "Amount sold should be correct")
 
 	// All the way up to the last price from best bid price
 	amt, err = depth.LiftTheAsksByNominalSlippageFromBest(0.71054599850411)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.NoError(t, err, "LiftTheAsksByNominalSlippageFromBest should not error")
+	assert.Equal(t, 26930.0, amt.Sold, "Amount sold should be correct")
+}
 
-	// This does not match the entire total quote available
-	if amt.Sold != 26930 {
-		t.Fatalf("received: '%v' but expected: '%v'", amt, 26930)
+func TestLiftTheAsksByNominalSlippageFromBestU256(t *testing.T) {
+	t.Parallel()
+	_, err := getInvalidDepth().LiftTheAsksByNominalSlippageFromBestU256(10)
+	assert.ErrorIs(t, err, ErrOrderbookInvalid, "LiftTheAsksByNominalSlippageFromBestU256 should error correctly")
+
+	depth := NewDepth(id)
+
+	_, err = depth.LiftTheAsksByNominalSlippageFromBestU256(10)
+	assert.ErrorIs(t, err, errNoLiquidity, "LiftTheAsksByNominalSlippageFromBestU256 should error correctly")
+
+	err = depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+	assert.NoError(t, err, "LoadSnapshot should not error")
+
+	// First and second price from best bid
+	amt, err := depth.LiftTheAsksByNominalSlippageFromBestU256(0.037397157816006)
+	assert.NoError(t, err, "LiftTheAsksByNominalSlippageFromBestU256 should not error")
+	assert.Equal(t, 2675.0, amt.Sold, "Amount sold should be correct")
+
+	// All the way up to the last price from best bid price
+	amt, err = depth.LiftTheAsksByNominalSlippageFromBestU256(0.71054599850411)
+	assert.NoError(t, err, "LiftTheAsksByNominalSlippageFromBestU256 should not error")
+	assert.Equal(t, 26930.0, amt.Sold, "Amount sold should be correct")
+}
+
+func BenchmarkLiftTheAsksByNominalSlippageFromBest(b *testing.B) {
+	depth := NewDepth(id)
+	depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+
+	for n := 0; n < b.N; n++ {
+		depth.LiftTheAsksByNominalSlippageFromBest(0.037397157816006)
+		//depth.LiftTheAsksByNominalSlippageFromBest(0.71054599850411)
+	}
+}
+
+func BenchmarkLiftTheAsksByNominalSlippageFromBestU256(b *testing.B) {
+	depth := NewDepth(id)
+	depth.LoadSnapshot(bid, ask, 0, time.Now(), true)
+
+	for n := 0; n < b.N; n++ {
+		depth.LiftTheAsksByNominalSlippageFromBestU256(0.037397157816006)
+		//depth.LiftTheAsksByNominalSlippageFromBestU256(0.71054599850411)
 	}
 }
 
