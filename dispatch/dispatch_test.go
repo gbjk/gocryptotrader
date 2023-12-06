@@ -492,7 +492,9 @@ func TestMuxPublish(t *testing.T) {
 	itemID, err := mux.GetID()
 	assert.NoError(t, err, "GetID should not error")
 
-	for i := 0; i < 200; i++ {
+	overloadCeiling := DefaultMaxWorkers * DefaultJobsLimit * 2
+
+	for i := 0; i < overloadCeiling; i++ {
 		err = mux.Publish("test", itemID)
 		if !assert.NoError(t, err, "Publish should not error when over limit but no listeners") {
 			break
@@ -502,19 +504,21 @@ func TestMuxPublish(t *testing.T) {
 	pipe, err := mux.Subscribe(itemID)
 	assert.NoError(t, err, "Subscribe should not error")
 
+	done := make(chan struct{})
 	go func(mux *Mux) {
-		for i := 0; i < 100; i++ {
+		for i := 0; i < 90; i++ {
 			errMux := mux.Publish(i, itemID)
 			if !assert.NoError(t, errMux, "Publish should not error within limits") {
 				return
 			}
 		}
+		close(done)
 	}(mux)
-
-	<-pipe.Channel()
+	<-done
 
 	// demonstrate that jobs can be limited when subscribed
-	for i := 0; i < 200; i++ {
+	// Published data gets consumed from .jobs to the worker channels, so we're looking to push
+	for i := 0; i < overloadCeiling; i++ {
 		if err = mux.Publish("test", itemID); err != nil {
 			break
 		}
@@ -524,7 +528,7 @@ func TestMuxPublish(t *testing.T) {
 	err = mux.Unsubscribe(itemID, pipe.c)
 	assert.NoError(t, err, "Unsubscribe should not error")
 
-	for i := 0; i < 200; i++ {
+	for i := 0; i < overloadCeiling; i++ {
 		if err = mux.Publish("test", itemID); err != nil {
 			break
 		}
