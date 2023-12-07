@@ -501,12 +501,32 @@ func TestMuxPublish(t *testing.T) {
 		}
 	}
 
-	pipe, err := mux.Subscribe(itemID)
-	assert.NoError(t, err, "Subscribe should not error")
+	done := make(chan int, 2)
+	receivers := []Pipe{}
+	demux := make(chan any, DefaultJobsLimit)
+	for i := 0; i < DefaultJobsLimit; i++ {
+		pipe, err := mux.Subscribe(itemID)
+		assert.NoError(t, err, "Subscribe should not error")
+		receivers = append(receivers, pipe)
+		go func() {
+			for {
+				select {
+				case i := <-pipe.c:
+					t.Log("Received: ", i)
+					demux <- i
+				case <-done:
+					t.Log("Subscriber done")
+					err = mux.Unsubscribe(itemID, pipe.c)
+					assert.NoError(t, err, "Unsubscribe should not error")
+					return
+				}
+			}
+		}()
+	}
 
-	done := make(chan struct{})
 	go func(mux *Mux) {
-		for i := 0; i < 90; i++ {
+		for i := 0; i < DefaultJobsLimit; i++ {
+			t.Log("Publishing: ", i)
 			errMux := mux.Publish(i, itemID)
 			if !assert.NoError(t, errMux, "Publish should not error within limits") {
 				return
@@ -514,6 +534,7 @@ func TestMuxPublish(t *testing.T) {
 		}
 		close(done)
 	}(mux)
+
 	<-done
 
 	// demonstrate that jobs can be limited when subscribed
@@ -525,8 +546,10 @@ func TestMuxPublish(t *testing.T) {
 	}
 	assert.ErrorIs(t, err, errDispatcherJobsAtLimit, "Publish should error when more published than expected")
 
-	err = mux.Unsubscribe(itemID, pipe.c)
-	assert.NoError(t, err, "Unsubscribe should not error")
+	/*
+		err = mux.Unsubscribe(itemID, pipe.c)
+		assert.NoError(t, err, "Unsubscribe should not error")
+	*/
 
 	for i := 0; i < overloadCeiling; i++ {
 		if err = mux.Publish("test", itemID); err != nil {
