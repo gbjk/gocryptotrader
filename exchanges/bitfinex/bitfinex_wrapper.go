@@ -689,7 +689,7 @@ func (b *Bitfinex) SubmitOrder(ctx context.Context, o *order.Submit) (*order.Sub
 	var orderID string
 	status := order.New
 	if b.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		symbolStr, err := b.fixCasing(fPair, o.AssetType) //nolint:govet // intentional shadow of err
+		symbolStr, err := b.fixCasing(fPair, o.AssetType)
 		if err != nil {
 			return nil, err
 		}
