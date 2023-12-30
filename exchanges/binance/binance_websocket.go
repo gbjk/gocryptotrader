@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -25,6 +26,10 @@ import (
 const (
 	binanceDefaultWebsocketURL = "wss://stream.binance.com:9443/stream"
 	pingDelay                  = time.Minute * 9
+
+	wsSubscribeMethod         = "SUBSCRIBE"
+	wsUnsubscribeMethod       = "UNSUBSCRIBE"
+	wsListSubscriptionsMethod = "LIST_SUBSCRIPTIONS"
 )
 
 var listenKey string
@@ -39,6 +44,7 @@ var (
 	// maxWSOrderbookWorkers defines a max amount of workers allowed to execute
 	// jobs from the job channel
 	maxWSOrderbookWorkers = 10
+	errUnknownError       = errors.New("unknown error")
 )
 
 // WsConnect initiates a websocket connection
@@ -164,21 +170,18 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 		return err
 	}
 
+	if id, err := jsonparser.GetInt(respRaw, "id"); err == nil {
+		if b.Websocket.Match.IncomingWithData(id, respRaw) {
+			return nil
+		}
+	}
+
 	if r, ok := multiStreamData["result"]; ok {
 		if r == nil {
 			return nil
 		}
 	}
 
-	if method, ok := multiStreamData["method"].(string); ok {
-		// TODO handle subscription handling
-		if strings.EqualFold(method, "subscribe") {
-			return nil
-		}
-		if strings.EqualFold(method, "unsubscribe") {
-			return nil
-		}
-	}
 	if newdata, ok := multiStreamData["data"].(map[string]interface{}); ok {
 		if e, ok := newdata["e"].(string); ok {
 			switch e {
@@ -601,34 +604,74 @@ func channelName(s *subscription.Subscription) (string, error) {
 }
 
 // Subscribe subscribes to a set of channels
-func (b *Binance) Subscribe(channelsToSubscribe []subscription.Subscription) error {
-	payload := WsPayload{
-		Method: "SUBSCRIBE",
-	}
-	for i := range channelsToSubscribe {
-		payload.Params = append(payload.Params, channelsToSubscribe[i].Channel)
-		if i%50 == 0 && i != 0 {
-			err := b.Websocket.Conn.SendJSONMessage(payload)
-			if err != nil {
-				return err
-			}
-			payload.Params = []string{}
+func (b *Binance) Subscribe(channels []subscription.Subscription) error {
+	return b.ParallelChanOp(channels, b.subscribeToChan, 50)
+
+}
+
+// subscribeToChan handles a single subscription and parses the result
+// on success it adds the subscription to the websocket
+func (b *Binance) subscribeToChan(chans []subscription.Subscription) error {
+	id := b.Websocket.Conn.GenerateMessageID(false)
+
+	cNames := make([]string, len(chans))
+	for i := range chans {
+		c := chans[i]
+		cNames[i] = c.Channel
+		c.State = subscription.SubscribingState
+		if err := b.Websocket.AddSubscription(&c); err != nil {
+			return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, c.Channel, c.Pair, err)
 		}
 	}
-	if len(payload.Params) > 0 {
-		err := b.Websocket.Conn.SendJSONMessage(payload)
-		if err != nil {
-			return err
+
+	req := WsPayload{
+		Method: wsSubscribeMethod,
+		Params: cNames,
+		ID:     id,
+	}
+
+	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(id, req)
+	if err != nil {
+		return fmt.Errorf("%w: %w; Channels: %s", stream.ErrSubscriptionFailure, err, strings.Join(cNames, ", "))
+	}
+
+	if _, d, _, err := jsonparser.Get(respRaw, "result"); err != nil || d != jsonparser.Null {
+		// null is the only expected and acceptable response
+		if err == nil {
+			err = errUnknownError
+		}
+		return fmt.Errorf("%w: %w; Channels: %s", stream.ErrSubscriptionFailure, err, strings.Join(cNames, ", "))
+	}
+
+	subs, err := b.listSubscriptions()
+	if err != nil {
+		return fmt.Errorf("%w: %w; Channels: %s", stream.ErrSubscriptionFailure, err, strings.Join(cNames, ", "))
+	}
+
+	found := make(map[string]bool)
+	for _, s := range subs {
+		found[s] = true
+	}
+
+	failed := []string{}
+	for _, c := range cNames {
+		if _, ok := found[c]; !ok {
+			failed = append(failed, c)
 		}
 	}
-	b.Websocket.AddSuccessfulSubscriptions(channelsToSubscribe...)
-	return nil
+
+	if len(failed) > 0 {
+		err = fmt.Errorf("%w: Channels: %s", stream.ErrSubscriptionFailure, strings.Join(failed, ", "))
+		b.Websocket.DataHandler <- err
+	}
+
+	return err
 }
 
 // Unsubscribe unsubscribes from a set of channels
 func (b *Binance) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
 	payload := WsPayload{
-		Method: "UNSUBSCRIBE",
+		Method: wsUnsubscribeMethod,
 	}
 	for i := range channelsToUnsubscribe {
 		payload.Params = append(payload.Params, channelsToUnsubscribe[i].Channel)
@@ -648,6 +691,27 @@ func (b *Binance) Unsubscribe(channelsToUnsubscribe []subscription.Subscription)
 	}
 	b.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
 	return nil
+}
+
+// listSubscriptoins returns the current list of subscribed channels
+func (b *Binance) listSubscriptions() ([]string, error) {
+	id := b.Websocket.Conn.GenerateMessageID(false)
+
+	req := WsPayload{
+		Method: wsListSubscriptionsMethod,
+		ID:     id,
+	}
+
+	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(id, req)
+	if err != nil {
+		return nil, err
+	}
+	subs := []string{}
+	_, err = jsonparser.ArrayEach(respRaw, func(v []byte, d jsonparser.ValueType, offset int, err error) { // err inside cb is always nil
+		subs = append(subs, string(v))
+	}, "result")
+
+	return subs, err
 }
 
 // ProcessUpdate processes the websocket orderbook update
