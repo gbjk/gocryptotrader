@@ -631,37 +631,16 @@ func (b *Binance) subscribeToChan(chans []subscription.Subscription) error {
 	}
 
 	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(id, req)
-	if err != nil {
-		return fmt.Errorf("%w: %w; Channels: %s", stream.ErrSubscriptionFailure, err, strings.Join(cNames, ", "))
-	}
-
-	if _, d, _, err := jsonparser.Get(respRaw, "result"); err != nil || d != jsonparser.Null {
-		// null is the only expected and acceptable response
-		if err == nil {
+	if err == nil {
+		if _, d, _, rErr := jsonparser.Get(respRaw, "result"); rErr != nil {
+			err = rErr
+		} else if d != jsonparser.Null { // null is the only expected and acceptable response
 			err = errUnknownError
 		}
-		return fmt.Errorf("%w: %w; Channels: %s", stream.ErrSubscriptionFailure, err, strings.Join(cNames, ", "))
 	}
 
-	subs, err := b.listSubscriptions()
 	if err != nil {
-		return fmt.Errorf("%w: %w; Channels: %s", stream.ErrSubscriptionFailure, err, strings.Join(cNames, ", "))
-	}
-
-	found := make(map[string]bool)
-	for _, s := range subs {
-		found[s] = true
-	}
-
-	failed := []string{}
-	for _, c := range cNames {
-		if _, ok := found[c]; !ok {
-			failed = append(failed, c)
-		}
-	}
-
-	if len(failed) > 0 {
-		err = fmt.Errorf("%w: Channels: %s", stream.ErrSubscriptionFailure, strings.Join(failed, ", "))
+		err = fmt.Errorf("%w: %w; Channels: %s", stream.ErrSubscriptionFailure, err, strings.Join(cNames, ", "))
 		b.Websocket.DataHandler <- err
 	}
 
