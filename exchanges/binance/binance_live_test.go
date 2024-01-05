@@ -8,81 +8,48 @@ import (
 	"context"
 	"log"
 	"os"
-	"sync"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 )
 
 var mockTests = false
 
 func TestMain(m *testing.M) {
-	cfg := config.GetConfig()
-	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		log.Fatal("Binance load config error", err)
-	}
-	binanceConfig, err := cfg.GetExchangeConfig("Binance")
-	if err != nil {
-		log.Fatal("Binance Setup() init error", err)
+
+	b = new(Binance)
+	if err := testexch.TestInstance(b); err != nil {
+		log.Fatal(err)
 	}
 
-	binanceConfig.API.AuthenticatedSupport = true
-	binanceConfig.API.Credentials.Key = apiKey
-	binanceConfig.API.Credentials.Secret = apiSecret
-	b.SetDefaults()
-	b.Websocket = sharedtestvalues.NewTestWebsocket()
+	if apiKey != "" && apiSecret != "" {
+		b.API.AuthenticatedSupport = true
+		b.API.CredentialsValidator.RequiresBase64DecodeSecret = false
+		b.SetCredentials(apiKey, apiSecret, "", "", "", "")
+	}
+
 	if useTestNet {
-		err = b.API.Endpoints.SetRunning(exchange.RestUSDTMargined.String(), testnetFutures)
-		if err != nil {
-			log.Fatal("Binance setup error", err)
-		}
-		err = b.API.Endpoints.SetRunning(exchange.RestCoinMargined.String(), testnetFutures)
-		if err != nil {
-			log.Fatal("Binance setup error", err)
-		}
-		err = b.API.Endpoints.SetRunning(exchange.RestSpot.String(), testnetSpotURL)
-		if err != nil {
-			log.Fatal("Binance setup error", err)
+		for k, v := range map[exchange.URL]string{
+			exchange.RestUSDTMargined: testnetFutures,
+			exchange.RestCoinMargined: testnetFutures,
+			exchange.RestSpot:         testnetSpotURL,
+		} {
+			if err := b.API.Endpoints.SetRunning(k.String(), v); err != nil {
+				log.Fatalf("Testnet `%s` URL error with `%s`: %s", k, v, err)
+			}
 		}
 	}
-	err = b.Setup(binanceConfig)
-	if err != nil {
-		log.Fatal("Binance setup error", err)
-	}
+
 	b.setupOrderbookManager()
 	request.MaxRequestJobs = 100
 	b.Websocket.DataHandler = sharedtestvalues.GetWebsocketInterfaceChannelOverride()
 	log.Printf(sharedtestvalues.LiveTesting, b.Name)
-	err = b.UpdateTradablePairs(context.Background(), true)
-	if err != nil {
+	if err := b.UpdateTradablePairs(context.Background(), true); err != nil {
 		log.Fatal("Binance setup error", err)
 	}
+
 	os.Exit(m.Run())
-}
-
-var setupWSOnce sync.Once
-
-// setupWs is a helper function to connect both auth and normal websockets
-// It will skip the test if websockets are not enabled
-// It's up to the test to skip if it requires creds, though
-func setupWs(tb testing.TB) {
-	tb.Helper()
-	setupWSOnce.Do(func() {
-		if !b.Websocket.IsEnabled() {
-			tb.Skip("Websocket not enabled")
-		}
-		if b.Websocket.IsConnected() {
-			return
-		}
-		// We don't use b.websocket.Connect() because it'd subscribe to channels
-		err := b.WsConnect()
-		if !assert.NoError(tb, err, "WsConnect should not error") {
-			tb.FailNow()
-		}
-	})
 }

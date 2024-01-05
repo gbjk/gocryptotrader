@@ -1787,7 +1787,6 @@ func (b *Base) IsPairEnabled(pair currency.Pair, a asset.Item) (bool, error) {
 // parallelChanOp performs a single method call in parallel across streams and waits to return any errors
 func (b *Base) ParallelChanOp(channels []subscription.Subscription, m func([]subscription.Subscription) error, batchSize int) error {
 	wg := sync.WaitGroup{}
-	wg.Add(len(channels))
 	errC := make(chan error, len(channels))
 	if batchSize == 0 {
 		return errBatchSizeZero
@@ -1799,6 +1798,7 @@ func (b *Base) ParallelChanOp(channels []subscription.Subscription, m func([]sub
 		if j >= len(channels) {
 			j = len(channels)
 		}
+		wg.Add(1)
 		go func(c []subscription.Subscription) {
 			defer wg.Done()
 			if err := m(c); err != nil {
