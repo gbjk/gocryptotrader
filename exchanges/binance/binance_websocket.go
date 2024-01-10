@@ -606,7 +606,6 @@ func channelName(s *subscription.Subscription) (string, error) {
 // Subscribe subscribes to a set of channels
 func (b *Binance) Subscribe(channels []subscription.Subscription) error {
 	return b.ParallelChanOp(channels, b.subscribeToChan, 50)
-
 }
 
 // subscribeToChan handles a single subscription and parses the result
@@ -648,27 +647,41 @@ func (b *Binance) subscribeToChan(chans []subscription.Subscription) error {
 }
 
 // Unsubscribe unsubscribes from a set of channels
-func (b *Binance) Unsubscribe(channelsToUnsubscribe []subscription.Subscription) error {
-	payload := WsPayload{
+func (b *Binance) Unsubscribe(channels []subscription.Subscription) error {
+	return b.ParallelChanOp(channels, b.unsubscribeFromChan, 50)
+}
+
+// unsubscribeFromChan sends a websocket message to stop receiving data from a channel
+func (b *Binance) unsubscribeFromChan(chans []subscription.Subscription) error {
+	id := b.Websocket.Conn.GenerateMessageID(false)
+
+	cNames := make([]string, len(chans))
+	for i := range chans {
+		cNames[i] = chans[i].Channel
+	}
+
+	req := WsPayload{
 		Method: wsUnsubscribeMethod,
+		Params: cNames,
+		ID:     id,
 	}
-	for i := range channelsToUnsubscribe {
-		payload.Params = append(payload.Params, channelsToUnsubscribe[i].Channel)
-		if i%50 == 0 && i != 0 {
-			err := b.Websocket.Conn.SendJSONMessage(payload)
-			if err != nil {
-				return err
-			}
-			payload.Params = []string{}
+
+	respRaw, err := b.Websocket.Conn.SendMessageReturnResponse(id, req)
+	if err == nil {
+		if _, d, _, rErr := jsonparser.Get(respRaw, "result"); rErr != nil {
+			err = rErr
+		} else if d != jsonparser.Null { // null is the only expected and acceptable response
+			err = errUnknownError
 		}
 	}
-	if len(payload.Params) > 0 {
-		err := b.Websocket.Conn.SendJSONMessage(payload)
-		if err != nil {
-			return err
-		}
+
+	if err != nil {
+		err = fmt.Errorf("%w: %w; Channels: %s", stream.ErrUnsubscribeFailure, err, strings.Join(cNames, ", "))
+		b.Websocket.DataHandler <- err
 	}
-	b.Websocket.RemoveSubscriptions(channelsToUnsubscribe...)
+
+	b.Websocket.RemoveSubscriptions(chans...)
+
 	return nil
 }
 
