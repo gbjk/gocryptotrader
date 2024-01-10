@@ -1972,22 +1972,27 @@ func TestGetDepositAddress(t *testing.T) {
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
 	b := b
+	channels := []subscription.Subscription{
+		{Channel: "btcusdt@ticker"},
+		{Channel: "btcusdt@trade"},
+	}
 	if mockTests {
 		b = testexch.MockWSInstance[Binance](t, func(msg []byte, w *websocket.Conn) error {
 			var req WsPayload
 			err := json.Unmarshal(msg, &req)
 			assert.NoError(t, err, "Unmarshal should not error")
-			if assert.Len(t, req.Params, 1, "Subscribe should only have 1 subscription") { // Failure might mean mockWSInstance default Subs is not empty
-				assert.Equal(t, req.Params[0], "ticker@1s", "Channel name should be correct")
+			if assert.Len(t, req.Params, len(channels), "Params should only have 2 channel") { // Failure might mean mockWSInstance default Subs is not empty
+				assert.Equal(t, req.Params[0], channels[0].Channel, "Channel name should be correct")
+				assert.Equal(t, req.Params[1], channels[1].Channel, "Channel name should be correct")
 			}
 			return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":null,"id":%d}`, req.ID)))
 		})
 	} else {
 		testexch.SetupWs(t, b)
 	}
-	err := b.Subscribe([]subscription.Subscription{{Channel: "ticker@1s"}})
+	err := b.Subscribe(channels)
 	assert.NoError(t, err, "Subscribe should not error")
-	err = b.Unsubscribe([]subscription.Subscription{{Channel: "ticker@1s"}})
+	err = b.Unsubscribe(channels)
 	assert.NoError(t, err, "Unsubscribe should not error")
 }
 
