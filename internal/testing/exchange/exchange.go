@@ -20,6 +20,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
+// httpMockFile is a consistent path under each exchange to find the mock server definitions
+const httpMockFile = "testdata/http.json"
+
 // TestInstance takes an empty exchange instance and loads config for it from testdata/configtest and connects a NewTestWebsocket
 func TestInstance(e exchange.IBotExchange) error {
 	cfg := config.GetConfig()
@@ -45,9 +48,6 @@ func TestInstance(e exchange.IBotExchange) error {
 	}
 	return nil
 }
-
-// httpMockFile is a consistent path under each exchange to find the mock server definitions
-const httpMockFile = "testdata/http.json"
 
 // MockHTTPInstance takes an existing Exchange instance and attaches it to a new http server
 // It is expected to be run once,  since http requests do not often tangle with each other
