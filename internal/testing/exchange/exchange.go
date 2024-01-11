@@ -119,7 +119,7 @@ func MockWSInstance[T any, PT interface {
 // wsMockWrapper handles upgrading an initial HTTP request to WS, and then runs a for loop calling the mock func on each input
 func wsMockWrapper(tb testing.TB, w http.ResponseWriter, r *http.Request, m wsMockFunc) {
 	tb.Helper()
-	// TODO: This needs to move
+	// TODO: This needs to move once this branch includes #1358
 	if strings.Contains(r.URL.Path, "GetWebSocketsToken") {
 		_, err := w.Write([]byte(`{"result":{"token":"mockAuth"}}`))
 		assert.NoError(tb, err, "Write should not error")
