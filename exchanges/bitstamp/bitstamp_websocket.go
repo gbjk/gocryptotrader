@@ -417,7 +417,7 @@ func (b *Bitstamp) seedOrderBook(ctx context.Context) error {
 // The token life-expectancy is only about 60s; use it immediately and do not store it
 func (b *Bitstamp) FetchWSAuth(ctx context.Context) (*WebsocketAuthResponse, error) {
 	resp := &WebsocketAuthResponse{}
-	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIWSAuthToken, true, nil, resp)
+	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIWSAuthToken, nil, resp)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching auth token: %w", err)
 	}

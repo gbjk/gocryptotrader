@@ -22,34 +22,38 @@ import (
 )
 
 const (
-	bitstampAPIURL                = "https://www.bitstamp.net"
-	bitstampAPITicker             = "/api/v2/ticker"
-	bitstampAPITickerHourly       = "/api/v2/ticker_hour"
-	bitstampAPIOrderbook          = "/api/v2/order_book"
-	bitstampAPITransactions       = "/api/v2/transactions"
-	bitstampAPIEURUSD             = "/api/v2/eur_usd"
-	bitstampAPITradingFees        = "/api/v2/fees/trading"
-	bitstampAPIBalance            = "/api/v2/balance"
-	bitstampAPIUserTransactions   = "/api/v2/user_transactions"
-	bitstampAPIOHLC               = "/api/v2/ohlc"
-	bitstampAPIOpenOrders         = "/api/v2/open_orders"
-	bitstampAPIOrderStatus        = "/api/v2/order_status"
-	bitstampAPICancelOrder        = "/api/v2/cancel_order"
-	bitstampAPICancelAllOrders    = "/api/v2/cancel_all_orders"
-	bitstampAPIMarket             = "/api/v2/market"
-	bitstampAPIWithdrawalRequests = "/api/v2/withdrawal_requests"
-	bitstampAPIOpenWithdrawal     = "/api/v2/withdrawal/open"
-	bitstampAPIUnconfirmedBitcoin = "/api/v2/unconfirmed_btc"
-	bitstampAPITransferToMain     = "/api/v2/transfer-to-main"
-	bitstampAPITransferFromMain   = "/api/v2/transfer-from-main"
-	bitstampAPIReturnType         = "/api/v2/string"
-	bitstampAPITradingPairsInfo   = "/api/v2/trading-pairs-info"
-	bitstampAPIWSAuthToken        = "/api/v2/websockets_token"
-	bitstampAPIWSTrades           = "/api/v2/live_trades"
-	bitstampAPIWSOrders           = "/api/v2/live_orders"
-	bitstampAPIWSOrderbook        = "/api/v2/order_book"
-	bitstampAPIWSMyOrders         = "/api/v2/my_orders"
-	bitstampAPIWSMyTrades         = "/api/v2/my_trades"
+	bitstampAPIURL = "https://www.bitstamp.net"
+
+	// v1 endpoints - TODO - Can be moved if tested
+	bitstampAPIOrderStatus        = "/api/order_status/"
+	bitstampAPICancelAllOrders    = "/api/cancel_all_orders/"
+	bitstampAPIUnconfirmedBitcoin = "/api/unconfirmed_btc/"
+	bitstampAPIWithdrawalRequests = "/api/withdrawal_requests/"
+
+	// v2 endpoints
+	bitstampAPITicker           = "/api/v2/ticker/"
+	bitstampAPITickerHourly     = "/api/v2/ticker_hour/"
+	bitstampAPIOrderbook        = "/api/v2/order_book/"
+	bitstampAPITransactions     = "/api/v2/transactions/"
+	bitstampAPIEURUSD           = "/api/v2/eur_usd/"
+	bitstampAPITradingFees      = "/api/v2/fees/trading/"
+	bitstampAPIBalance          = "/api/v2/balance/"
+	bitstampAPIUserTransactions = "/api/v2/user_transactions/"
+	bitstampAPIOHLC             = "/api/v2/ohlc/"
+	bitstampAPIOpenOrders       = "/api/v2/open_orders/"
+	bitstampAPICancelOrder      = "/api/v2/cancel_order/"
+	bitstampAPIMarket           = "/api/v2/market/"
+	bitstampAPIOpenWithdrawal   = "/api/v2/withdrawal/open/"
+	bitstampAPITransferToMain   = "/api/v2/transfer-to-main/"
+	bitstampAPITransferFromMain = "/api/v2/transfer-from-main/"
+	bitstampAPIReturnType       = "/api/v2/string/"
+	bitstampAPITradingPairsInfo = "/api/v2/trading-pairs-info/"
+	bitstampAPIWSAuthToken      = "/api/v2/websockets_token/"
+	bitstampAPIWSTrades         = "/api/v2/live_trades/"
+	bitstampAPIWSOrders         = "/api/v2/live_orders/"
+	bitstampAPIWSOrderbook      = "/api/v2/order_book/"
+	bitstampAPIWSMyOrders       = "/api/v2/my_orders/"
+	bitstampAPIWSMyTrades       = "/api/v2/my_trades/"
 
 	bitstampRateInterval = time.Minute * 10
 	bitstampRequestRate  = 8000
@@ -103,7 +107,7 @@ func (b *Bitstamp) getTradingFee(ctx context.Context, feeBuilder *exchange.FeeBu
 
 // GetAccountTradingFee returns a TradingFee for a pair
 func (b *Bitstamp) GetAccountTradingFee(ctx context.Context, pair currency.Pair) (TradingFees, error) {
-	path := bitstampAPITradingFees + "/" + strings.ToLower(pair.String())
+	path := bitstampAPITradingFees + "/" + strings.ToLower(pair.String()) + "/"
 
 	var resp TradingFees
 	if pair.IsEmpty() {
@@ -235,7 +239,7 @@ func (b *Bitstamp) GetTransactions(ctx context.Context, currencyPair, timePeriod
 // GetEURUSDConversionRate returns the conversion rate between Euro and USD
 func (b *Bitstamp) GetEURUSDConversionRate(ctx context.Context) (EURUSDConversionRate, error) {
 	rate := EURUSDConversionRate{}
-	path := "/" + bitstampAPIEURUSD
+	path := bitstampAPIEURUSD
 	return rate, b.SendHTTPRequest(ctx, exchange.RestSpot, path, &rate)
 }
 
@@ -292,7 +296,7 @@ func (b *Bitstamp) GetUserTransactions(ctx context.Context, currencyPair string)
 			return nil, err
 		}
 	} else {
-		if err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIUserTransactions+"/"+currencyPair, url.Values{}, &response); err != nil {
+		if err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIUserTransactions+"/"+currencyPair+"/", url.Values{}, &response); err != nil {
 			return nil, err
 		}
 	}
@@ -331,7 +335,7 @@ func (b *Bitstamp) GetUserTransactions(ctx context.Context, currencyPair string)
 // GetOpenOrders returns all open orders on the exchange
 func (b *Bitstamp) GetOpenOrders(ctx context.Context, currencyPair string) ([]Order, error) {
 	var resp []Order
-	path := bitstampAPIOpenOrders + "/" + strings.ToLower(currencyPair)
+	path := bitstampAPIOpenOrders + "/" + strings.ToLower(currencyPair) + "/"
 	return resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, nil, &resp)
 }
 
@@ -342,7 +346,7 @@ func (b *Bitstamp) GetOrderStatus(ctx context.Context, orderID int64) (OrderStat
 	req.Add("id", strconv.FormatInt(orderID, 10))
 
 	return resp,
-		b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIOrderStatus, false, req, &resp)
+		b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIOrderStatus, req, &resp)
 }
 
 // CancelExistingOrder cancels order by ID
@@ -364,7 +368,7 @@ func (b *Bitstamp) CancelAllExistingOrders(ctx context.Context) (bool, error) {
 	result := false
 
 	return result,
-		b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPICancelAllOrders, false, nil, &result)
+		b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPICancelAllOrders, nil, &result)
 }
 
 // PlaceOrder places an order on the exchange.
@@ -381,9 +385,9 @@ func (b *Bitstamp) PlaceOrder(ctx context.Context, currencyPair string, price, a
 
 	var path string
 	if market {
-		path = orderType + "/" + bitstampAPIMarket + "/" + strings.ToLower(currencyPair)
+		path = orderType + "/" + bitstampAPIMarket + "/" + strings.ToLower(currencyPair) + "/"
 	} else {
-		path = orderType + "/" + strings.ToLower(currencyPair)
+		path = orderType + "/" + strings.ToLower(currencyPair) + "/"
 	}
 
 	return response,
@@ -407,7 +411,7 @@ func (b *Bitstamp) GetWithdrawalRequests(ctx context.Context, timedelta int64) (
 	}
 
 	return resp,
-		b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIWithdrawalRequests, false, value, &resp)
+		b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIWithdrawalRequests, value, &resp)
 }
 
 // CryptoWithdrawal withdraws a cryptocurrency into a supplied wallet, returns ID
@@ -489,7 +493,7 @@ func (b *Bitstamp) OpenInternationalBankWithdrawal(ctx context.Context, amount f
 // GetCryptoDepositAddress returns a depositing address by crypto.
 // crypto - example "btc", "ltc", "eth", "xrp" or "bch"
 func (b *Bitstamp) GetCryptoDepositAddress(ctx context.Context, crypto currency.Code) (*DepositAddress, error) {
-	path := crypto.Lower().String() + "_address"
+	path := "/" + crypto.Lower().String() + "_address"
 	var resp DepositAddress
 	return &resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, nil, &resp)
 }
@@ -499,7 +503,7 @@ func (b *Bitstamp) GetUnconfirmedBitcoinDeposits(ctx context.Context) ([]Unconfi
 	var response []UnconfirmedBTCTransactions
 
 	return response,
-		b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIUnconfirmedBitcoin, false, nil, &response)
+		b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIUnconfirmedBitcoin, nil, &response)
 }
 
 // OHLC returns OHLCV data for step (interval)
@@ -517,7 +521,10 @@ func (b *Bitstamp) OHLC(ctx context.Context, currency string, start, end time.Ti
 	if !end.IsZero() {
 		v.Add("end", strconv.FormatInt(end.Unix(), 10))
 	}
-	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, common.EncodeURLValues("/v"+bitstampAPIVersion+"/"+bitstampAPIOHLC+"/"+currency, v), &resp)
+
+	path := common.EncodeURLValues(bitstampAPIOHLC+"/"+currency+"/", v)
+
+	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
 // TransferAccountBalance transfers funds from either a main or sub account
