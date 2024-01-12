@@ -654,15 +654,25 @@ func (b *Bitstamp) CancelBatchOrders(_ context.Context, _ []order.Cancel) (*orde
 
 // CancelAllOrders cancels all orders associated with a currency pair
 func (b *Bitstamp) CancelAllOrders(ctx context.Context, _ *order.Cancel) (order.CancelAllResponse, error) {
-	success, err := b.CancelAllExistingOrders(ctx)
+	var result order.CancelAllResponse
+	resp, err := b.CancelAllExistingOrders(ctx)
 	if err != nil {
-		return order.CancelAllResponse{}, err
-	}
-	if !success {
-		err = errors.New("cancel all orders failed. Bitstamp provides no further information. Check order status to verify")
+		return result, err
 	}
 
-	return order.CancelAllResponse{}, err
+	if !resp.Success {
+		return result, errors.New("cancel all orders failed: unknown error")
+	}
+
+	cancelResp := order.CancelAllResponse{
+		Status: map[string]string{},
+		Count:  int64(len(resp.Transactions)),
+	}
+	for i := range resp.Transactions {
+		cancelResp.Status[strconv.FormatInt(resp.Transactions[i].ID, 10)] = order.Cancelled.String()
+	}
+
+	return cancelResp, nil
 }
 
 // GetOrderInfo returns order information based on order ID

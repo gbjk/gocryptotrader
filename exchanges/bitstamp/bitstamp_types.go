@@ -138,18 +138,26 @@ type OrderStatus struct {
 	}
 }
 
+// CancelOrdersResp contains the result of cancelling multiple orders
+type CancelOrdersResp struct {
+	Success      bool          `json:"success"`
+	Transactions []CancelOrder `json:"canceled"`
+}
+
 // CancelOrder holds the order cancellation info
 type CancelOrder struct {
-	Price  float64 `json:"price"`
-	Amount float64 `json:"amount"`
-	Type   int     `json:"type"`
-	ID     int64   `json:"id"`
+	ID     int64         `json:"id"`
+	Amount float64       `json:"amount"`
+	Price  float64       `json:"price"`
+	Type   int           `json:"type"`
+	Pair   currency.Pair `json:"currency_pair"`
 }
 
 // DepositAddress holds the deposit info
 type DepositAddress struct {
 	Address        string `json:"address"`
 	DestinationTag int64  `json:"destination_tag"`
+	MemoID         string `json:"memo_id"`
 }
 
 // WithdrawalRequests holds request information on withdrawals
@@ -180,14 +188,6 @@ type UnconfirmedBTCTransactions struct {
 	Amount        float64 `json:"amount,string"`
 	Address       string  `json:"address"`
 	Confirmations int     `json:"confirmations"`
-}
-
-// CaptureError is used to capture unmarshalled errors
-type CaptureError struct {
-	Status interface{} `json:"status"`
-	Reason interface{} `json:"reason"`
-	Code   interface{} `json:"code"`
-	Error  interface{} `json:"error"`
 }
 
 const (

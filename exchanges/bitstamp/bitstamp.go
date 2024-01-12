@@ -24,36 +24,30 @@ import (
 const (
 	bitstampAPIURL = "https://www.bitstamp.net"
 
-	// v1 endpoints - TODO - Can be moved if tested
-	bitstampAPIOrderStatus        = "/api/order_status/"
-	bitstampAPICancelAllOrders    = "/api/cancel_all_orders/"
-	bitstampAPIUnconfirmedBitcoin = "/api/unconfirmed_btc/"
-	bitstampAPIWithdrawalRequests = "/api/withdrawal_requests/"
-
-	// v2 endpoints
-	bitstampAPITicker           = "/api/v2/ticker/"
-	bitstampAPITickerHourly     = "/api/v2/ticker_hour/"
-	bitstampAPIOrderbook        = "/api/v2/order_book/"
-	bitstampAPITransactions     = "/api/v2/transactions/"
-	bitstampAPIEURUSD           = "/api/v2/eur_usd/"
-	bitstampAPITradingFees      = "/api/v2/fees/trading/"
-	bitstampAPIBalance          = "/api/v2/balance/"
-	bitstampAPIUserTransactions = "/api/v2/user_transactions/"
-	bitstampAPIOHLC             = "/api/v2/ohlc/"
-	bitstampAPIOpenOrders       = "/api/v2/open_orders/"
-	bitstampAPICancelOrder      = "/api/v2/cancel_order/"
-	bitstampAPIMarket           = "/api/v2/market/"
-	bitstampAPIOpenWithdrawal   = "/api/v2/withdrawal/open/"
-	bitstampAPITransferToMain   = "/api/v2/transfer-to-main/"
-	bitstampAPITransferFromMain = "/api/v2/transfer-from-main/"
-	bitstampAPIReturnType       = "/api/v2/string/"
-	bitstampAPITradingPairsInfo = "/api/v2/trading-pairs-info/"
-	bitstampAPIWSAuthToken      = "/api/v2/websockets_token/"
-	bitstampAPIWSTrades         = "/api/v2/live_trades/"
-	bitstampAPIWSOrders         = "/api/v2/live_orders/"
-	bitstampAPIWSOrderbook      = "/api/v2/order_book/"
-	bitstampAPIWSMyOrders       = "/api/v2/my_orders/"
-	bitstampAPIWSMyTrades       = "/api/v2/my_trades/"
+	bitstampAPIBalance            = "/api/v2/balance/"
+	bitstampAPICancelAllOrders    = "/api/v2/cancel_all_orders/"
+	bitstampAPICancelOrder        = "/api/v2/cancel_order/"
+	bitstampAPICryptoAddress      = "/api/v2/%s_address/"
+	bitstampAPICryptoWithdrawal   = "/api/v2/%s_withdrawal/"
+	bitstampAPIEURUSD             = "/api/v2/eur_usd/"
+	bitstampAPINewLimitOrder      = "/api/v2/%s/%s/"
+	bitstampAPINewMarketOrder     = "/api/v2/%s/market/%s/"
+	bitstampAPIOHLC               = "/api/v2/ohlc/%s/"
+	bitstampAPIOpenOrders         = "/api/v2/open_orders/%s/"
+	bitstampAPIOpenWithdrawal     = "/api/v2/withdrawal/open/"
+	bitstampAPIOrderStatus        = "/api/v2/order_status/"
+	bitstampAPIOrderbook          = "/api/v2/order_book/%s/"
+	bitstampAPITicker             = "/api/v2/ticker/%s/"
+	bitstampAPITickerHourly       = "/api/v2/ticker_hour/%s/"
+	bitstampAPITradingFees        = "/api/v2/fees/trading/"
+	bitstampAPITradingPairsInfo   = "/api/v2/trading-pairs-info/"
+	bitstampAPITransactions       = "/api/v2/transactions/%s/"
+	bitstampAPITransferFromMain   = "/api/v2/transfer-from-main/"
+	bitstampAPITransferToMain     = "/api/v2/transfer-to-main/"
+	bitstampAPIUnconfirmedBitcoin = "/api/unconfirmed_btc/" // v1 endpoint
+	bitstampAPIUserTransactions   = "/api/v2/user_transactions/"
+	bitstampAPIWSAuthToken        = "/api/v2/websockets_token/" //nolint:gosec //not a hardcoded credential
+	bitstampAPIWithdrawalRequests = "/api/v2/withdrawal-requests/"
 
 	bitstampRateInterval = time.Minute * 10
 	bitstampRequestRate  = 8000
@@ -107,7 +101,7 @@ func (b *Bitstamp) getTradingFee(ctx context.Context, feeBuilder *exchange.FeeBu
 
 // GetAccountTradingFee returns a TradingFee for a pair
 func (b *Bitstamp) GetAccountTradingFee(ctx context.Context, pair currency.Pair) (TradingFees, error) {
-	path := bitstampAPITradingFees + "/" + strings.ToLower(pair.String()) + "/"
+	path := bitstampAPITradingFees + strings.ToLower(pair.String()) + "/"
 
 	var resp TradingFees
 	if pair.IsEmpty() {
@@ -162,7 +156,7 @@ func (b *Bitstamp) GetTicker(ctx context.Context, currency string, hourly bool) 
 	if hourly {
 		tickerEndpoint = bitstampAPITickerHourly
 	}
-	path := tickerEndpoint + "/" + strings.ToLower(currency) + "/"
+	path := fmt.Sprintf(tickerEndpoint, strings.ToLower(currency))
 	return &response, b.SendHTTPRequest(ctx, exchange.RestSpot, path, &response)
 }
 
@@ -176,7 +170,7 @@ func (b *Bitstamp) GetOrderbook(ctx context.Context, currency string) (*Orderboo
 		Asks      [][2]string `json:"asks"`
 	}
 
-	path := bitstampAPIOrderbook + "/" + strings.ToLower(currency) + "/"
+	path := fmt.Sprintf(bitstampAPIOrderbook, strings.ToLower(currency))
 	var resp response
 	err := b.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 	if err != nil {
@@ -229,7 +223,7 @@ func (b *Bitstamp) GetTradingPairs(ctx context.Context) ([]TradingPair, error) {
 // response into time intervals.
 func (b *Bitstamp) GetTransactions(ctx context.Context, currencyPair, timePeriod string) ([]Transactions, error) {
 	var transactions []Transactions
-	requestURL := bitstampAPITransactions + "/" + strings.ToLower(currencyPair) + "/"
+	requestURL := fmt.Sprintf(bitstampAPITransactions, strings.ToLower(currencyPair))
 	if timePeriod != "" {
 		requestURL += "?time=" + url.QueryEscape(timePeriod)
 	}
@@ -296,7 +290,7 @@ func (b *Bitstamp) GetUserTransactions(ctx context.Context, currencyPair string)
 			return nil, err
 		}
 	} else {
-		if err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIUserTransactions+"/"+currencyPair+"/", url.Values{}, &response); err != nil {
+		if err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIUserTransactions+currencyPair+"/", url.Values{}, &response); err != nil {
 			return nil, err
 		}
 	}
@@ -335,40 +329,30 @@ func (b *Bitstamp) GetUserTransactions(ctx context.Context, currencyPair string)
 // GetOpenOrders returns all open orders on the exchange
 func (b *Bitstamp) GetOpenOrders(ctx context.Context, currencyPair string) ([]Order, error) {
 	var resp []Order
-	path := bitstampAPIOpenOrders + "/" + strings.ToLower(currencyPair) + "/"
+	path := fmt.Sprintf(bitstampAPIOpenOrders, strings.ToLower(currencyPair))
 	return resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, nil, &resp)
 }
 
 // GetOrderStatus returns an the status of an order by its ID
 func (b *Bitstamp) GetOrderStatus(ctx context.Context, orderID int64) (OrderStatus, error) {
-	resp := OrderStatus{}
+	var resp OrderStatus
 	req := url.Values{}
 	req.Add("id", strconv.FormatInt(orderID, 10))
-
-	return resp,
-		b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIOrderStatus, req, &resp)
+	return resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIOrderStatus, req, &resp)
 }
 
 // CancelExistingOrder cancels order by ID
 func (b *Bitstamp) CancelExistingOrder(ctx context.Context, orderID int64) (CancelOrder, error) {
 	var req = url.Values{}
 	req.Add("id", strconv.FormatInt(orderID, 10))
-
 	var result CancelOrder
-	err := b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPICancelOrder, req, &result)
-	if err != nil {
-		return result, err
-	}
-
-	return result, nil
+	return result, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPICancelOrder, req, &result)
 }
 
-// CancelAllExistingOrders cancels all open orders on the exchange
-func (b *Bitstamp) CancelAllExistingOrders(ctx context.Context) (bool, error) {
-	result := false
-
-	return result,
-		b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPICancelAllOrders, nil, &result)
+// CancelAllExistingOrders cancels all orders
+func (b *Bitstamp) CancelAllExistingOrders(ctx context.Context) (CancelOrdersResp, error) {
+	var result CancelOrdersResp
+	return result, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPICancelAllOrders, nil, &result)
 }
 
 // PlaceOrder places an order on the exchange.
@@ -385,9 +369,9 @@ func (b *Bitstamp) PlaceOrder(ctx context.Context, currencyPair string, price, a
 
 	var path string
 	if market {
-		path = orderType + "/" + bitstampAPIMarket + "/" + strings.ToLower(currencyPair) + "/"
+		path = fmt.Sprintf(bitstampAPINewMarketOrder, orderType, strings.ToLower(currencyPair))
 	} else {
-		path = orderType + "/" + strings.ToLower(currencyPair) + "/"
+		path = fmt.Sprintf(bitstampAPINewLimitOrder, orderType, strings.ToLower(currencyPair))
 	}
 
 	return response,
@@ -403,15 +387,13 @@ func (b *Bitstamp) GetWithdrawalRequests(ctx context.Context, timedelta int64) (
 		return resp, errors.New("time delta exceeded, max: 50000000 min: 0")
 	}
 
-	value := url.Values{}
-	value.Set("timedelta", strconv.FormatInt(timedelta, 10))
-
-	if timedelta == 0 {
-		value = url.Values{}
+	v := url.Values{}
+	if timedelta != 0 {
+		v.Set("timedelta", strconv.FormatInt(timedelta, 10))
 	}
 
 	return resp,
-		b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIWithdrawalRequests, value, &resp)
+		b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, bitstampAPIWithdrawalRequests, v, &resp)
 }
 
 // CryptoWithdrawal withdraws a cryptocurrency into a supplied wallet, returns ID
@@ -437,7 +419,7 @@ func (b *Bitstamp) CryptoWithdrawal(ctx context.Context, amount float64, address
 	}
 
 	var resp CryptoWithdrawalResponse
-	endpoint = strings.ToLower(symbol) + "_withdrawal"
+	endpoint = fmt.Sprintf(bitstampAPICryptoWithdrawal, strings.ToLower(symbol))
 	return &resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, endpoint, req, &resp)
 }
 
@@ -493,7 +475,7 @@ func (b *Bitstamp) OpenInternationalBankWithdrawal(ctx context.Context, amount f
 // GetCryptoDepositAddress returns a depositing address by crypto.
 // crypto - example "btc", "ltc", "eth", "xrp" or "bch"
 func (b *Bitstamp) GetCryptoDepositAddress(ctx context.Context, crypto currency.Code) (*DepositAddress, error) {
-	path := "/" + crypto.Lower().String() + "_address"
+	path := fmt.Sprintf(bitstampAPICryptoAddress, crypto.Lower().String())
 	var resp DepositAddress
 	return &resp, b.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, path, nil, &resp)
 }
@@ -522,7 +504,7 @@ func (b *Bitstamp) OHLC(ctx context.Context, currency string, start, end time.Ti
 		v.Add("end", strconv.FormatInt(end.Unix(), 10))
 	}
 
-	path := common.EncodeURLValues(bitstampAPIOHLC+"/"+currency+"/", v)
+	path := common.EncodeURLValues(fmt.Sprintf(bitstampAPIOHLC, currency), v)
 
 	return resp, b.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
@@ -629,16 +611,16 @@ func (b *Bitstamp) SendAuthenticatedHTTPRequest(ctx context.Context, ep exchange
 	}
 
 	errCap := struct {
-		Error  string      `json:"error"`  // v1 errors
-		Status string      `json:"status"` // v2 errors
-		Reason interface{} `json:"reason"` // v2 errors
+		Error  string      `json:"error"`  // Simple errors
+		Status string      `json:"status"` // Complex errors
+		Reason interface{} `json:"reason"`
 	}{}
 	if err := json.Unmarshal(interim, &errCap); err == nil {
 		if errCap.Error != "" || errCap.Status == errStr {
-			if errCap.Error != "" { // v1 errors
+			if errCap.Error != "" { // Simple error
 				return fmt.Errorf("%w %v", request.ErrAuthRequestFailed, errCap.Error)
 			}
-			switch data := errCap.Reason.(type) { // v2 errors
+			switch data := errCap.Reason.(type) { // Complex errors
 			case map[string]interface{}:
 				var details strings.Builder
 				for k, v := range data {

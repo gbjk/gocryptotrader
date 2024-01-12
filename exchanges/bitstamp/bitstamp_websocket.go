@@ -25,7 +25,15 @@ import (
 
 const (
 	bitstampWSURL = "wss://ws.bitstamp.net" //nolint // gosec false positive
-	hbInterval    = 8 * time.Second         // Connection monitor defaults to 10s inactivity
+
+	// Websocket events
+	bitstampAPIWSTrades    = "live_trades"
+	bitstampAPIWSOrders    = "live_orders"
+	bitstampAPIWSOrderbook = "order_book"
+	bitstampAPIWSMyOrders  = "my_orders"
+	bitstampAPIWSMyTrades  = "my_trades"
+
+	hbInterval = 8 * time.Second // Connection monitor defaults to 10s inactivity
 )
 
 var (

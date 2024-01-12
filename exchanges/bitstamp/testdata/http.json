@@ -1,6 +1,6 @@
 {
  "routes": {
-  "/api/bitcoin_deposit_address/": {
+  "/api/v2/bitcoin_address/": {
    "POST": [
     {
      "data": "3JKiWaRunFQhpaYSDs4cQwfdPXHK2pWXct",
@@ -14,7 +14,7 @@
     }
    ]
   },
-  "/api/bitcoin_withdrawal/": {
+  "/api/v2/bitcoin_withdrawal/": {
    "POST": [
     {
      "data": {
@@ -37,7 +37,7 @@
     }
    ]
   },
-  "/api/cancel_all_orders/": {
+  "/api/v2/cancel_all_orders/": {
    "POST": [
     {
      "data": true,
@@ -51,7 +51,7 @@
     }
    ]
   },
-  "/api/eur_usd/": {
+  "/api/v2/eur_usd/": {
    "GET": [
     {
      "data": {
@@ -62,13 +62,13 @@
      "bodyParams": "\u003cnil\u003e",
      "headers": {
       "Referer": [
-       "https://www.bitstamp.net/api/eur_usd"
+       "https://www.bitstamp.net/api/v2/eur_usd"
       ]
      }
     }
    ]
   },
-  "/api/order_status/": {
+  "/api/v2/order_status/": {
    "POST": [
     {
      "data": {
@@ -211,6 +211,36 @@
      },
      "queryString": "",
      "bodyParams": "amount=1\u0026key=\u0026nonce=1560469416881040806\u0026price=1\u0026signature=D683BE07779B299B730F334C94758EBC56E264FC5C96C87B64E5ECC670421D65",
+     "headers": {
+      "Content-Type": [
+       "application/x-www-form-urlencoded"
+      ]
+     }
+    }
+   ]
+  },
+  "/api/v2/cancel_all_orders/": {
+   "POST": [
+    {
+     "data": {
+     "success": true,
+      "canceled": [
+        {   "id": 1453282316578816,
+            "amount": 0.02035278,
+            "price": 2100.45,
+            "type": 0,
+            "market": "BTC/USD"
+        },
+        {   "id": 1453282316578815,
+            "amount": 0.25000000,
+            "price": 2150.99,
+            "type": 1,
+            "market": "BTC/USD"
+        }
+      ]
+     },
+     "queryString": "",
+     "bodyParams": "key=\u0026nonce=1560467884949723197\u0026signature=79D88FC2BC3AECBFDD27F70EF5DDBB485349F45129C58EE725BAEE0DF7818452",
      "headers": {
       "Content-Type": [
        "application/x-www-form-urlencoded"
@@ -68267,7 +68297,7 @@
     }
    ]
   },
-  "/api/withdrawal_requests/": {
+  "/api/v2/withdrawal-requests/": {
    "POST": [
     {
      "data": [{

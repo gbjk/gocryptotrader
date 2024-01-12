@@ -22,7 +22,6 @@ func TestMain(m *testing.M) {
 	}
 
 	if apiKey != "" && apiSecret != "" {
-		b.API.AuthenticatedSupport = true
 		b.API.CredentialsValidator.RequiresBase64DecodeSecret = false
 		b.SetCredentials(apiKey, apiSecret, customerID, "", "", "")
 	}

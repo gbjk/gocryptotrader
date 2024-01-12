@@ -554,22 +554,18 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	t.Parallel()
 
 	if !mockTests {
-		sharedtestvalues.SkipTestIfCannotManipulateOrders(t, b, canManipulateRealOrders)
+		sharedtestvalues.SkipTestIfCredentialsUnset(t, b, canManipulateRealOrders)
 	}
 
-	resp, err := b.CancelAllOrders(context.Background(),
-		&order.Cancel{AssetType: asset.Spot})
-	switch {
-	case !sharedtestvalues.AreAPICredentialsSet(b) && err == nil && !mockTests:
-		t.Error("Expecting an error when no keys are set")
-	case sharedtestvalues.AreAPICredentialsSet(b) && err != nil && !mockTests:
-		t.Errorf("Could not cancel orders: %v", err)
-	case mockTests && err != nil:
-		t.Errorf("Could not cancel orders: %v", err)
-	}
-
-	if len(resp.Status) > 0 {
-		t.Errorf("%v orders failed to cancel", len(resp.Status))
+	resp, err := b.CancelAllOrders(context.Background(), &order.Cancel{AssetType: asset.Spot})
+	assert.NoError(t, err, "CancelAllOrders should not error")
+	if mockTests {
+		assert.EqualValues(t, 2, resp.Count, "Count should be correct")
+		expect := map[string]string{
+			"1453282316578815": "CANCELLED",
+			"1453282316578816": "CANCELLED",
+		}
+		assert.EqualValues(t, expect, resp.Status, "Should contain correct cancelled transactions")
 	}
 }
 
