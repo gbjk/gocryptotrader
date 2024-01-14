@@ -1,11 +1,13 @@
 package exchange
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -17,6 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 )
 
@@ -172,4 +175,34 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 	}
 
 	setupWsOnce[e] = true
+}
+
+// TestFixtureToDataHandler takes a exchange and configures a new websocket handler for it, and squirts the json path contents to it
+// It accepts a reader function, which is probably e.wsHandleData but could be anything
+func TestFixtureToDataHandler(tb *testing.T, e exchange.IBotExchange, fixturePath string, reader func([]byte) error) {
+	tb.Helper()
+
+	err := TestInstance(e)
+	if !assert.NoError(tb, err, "testInstance should not error") {
+		tb.FailNow()
+	}
+
+	e.GetBase().Websocket = &stream.Websocket{
+		Wg:          new(sync.WaitGroup),
+		DataHandler: make(chan interface{}, 128),
+	}
+
+	fixture, err := os.Open(fixturePath)
+	assert.NoError(tb, err, "Opening fixture '%s' should not error", fixturePath)
+	defer func() {
+		assert.NoError(tb, fixture.Close(), "Closing the fixture file should not error")
+	}()
+
+	s := bufio.NewScanner(fixture)
+	for s.Scan() {
+		msg := s.Bytes()
+		err := reader(msg)
+		assert.NoErrorf(tb, err, "Fixture message should not error:\n%s", msg)
+	}
+	assert.NoError(tb, s.Err(), "Fixture Scanner should not error")
 }
