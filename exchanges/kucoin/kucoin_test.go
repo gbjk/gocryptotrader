@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -1973,7 +1974,7 @@ func TestGetAuthenticatedServersInstances(t *testing.T) {
 
 func TestPushData(t *testing.T) {
 	n := new(Kucoin)
-	sharedtestvalues.TestFixtureToDataHandler(t, ku, n, "testdata/wsHandleData.json", ku.wsHandleData)
+	testexch.TestFixtureToDataHandler(t, n, "testdata/wsHandleData.json", n.wsHandleData)
 }
 
 func verifySubs(tb testing.TB, subs []subscription.Subscription, a asset.Item, prefix string, expected ...string) {
@@ -2469,7 +2470,7 @@ func TestProcessOrderbook(t *testing.T) {
 func TestProcessMarketSnapshot(t *testing.T) {
 	t.Parallel()
 	n := new(Kucoin)
-	sharedtestvalues.TestFixtureToDataHandler(t, ku, n, "testdata/wsMarketSnapshot.json", n.wsHandleData)
+	testexch.TestFixtureToDataHandler(t, n, "testdata/wsMarketSnapshot.json", n.wsHandleData)
 	seen := 0
 	seenAssetTypes := map[asset.Item]int{}
 	for reading := true; reading; {

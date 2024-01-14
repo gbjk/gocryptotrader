@@ -29,6 +29,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -1821,7 +1822,7 @@ func TestWsOwnTrades(t *testing.T) {
 func TestWsOpenOrders(t *testing.T) {
 	t.Parallel()
 	n := new(Kraken)
-	sharedtestvalues.TestFixtureToDataHandler(t, k, n, "testdata/wsOpenTrades.json", n.wsHandleData)
+	testexch.TestFixtureToDataHandler(t, n, "testdata/wsOpenTrades.json", n.wsHandleData)
 	seen := 0
 	for reading := true; reading; {
 		select {

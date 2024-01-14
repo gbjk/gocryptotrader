@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -2559,7 +2560,7 @@ func TestBalanceAndPosition(t *testing.T) {
 func TestOrderPushData(t *testing.T) {
 	t.Parallel()
 	n := new(Okx)
-	sharedtestvalues.TestFixtureToDataHandler(t, ok, n, "testdata/wsOrders.json", n.WsHandleData)
+	testexch.TestFixtureToDataHandler(t, n, "testdata/wsOrders.json", n.WsHandleData)
 	seen := 0
 	for reading := true; reading; {
 		select {
