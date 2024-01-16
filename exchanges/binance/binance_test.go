@@ -1967,6 +1967,15 @@ func TestGetDepositAddress(t *testing.T) {
 	}
 }
 
+func TestSubscribe(t *testing.T) {
+	t.Parallel()
+	setupWs(t)
+	err := b.Subscribe([]subscription.Subscription{
+		{Channel: "ticker@1s"},
+	})
+	assert.NoError(t, err, "Subscribe should not error")
+}
+
 func TestWSSubscriptionHandling(t *testing.T) {
 	t.Parallel()
 	pressXToJSON := []byte(`{
