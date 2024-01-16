@@ -1215,6 +1215,9 @@ func (k *Kraken) unsubscribeFromChan(chans []subscription.Subscription) error {
 }
 
 func (k *Kraken) reqForSub(e string, c *subscription.Subscription) (*WebsocketSubRequest, error) {
+	if c == nil {
+		return nil, common.ErrNilPointer
+	}
 	r := &WebsocketSubRequest{
 		Event:     e,
 		RequestID: k.Websocket.Conn.GenerateMessageID(false),
@@ -1240,6 +1243,9 @@ func (k *Kraken) reqForSub(e string, c *subscription.Subscription) (*WebsocketSu
 
 // ensureChannelKeyed wraps the channel EnsureKeyed to add channel name suffixes for Depth and Interval
 func ensureChannelKeyed(c *subscription.Subscription, r *WebsocketSubRequest) error {
+	if c == nil || r == nil {
+		return common.ErrNilPointer
+	}
 	key, ok := c.EnsureKeyed().(subscription.DefaultKey)
 	if !ok {
 		return common.GetTypeAssertError("stream.DefaultChannelKey", c.Key, "subscription.Key") // Should be impossible
@@ -1263,6 +1269,9 @@ func ensureChannelKeyed(c *subscription.Subscription, r *WebsocketSubRequest) er
 }
 
 func depthFromChan(c *subscription.Subscription) (int, error) {
+	if c == nil {
+		return 0, common.ErrNilPointer
+	}
 	depthAny, ok := c.Params[ChannelOrderbookDepthKey]
 	if !ok {
 		return 0, errMaxDepthMissing
@@ -1275,6 +1284,9 @@ func depthFromChan(c *subscription.Subscription) (int, error) {
 }
 
 func timeframeFromChan(c *subscription.Subscription) (int, error) {
+	if c == nil {
+		return 0, common.ErrNilPointer
+	}
 	timeframeAny, ok := c.Params[ChannelCandlesTimeframeKey]
 	if !ok {
 		return 0, errTimeframeMissing
@@ -1312,6 +1324,9 @@ func (k *Kraken) getErrResp(resp []byte) error {
 
 // wsAddOrder creates an order, returned order ID if success
 func (k *Kraken) wsAddOrder(request *WsAddOrderRequest) (string, error) {
+	if request == nil {
+		return "", common.ErrNilPointer
+	}
 	id := k.Websocket.AuthConn.GenerateMessageID(false)
 	request.RequestID = id
 	request.Event = krakenWsAddOrder
