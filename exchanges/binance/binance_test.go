@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -26,6 +27,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -1969,41 +1971,24 @@ func TestGetDepositAddress(t *testing.T) {
 
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
-	setupWs(t)
-	err := b.Subscribe([]subscription.Subscription{
-		{Channel: "ticker@1s"},
-	})
+	b := b
+	if mockTests {
+		b = testexch.MockWSInstance[Binance](t, func(msg []byte, w *websocket.Conn) error {
+			var req WsPayload
+			err := json.Unmarshal(msg, &req)
+			assert.NoError(t, err, "Unmarshal should not error")
+			if assert.Len(t, req.Params, 1, "Subscribe should only have 1 subscription") { // Failure might mean mockWSInstance default Subs is not empty
+				assert.Equal(t, req.Params[0], "ticker@1s", "Channel name should be correct")
+			}
+			return w.WriteMessage(websocket.TextMessage, []byte(fmt.Sprintf(`{"result":null,"id":%d}`, req.ID)))
+		})
+	} else {
+		testexch.SetupWs(t, b)
+	}
+	err := b.Subscribe([]subscription.Subscription{{Channel: "ticker@1s"}})
 	assert.NoError(t, err, "Subscribe should not error")
-}
-
-func TestWSSubscriptionHandling(t *testing.T) {
-	t.Parallel()
-	pressXToJSON := []byte(`{
-  "method": "SUBSCRIBE",
-  "params": [
-    "btcusdt@aggTrade",
-    "btcusdt@depth"
-  ],
-  "id": 1
-}`)
-	err := b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestWSUnsubscriptionHandling(t *testing.T) {
-	pressXToJSON := []byte(`{
-  "method": "UNSUBSCRIBE",
-  "params": [
-    "btcusdt@depth"
-  ],
-  "id": 312
-}`)
-	err := b.wsHandleData(pressXToJSON)
-	if err != nil {
-		t.Error(err)
-	}
+	err = b.Unsubscribe([]subscription.Subscription{{Channel: "ticker@1s"}})
+	assert.NoError(t, err, "Unsubscribe should not error")
 }
 
 func TestWsTickerUpdate(t *testing.T) {
