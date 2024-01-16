@@ -338,6 +338,9 @@ func (k *Kraken) wsPingHandler(conn stream.Connection) {
 
 // wsReadDataResponse classifies the WS response and sends to appropriate handler
 func (k *Kraken) wsReadDataResponse(c *subscription.Subscription, response WebsocketDataResponse) error {
+	if c == nil {
+		return common.ErrNilPointer
+	}
 	switch c.Channel {
 	case krakenWsTicker:
 		t, ok := response[1].(map[string]interface{})
@@ -548,6 +551,9 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 
 // wsProcessTickers converts ticker data and sends it to the datahandler
 func (k *Kraken) wsProcessTickers(c *subscription.Subscription, data map[string]interface{}) error {
+	if c == nil {
+		return common.ErrNilPointer
+	}
 	closePrice, err := strconv.ParseFloat(data["c"].([]interface{})[0].(string), 64)
 	if err != nil {
 		return err
@@ -641,6 +647,9 @@ func (k *Kraken) wsProcessSpread(c *subscription.Subscription, data []interface{
 
 // wsProcessTrades converts trade data and sends it to the datahandler
 func (k *Kraken) wsProcessTrades(c *subscription.Subscription, data []interface{}) error {
+	if c == nil {
+		return common.ErrNilPointer
+	}
 	if !k.IsSaveTradeDataEnabled() {
 		return nil
 	}
@@ -689,6 +698,9 @@ func (k *Kraken) wsProcessTrades(c *subscription.Subscription, data []interface{
 // wsProcessOrderBook determines if the orderbook data is partial or update
 // Then sends to appropriate fun
 func (k *Kraken) wsProcessOrderBook(c *subscription.Subscription, data map[string]interface{}) error {
+	if c == nil {
+		return common.ErrNilPointer
+	}
 	// NOTE: Updates are a priority so check if it's an update first as we don't
 	// need multiple map lookups to check for snapshot.
 	askData, asksExist := data["a"].([]interface{})
@@ -732,6 +744,9 @@ func (k *Kraken) wsProcessOrderBook(c *subscription.Subscription, data map[strin
 
 // wsProcessOrderBookPartial creates a new orderbook entry for a given currency pair
 func (k *Kraken) wsProcessOrderBookPartial(c *subscription.Subscription, askData, bidData []interface{}) error {
+	if c == nil {
+		return common.ErrNilPointer
+	}
 	depth, err := depthFromChan(c)
 	if err != nil {
 		return err
@@ -845,6 +860,9 @@ func (k *Kraken) wsProcessOrderBookPartial(c *subscription.Subscription, askData
 
 // wsProcessOrderBookUpdate updates an orderbook entry for a given currency pair
 func (k *Kraken) wsProcessOrderBookUpdate(c *subscription.Subscription, askData, bidData []interface{}, checksum string) error {
+	if c == nil {
+		return common.ErrNilPointer
+	}
 	update := orderbook.Update{
 		Asset: c.Asset,
 		Pair:  c.Pair,
@@ -977,6 +995,9 @@ func (k *Kraken) wsProcessOrderBookUpdate(c *subscription.Subscription, askData,
 }
 
 func validateCRC32(b *orderbook.Base, token uint32) error {
+	if b == nil {
+		return common.ErrNilPointer
+	}
 	var checkStr strings.Builder
 	for i := 0; i < 10 && i < len(b.Asks); i++ {
 		_, err := checkStr.WriteString(trim(b.Asks[i].StrPrice + trim(b.Asks[i].StrAmount)))
@@ -1011,6 +1032,9 @@ func trim(s string) string {
 
 // wsProcessCandles converts candle data and sends it to the data handler
 func (k *Kraken) wsProcessCandles(c *subscription.Subscription, data []interface{}) error {
+	if c == nil {
+		return common.ErrNilPointer
+	}
 	startTime, err := strconv.ParseFloat(data[0].(string), 64)
 	if err != nil {
 		return err
