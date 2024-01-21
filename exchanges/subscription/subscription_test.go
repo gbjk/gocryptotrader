@@ -16,21 +16,21 @@ func TestEnsureKeyed(t *testing.T) {
 	c := Subscription{
 		Channel: "candles",
 		Asset:   asset.Spot,
-		Pair:    currency.NewPair(currency.BTC, currency.USDT),
+		Pairs:   []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
 	}
-	k1, ok := c.EnsureKeyed().(DefaultKey)
-	if assert.True(t, ok, "EnsureKeyed should return a DefaultKey") {
+	k1, ok := c.EnsureKeyed().(MultiPairKey)
+	if assert.True(t, ok, "EnsureKeyed should return a MultiPairKey") {
 		assert.Exactly(t, k1, c.Key, "EnsureKeyed should set the same key")
-		assert.Equal(t, k1.Channel, c.Channel, "DefaultKey channel should be correct")
-		assert.Equal(t, k1.Asset, c.Asset, "DefaultKey asset should be correct")
-		assert.Equal(t, k1.Pair, c.Pair, "DefaultKey currency should be correct")
+		assert.Equal(t, k1.Channel, c.Channel, "MultiPairKey channel should be correct")
+		assert.Equal(t, k1.Asset, c.Asset, "MultiPairKey asset should be correct")
+		assert.Equal(t, k1.Pairs, c.Pairs, "MultiPairKey currency should be correct")
 	}
 	type platypus string
 	c = Subscription{
 		Key:     platypus("Gerald"),
 		Channel: "orderbook",
 		Asset:   asset.Margin,
-		Pair:    currency.NewPair(currency.ETH, currency.USDC),
+		Pairs:   []currency.Pair{currency.NewPair(currency.ETH, currency.USDC)},
 	}
 	k2, ok := c.EnsureKeyed().(platypus)
 	if assert.True(t, ok, "EnsureKeyed should return a platypus") {
@@ -50,9 +50,9 @@ func TestMarshaling(t *testing.T) {
 	assert.NoError(t, err, "Marshalling should not error")
 	assert.Equal(t, `{"enabled":true,"channel":"orderbook","interval":"5m","levels":4}`, string(j), "Marshalling should be clean and concise")
 
-	j, err = json.Marshal(&Subscription{Enabled: true, Channel: OrderbookChannel, Interval: kline.FiveMin, Levels: 4, Pair: currency.NewPair(currency.BTC, currency.USDT)})
+	j, err = json.Marshal(&Subscription{Enabled: true, Channel: OrderbookChannel, Interval: kline.FiveMin, Levels: 4, Pairs: []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)}})
 	assert.NoError(t, err, "Marshalling should not error")
-	assert.Equal(t, `{"enabled":true,"channel":"orderbook","interval":"5m","levels":4,"pair":"BTCUSDT"}`, string(j), "Marshalling should be clean and concise")
+	assert.Equal(t, `{"enabled":true,"channel":"orderbook","pairs":["BTCUSDT"],"interval":"5m","levels":4}`, string(j), "Marshalling should be clean and concise")
 
 	j, err = json.Marshal(&Subscription{Enabled: true, Channel: MyTradesChannel, Authenticated: true})
 	assert.NoError(t, err, "Marshalling should not error")

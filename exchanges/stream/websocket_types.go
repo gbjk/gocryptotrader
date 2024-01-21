@@ -23,8 +23,6 @@ const (
 	UnhandledMessage                   = " - Unhandled websocket message: "
 )
 
-type subscriptionMap map[any]*subscription.Subscription
-
 // Websocket defines a return type for websocket connections via the interface
 // wrapper for routine processing
 type Websocket struct {
@@ -50,7 +48,7 @@ type Websocket struct {
 	connector                    func() error
 
 	subscriptionMutex sync.RWMutex
-	subscriptions     subscriptionMap
+	subscriptions     subscription.Map
 	Subscribe         chan []subscription.Subscription
 	Unsubscribe       chan []subscription.Subscription
 

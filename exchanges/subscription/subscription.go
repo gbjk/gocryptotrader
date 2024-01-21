@@ -1,7 +1,6 @@
 package subscription
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -9,8 +8,21 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-// DefaultKey is the fallback key for AddSuccessfulSubscriptions
-type DefaultKey struct {
+// MatchableKey interface should be implemented by Key types which want a more complex matching than a simple key equality check
+type MatchableKey interface {
+	Match(Map) *Subscription
+}
+
+// MultiPairKey is the fallback key for AddSuccessfulSubscriptions
+// It provides for matching on one or more keys
+type MultiPairKey struct {
+	Channel string
+	Pairs   currency.Pairs
+	Asset   asset.Item
+}
+
+// SinglePairKey is available as a key type which expects only one pair for a subscription
+type SinglePairKey struct {
 	Channel string
 	Pair    currency.Pair
 	Asset   asset.Item
@@ -34,12 +46,15 @@ const (
 	MyOrdersChannel  = "myOrders"  // MyOrdersChannel Subscription Type
 )
 
+// Map is a container of subscription pointers
+type Map map[any]*Subscription
+
 // Subscription container for streaming subscriptions
 type Subscription struct {
 	Enabled       bool                   `json:"enabled"`
 	Key           any                    `json:"-"`
 	Channel       string                 `json:"channel,omitempty"`
-	Pair          currency.Pair          `json:"pair,omitempty"`
+	Pairs         currency.Pairs         `json:"pairs,omitempty"`
 	Asset         asset.Item             `json:"asset,omitempty"`
 	Params        map[string]interface{} `json:"params,omitempty"`
 	State         State                  `json:"-"`
@@ -48,45 +63,46 @@ type Subscription struct {
 	Authenticated bool                   `json:"authenticated,omitempty"`
 }
 
-// MarshalJSON generates a JSON representation of a Subscription, specifically for config writing
-// The only reason it exists is to avoid having to make Pair a pointer, since that would be generally painful
-// If Pair becomes a pointer, this method is redundant and should be removed
-func (s *Subscription) MarshalJSON() ([]byte, error) {
-	// None of the usual type embedding tricks seem to work for not emitting an nil Pair
-	// The embedded type's Pair always fills the empty value
-	type MaybePair struct {
-		Enabled       bool                   `json:"enabled"`
-		Channel       string                 `json:"channel,omitempty"`
-		Asset         asset.Item             `json:"asset,omitempty"`
-		Params        map[string]interface{} `json:"params,omitempty"`
-		Interval      kline.Interval         `json:"interval,omitempty"`
-		Levels        int                    `json:"levels,omitempty"`
-		Authenticated bool                   `json:"authenticated,omitempty"`
-		Pair          *currency.Pair         `json:"pair,omitempty"`
-	}
-
-	k := MaybePair{s.Enabled, s.Channel, s.Asset, s.Params, s.Interval, s.Levels, s.Authenticated, nil}
-	if s.Pair != currency.EMPTYPAIR {
-		k.Pair = &s.Pair
-	}
-
-	return json.Marshal(k)
-}
-
 // String implements the Stringer interface for Subscription, giving a human representation of the subscription
 func (s *Subscription) String() string {
-	return fmt.Sprintf("%s %s %s", s.Channel, s.Asset, s.Pair)
+	return fmt.Sprintf("%s %s %s", s.Channel, s.Asset, s.Pairs)
 }
 
 // EnsureKeyed sets the default key on a channel if it doesn't have one
 // Returns key for convenience
 func (s *Subscription) EnsureKeyed() any {
 	if s.Key == nil {
-		s.Key = DefaultKey{
+		s.Key = MultiPairKey{
 			Channel: s.Channel,
 			Asset:   s.Asset,
-			Pair:    s.Pair,
+			Pairs:   s.Pairs,
 		}
 	}
 	return s.Key
+}
+
+// Match returns the first subscription which matches the MultiPairKey's Asset, Channel and Pair
+// If the key provided has:
+// * Empty pairs then only Subscriptions without pairs will be considered
+// * >=1 pairs then Subscriptions which contain all the pairs will be considered
+func (k *MultiPairKey) Match(m Map) *Subscription {
+	for a, v := range m {
+		candidate, ok := a.(MultiPairKey)
+		if !ok {
+			continue
+		}
+		if k.Channel != candidate.Channel {
+			continue
+		}
+		if k.Asset != candidate.Asset {
+			continue
+		}
+		if len(k.Pairs) == 0 && len(candidate.Pairs) == 0 {
+			return v
+		}
+		if err := candidate.Pairs.ContainsAll(k.Pairs, true); err == nil {
+			return v
+		}
+	}
+	return nil
 }
