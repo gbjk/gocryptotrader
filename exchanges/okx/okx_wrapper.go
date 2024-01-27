@@ -31,6 +31,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -173,6 +174,14 @@ func (ok *Okx) SetDefaults() {
 				),
 				GlobalResultLimit: 100, // Reference: https://www.okx.com/docs-v5/en/#rest-api-market-data-get-candlesticks-history
 			},
+		},
+		Subscriptions: []*subscription.Subscription{
+			{Enabled: true, Channel: subscription.TickerChannel},
+			{Enabled: true, Channel: subscription.AllTradesChannel},
+			{Enabled: true, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
+			{Enabled: true, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
+			{Enabled: true, Channel: okxChannelAccount, Authenticated: true},
+			{Enabled: true, Channel: okxChannelOrders, Authenticated: true},
 		},
 	}
 	ok.Requester, err = request.New(ok.Name,

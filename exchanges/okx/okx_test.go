@@ -2782,7 +2782,7 @@ func TestCandlesticksSubscription(t *testing.T) {
 	if len(enabled) == 0 {
 		t.SkipNow()
 	}
-	if err := ok.CandlesticksSubscription("subscribe", okxChannelCandle1m, asset.Futures, enabled[0]); err != nil {
+	if err := ok.CandlesticksSubscription("subscribe", channelCandle, asset.Futures, enabled[0]); err != nil {
 		t.Errorf("%s CandlesticksSubscription() error: %v", ok.Name, err)
 	}
 }
@@ -2831,7 +2831,7 @@ func TestMarkPriceCandlesticksSubscription(t *testing.T) {
 	if len(enabled) == 0 {
 		t.SkipNow()
 	}
-	if err := ok.MarkPriceCandlesticksSubscription("subscribe", okxChannelMarkPriceCandle1Y, asset.Futures, enabled[0]); err != nil {
+	if err := ok.MarkPriceCandlesticksSubscription("subscribe", channelMarkPriceCandle, asset.Futures, enabled[0]); err != nil {
 		t.Errorf("%s MarkPriceCandlesticksSubscription() error: %v", ok.Name, err)
 	}
 }
@@ -2852,10 +2852,10 @@ func TestOrderBooksSubscription(t *testing.T) {
 	if len(enabled) == 0 {
 		t.SkipNow()
 	}
-	if err := ok.OrderBooksSubscription("subscribe", okxChannelOrderBooks, asset.Futures, enabled[0]); err != nil {
+	if err := ok.OrderBooksSubscription("subscribe", channelOrderBooks, asset.Futures, enabled[0]); err != nil {
 		t.Errorf("%s OrderBooksSubscription() error: %v", ok.Name, err)
 	}
-	if err := ok.OrderBooksSubscription("unsubscribe", okxChannelOrderBooks, asset.Futures, enabled[0]); err != nil {
+	if err := ok.OrderBooksSubscription("unsubscribe", channelOrderBooks, asset.Futures, enabled[0]); err != nil {
 		t.Errorf("%s OrderBooksSubscription() error: %v", ok.Name, err)
 	}
 }
@@ -2882,10 +2882,10 @@ func TestFundingRateSubscription(t *testing.T) {
 
 func TestIndexCandlesticksSubscription(t *testing.T) {
 	t.Parallel()
-	if err := ok.IndexCandlesticksSubscription("subscribe", okxChannelIndexCandle6M, asset.Spot, currency.NewPair(currency.SOL, currency.USD)); err != nil {
+	if err := ok.IndexCandlesticksSubscription("subscribe", channelIndexCandle, asset.Spot, currency.NewPair(currency.SOL, currency.USD)); err != nil {
 		t.Errorf("%s IndexCandlesticksSubscription() error: %v", ok.Name, err)
 	}
-	if err := ok.IndexCandlesticksSubscription("unsubscribe", okxChannelIndexCandle6M, asset.Spot, currency.NewPair(currency.SOL, currency.USD)); err != nil {
+	if err := ok.IndexCandlesticksSubscription("unsubscribe", channelIndexCandle, asset.Spot, currency.NewPair(currency.SOL, currency.USD)); err != nil {
 		t.Errorf("%s IndexCandlesticksSubscription() error: %v", ok.Name, err)
 	}
 }
