@@ -260,7 +260,8 @@ func (ok *Okx) wsReadData(ws stream.Connection) {
 
 // Subscribe sends a websocket subscription request to several channels to receive data.
 func (ok *Okx) Subscribe(channelsToSubscribe []subscription.Subscription) error {
-	return ok.ParallelChanOp(chans, ok.subscribeToChan, 1)
+	//return ok.ParallelChanOp(chans, ok.subscribeToChan, 1)
+	return ok.handleSubscription(operationSubscribe, channelsToSubscribe)
 }
 
 // Unsubscribe sends a websocket unsubscription request to several channels to receive data.
@@ -1916,12 +1917,12 @@ func (ok *Okx) OpenInterestSubscription(operation string, assetType asset.Item, 
 }
 
 // CandlesticksSubscription to subscribe or unsubscribe to "candle" channels to retrieve the candlesticks data of an instrument. the push frequency is the fastest interval 500ms push the data.
-func (ok *Okx) CandlesticksSubscription(operation, channel string, assetType asset.Item, pair currency.Pair) error {
+/*func (ok *Okx) CandlesticksSubscription(operation, channel string, assetType asset.Item, pair currency.Pair) error {
 	if _, okay := candlestickChannelsMap[channel]; !okay {
 		return errMissingValidChannelInformation
 	}
 	return ok.wsChannelSubscription(operation, channel, assetType, pair, false, true, false)
-}
+}*/
 
 // TradesSubscription to subscribe or unsubscribe to "trades" channel to retrieve the recent trades data. Data will be pushed whenever there is a trade. Every update contain only one trade.
 func (ok *Okx) TradesSubscription(operation string, assetType asset.Item, pair currency.Pair) error {
@@ -1942,12 +1943,12 @@ func (ok *Okx) MarkPriceSubscription(operation string, assetType asset.Item, pai
 }
 
 // MarkPriceCandlesticksSubscription to subscribe or unsubscribe to "mark-price-candles" channels to retrieve the candlesticks data of the mark price. Data will be pushed every 500 ms.
-func (ok *Okx) MarkPriceCandlesticksSubscription(operation, channel string, assetType asset.Item, pair currency.Pair) error {
+/*func (ok *Okx) MarkPriceCandlesticksSubscription(operation, channel string, assetType asset.Item, pair currency.Pair) error {
 	if _, okay := channelMarkPriceCandle; !okay {
 		return fmt.Errorf("%w channel: %v", errMissingValidChannelInformation, channel)
 	}
 	return ok.wsChannelSubscription(operation, channel, assetType, pair, false, true, false)
-}
+}*/
 
 // PriceLimitSubscription subscribe or unsubscribe to "price-limit" channel to retrieve the maximum buy price and minimum sell price of the instrument. Data will be pushed every 5 seconds when there are changes in limits, and will not be pushed when there is no changes on limit.
 func (ok *Okx) PriceLimitSubscription(operation string, pair currency.Pair) error {
@@ -1979,12 +1980,12 @@ func (ok *Okx) FundingRateSubscription(operation string, assetType asset.Item, p
 
 // IndexCandlesticksSubscription a method to subscribe and unsubscribe to "index-candle*" channel
 // to retrieve the candlesticks data of the index. Data will be pushed every 500 ms.
-func (ok *Okx) IndexCandlesticksSubscription(operation, channel string, assetType asset.Item, pair currency.Pair) error {
+/*func (ok *Okx) IndexCandlesticksSubscription(operation, channel string, assetType asset.Item, pair currency.Pair) error {
 	if _, okay := candlesticksIndexPriceMap[channel]; !okay {
 		return fmt.Errorf("%w channel: %v", errMissingValidChannelInformation, channel)
 	}
 	return ok.wsChannelSubscription(operation, channel, assetType, pair, false, true, false)
-}
+}*/
 
 // IndexTickerChannel a method to subscribe and unsubscribe to "index-tickers" channel
 func (ok *Okx) IndexTickerChannel(operation string, assetType asset.Item, pair currency.Pair) error {

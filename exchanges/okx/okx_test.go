@@ -2773,7 +2773,8 @@ func TestOpenInterestSubscription(t *testing.T) {
 		t.Errorf("%s OpenInterestSubscription() error: %v", ok.Name, err)
 	}
 }
-func TestCandlesticksSubscription(t *testing.T) {
+
+/*func TestCandlesticksSubscription(t *testing.T) {
 	t.Parallel()
 	enabled, err := ok.GetEnabledPairs(asset.PerpetualSwap)
 	if err != nil {
@@ -2785,7 +2786,7 @@ func TestCandlesticksSubscription(t *testing.T) {
 	if err := ok.CandlesticksSubscription("subscribe", channelCandle, asset.Futures, enabled[0]); err != nil {
 		t.Errorf("%s CandlesticksSubscription() error: %v", ok.Name, err)
 	}
-}
+}*/
 
 func TestTradesSubscription(t *testing.T) {
 	t.Parallel()
@@ -2822,7 +2823,7 @@ func TestMarkPriceSubscription(t *testing.T) {
 	}
 }
 
-func TestMarkPriceCandlesticksSubscription(t *testing.T) {
+/*func TestMarkPriceCandlesticksSubscription(t *testing.T) {
 	t.Parallel()
 	enabled, err := ok.GetEnabledPairs(asset.Spot)
 	if err != nil {
@@ -2834,7 +2835,7 @@ func TestMarkPriceCandlesticksSubscription(t *testing.T) {
 	if err := ok.MarkPriceCandlesticksSubscription("subscribe", channelMarkPriceCandle, asset.Futures, enabled[0]); err != nil {
 		t.Errorf("%s MarkPriceCandlesticksSubscription() error: %v", ok.Name, err)
 	}
-}
+}*/
 
 func TestPriceLimitSubscription(t *testing.T) {
 	t.Parallel()
@@ -2880,15 +2881,17 @@ func TestFundingRateSubscription(t *testing.T) {
 	}
 }
 
-func TestIndexCandlesticksSubscription(t *testing.T) {
-	t.Parallel()
-	if err := ok.IndexCandlesticksSubscription("subscribe", channelIndexCandle, asset.Spot, currency.NewPair(currency.SOL, currency.USD)); err != nil {
-		t.Errorf("%s IndexCandlesticksSubscription() error: %v", ok.Name, err)
+/*
+	func TestIndexCandlesticksSubscription(t *testing.T) {
+		t.Parallel()
+		if err := ok.IndexCandlesticksSubscription("subscribe", channelIndexCandle, asset.Spot, currency.NewPair(currency.SOL, currency.USD)); err != nil {
+			t.Errorf("%s IndexCandlesticksSubscription() error: %v", ok.Name, err)
+		}
+		if err := ok.IndexCandlesticksSubscription("unsubscribe", channelIndexCandle, asset.Spot, currency.NewPair(currency.SOL, currency.USD)); err != nil {
+			t.Errorf("%s IndexCandlesticksSubscription() error: %v", ok.Name, err)
+		}
 	}
-	if err := ok.IndexCandlesticksSubscription("unsubscribe", channelIndexCandle, asset.Spot, currency.NewPair(currency.SOL, currency.USD)); err != nil {
-		t.Errorf("%s IndexCandlesticksSubscription() error: %v", ok.Name, err)
-	}
-}
+*/
 func TestIndexTickerChannelIndexTickerChannel(t *testing.T) {
 	t.Parallel()
 	if err := ok.IndexTickerChannel("subscribe", asset.Spot, currency.NewPair(currency.SOL, currency.USD)); err != nil {
@@ -2929,6 +2932,41 @@ func TestBlockTickerSubscription(t *testing.T) {
 }
 
 // ************ Authenticated Websocket endpoints Test **********************************************
+
+/*
+	func verifySubs(tb testing.TB, subs []subscription.Subscription, a asset.Item, prefix string, expected ...string) {
+		tb.Helper()
+		var sub *subscription.Subscription
+		for i, s := range subs {
+			if s.Asset == a && strings.HasPrefix(s.Channel, prefix) {
+				if len(expected) == 1 && !strings.Contains(s.Channel, expected[0]) {
+					continue
+				}
+				if sub != nil {
+					assert.Failf(tb, "Too many subs with prefix", "Asset %s; Prefix %s", a.String(), prefix)
+					return
+				}
+				sub = &subs[i]
+			}
+		}
+		if assert.NotNil(tb, sub, "Should find a sub for asset %s with prefix %s for %s", a.String(), prefix, strings.Join(expected, ", ")) {
+			suffix := strings.TrimPrefix(sub.Channel, prefix)
+			if len(expected) == 0 {
+				assert.Empty(tb, suffix, "Sub for asset %s with prefix %s should have no symbol suffix", a.String(), prefix)
+			} else {
+				currs := strings.Split(suffix, ",")
+				assert.ElementsMatch(tb, currs, expected, "Currencies should match in sub for asset %s with prefix %s", a.String(), prefix)
+			}
+		}
+	}
+*/
+func TestGenerateDefaultSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	subs, err := ok.GenerateDefaultSubscriptions()
+	assert.NoError(t, err, "GenerateDefaultSubscriptions should not error")
+	assert.Len(t, subs, 39, "Should generate the correct number of subscriptions when not logged in")
+}
 
 func TestWsAccountSubscription(t *testing.T) {
 	t.Parallel()

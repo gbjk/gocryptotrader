@@ -180,8 +180,8 @@ func (ok *Okx) SetDefaults() {
 			{Enabled: true, Channel: subscription.AllTradesChannel},
 			{Enabled: true, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
 			{Enabled: true, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
-			{Enabled: true, Channel: okxChannelAccount, Authenticated: true},
-			{Enabled: true, Channel: okxChannelOrders, Authenticated: true},
+			{Enabled: true, Channel: subscription.MyOrdersChannel, Authenticated: true},
+			{Enabled: true, Channel: channelAccount, Authenticated: true},
 		},
 	}
 	ok.Requester, err = request.New(ok.Name,
