@@ -638,17 +638,12 @@ func (b *Binance) subscribeToChan(chans []subscription.Subscription) error {
 		}
 	}
 
-	for i := range chans {
-		if err == nil {
-			b.Websocket.AddSuccessfulSubscriptions(chans[i])
-		} else {
-			b.Websocket.RemoveSubscriptions(chans[i])
-		}
-	}
-
 	if err != nil {
+		b.Websocket.RemoveSubscriptions(chans...)
 		err = fmt.Errorf("%w: %w; Channels: %s", stream.ErrSubscriptionFailure, err, strings.Join(cNames, ", "))
 		b.Websocket.DataHandler <- err
+	} else {
+		b.Websocket.AddSuccessfulSubscriptions(chans...)
 	}
 
 	return err
@@ -686,9 +681,9 @@ func (b *Binance) unsubscribeFromChan(chans []subscription.Subscription) error {
 	if err != nil {
 		err = fmt.Errorf("%w: %w; Channels: %s", stream.ErrUnsubscribeFailure, err, strings.Join(cNames, ", "))
 		b.Websocket.DataHandler <- err
+	} else {
+		b.Websocket.RemoveSubscriptions(chans...)
 	}
-
-	b.Websocket.RemoveSubscriptions(chans...)
 
 	return nil
 }
