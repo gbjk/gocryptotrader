@@ -638,6 +638,14 @@ func (b *Binance) subscribeToChan(chans []subscription.Subscription) error {
 		}
 	}
 
+	for i := range chans {
+		if err == nil {
+			b.Websocket.AddSuccessfulSubscriptions(chans[i])
+		} else {
+			b.Websocket.RemoveSubscriptions(chans[i])
+		}
+	}
+
 	if err != nil {
 		err = fmt.Errorf("%w: %w; Channels: %s", stream.ErrSubscriptionFailure, err, strings.Join(cNames, ", "))
 		b.Websocket.DataHandler <- err
