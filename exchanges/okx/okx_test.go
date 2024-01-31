@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
@@ -2931,41 +2932,93 @@ func TestBlockTickerSubscription(t *testing.T) {
 	}
 }
 
-// ************ Authenticated Websocket endpoints Test **********************************************
-
-/*
-	func verifySubs(tb testing.TB, subs []subscription.Subscription, a asset.Item, prefix string, expected ...string) {
-		tb.Helper()
-		var sub *subscription.Subscription
-		for i, s := range subs {
-			if s.Asset == a && strings.HasPrefix(s.Channel, prefix) {
-				if len(expected) == 1 && !strings.Contains(s.Channel, expected[0]) {
-					continue
-				}
-				if sub != nil {
-					assert.Failf(tb, "Too many subs with prefix", "Asset %s; Prefix %s", a.String(), prefix)
-					return
-				}
-				sub = &subs[i]
-			}
-		}
-		if assert.NotNil(tb, sub, "Should find a sub for asset %s with prefix %s for %s", a.String(), prefix, strings.Join(expected, ", ")) {
-			suffix := strings.TrimPrefix(sub.Channel, prefix)
-			if len(expected) == 0 {
-				assert.Empty(tb, suffix, "Sub for asset %s with prefix %s should have no symbol suffix", a.String(), prefix)
-			} else {
-				currs := strings.Split(suffix, ",")
-				assert.ElementsMatch(tb, currs, expected, "Currencies should match in sub for asset %s with prefix %s", a.String(), prefix)
-			}
-		}
-	}
-*/
 func TestGenerateDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
 
 	subs, err := ok.GenerateDefaultSubscriptions()
 	assert.NoError(t, err, "GenerateDefaultSubscriptions should not error")
-	assert.Len(t, subs, 39, "Should generate the correct number of subscriptions when not logged in")
+	expected := []subscription.Subscription{}
+	assets := ok.GetAssetTypes(true)
+	//require.False(t, ok.Websocket.CanUseAuthenticatedEndpoints(), "Websocket must not be authenticated by default")
+	for _, exp := range ok.Features.Subscriptions {
+		s := *exp
+		s.Channel = channelName(s.Channel)
+		switch s.Channel {
+		case channelOrders:
+			for _, a := range assets {
+				expected = append(expected, subscription.Subscription{
+					Channel: s.Channel,
+					Asset:   a,
+				})
+			}
+		case channelCandle, channelTickers, channelFundingRate, channelPublicBlockTrades, channelBlockTickers, channelOpenInterest, channelPriceLimit, channelMarkPrice, channelMarkPriceCandle, channelTrades, channelTradesAll, opAmendOrder, opBatchAmendOrders, opBatchCancelOrders, opBatchOrders, opCancelOrder, opOrder, channelIndexCandle, channelIndexTickers, channelOrderBooks, channelOrderBooks5, channelOrderBooksTBT, channelOrderBooks50TBT:
+			for _, a := range assets {
+				pairs, err := ok.GetEnabledPairs(a)
+				assert.NoError(t, err, "GetEnabledPairs should not error")
+				for _, p := range pairs {
+					expected = append(expected, subscription.Subscription{
+						Channel: s.Channel,
+						Asset:   a,
+						Pair:    p,
+					})
+				}
+			}
+		default:
+			expected = append(expected, subscription.Subscription{
+				Channel: s.Channel,
+			})
+		}
+	}
+	if assert.Len(t, subs, len(expected), "Should generate the correct number of subscriptions when not logged in") {
+		assert.ElementsMatch(t, subs, expected, "Should get the correct subscriptions")
+	}
+}
+
+// ************ Authenticated Websocket endpoints Test **********************************************
+
+func TestGenerateDefaultAuthSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	subs, err := ok.GenerateDefaultSubscriptions()
+	assert.NoError(t, err, "GenerateDefaultSubscriptions should not error")
+	expected := []subscription.Subscription{}
+	assets := ok.GetAssetTypes(true)
+	authed := ok.Websocket.CanUseAuthenticatedEndpoints()
+	for _, auth := range ok.Features.Subscriptions {
+		if !authed && auth.Authenticated {
+			for _, exp := range ok.Features.Subscriptions {
+				s := *exp
+				switch s.Channel {
+				case channelOrders:
+					for x := range assets {
+						expected = append(expected, subscription.Subscription{
+							Channel: s.Channel,
+							Asset:   assets[x],
+						})
+					}
+				case channelCandle, channelTickers, channelFundingRate, channelPublicBlockTrades, channelBlockTickers, channelOpenInterest, channelPriceLimit, channelMarkPrice, channelMarkPriceCandle, channelTrades, channelTradesAll, opAmendOrder, opBatchAmendOrders, opBatchCancelOrders, opBatchOrders, opCancelOrder, opOrder, channelIndexCandle, channelIndexTickers, channelOrderBooks, channelOrderBooks5, channelOrderBooksTBT, channelOrderBooks50TBT:
+					for x := range assets {
+						pairs, err := ok.GetEnabledPairs(assets[x])
+						assert.Error(t, err, "GetEnabledPairs should not error")
+						for p := range pairs {
+							expected = append(expected, subscription.Subscription{
+								Channel: s.Channel,
+								Asset:   assets[x],
+								Pair:    pairs[p],
+							})
+						}
+					}
+				default:
+					expected = append(expected, subscription.Subscription{
+						Channel: s.Channel,
+					})
+				}
+			}
+			if assert.Len(t, subs, len(expected), "Should generate the correct number of subscriptions when not logged in") {
+				assert.ElementsMatch(t, subs, expected, "Should get the correct subscriptions")
+			}
+		}
+	}
 }
 
 func TestWsAccountSubscription(t *testing.T) {

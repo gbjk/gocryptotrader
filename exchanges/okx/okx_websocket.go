@@ -1189,42 +1189,54 @@ func (ok *Okx) wsProcessTickers(data []byte) error {
 	return nil
 }
 
+// channelName converts global channel Names used in config of channel input into kucoin channel names
+// returns the name unchanged if no match is found
+func channelName(name string) string {
+	if s, ok := subscriptionNames[name]; ok {
+		return s
+	}
+	return name
+}
+
 // GenerateDefaultSubscriptions returns a list of default subscription message.
 func (ok *Okx) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
-	var subscriptions []subscription.Subscription
+	subscriptions := []subscription.Subscription{}
 	assets := ok.GetAssetTypes(true)
-	subs := make([]string, 0, len(defaultSubscribedChannels)+len(defaultAuthChannels))
-	subs = append(subs, defaultSubscribedChannels...)
-	if ok.Websocket.CanUseAuthenticatedEndpoints() {
-		subs = append(subs, defaultAuthChannels...)
-	}
-	for c := range subs {
-		switch subs[c] {
-		case channelOrders:
-			for x := range assets {
-				subscriptions = append(subscriptions, subscription.Subscription{
-					Channel: subs[c],
-					Asset:   assets[x],
-				})
-			}
-		case channelCandle, channelTickers, channelFundingRate, channelPublicBlockTrades, channelBlockTickers, channelOpenInterest, channelPriceLimit, channelMarkPrice, channelMarkPriceCandle, channelTrades, channelTradesAll, opAmendOrder, opBatchAmendOrders, opBatchCancelOrders, opBatchOrders, opCancelOrder, opOrder, channelIndexCandle, channelIndexTickers, channelOrderBooks, channelOrderBooks5, channelOrderBooksTBT, channelOrderBooks50TBT:
-			for x := range assets {
-				pairs, err := ok.GetEnabledPairs(assets[x])
-				if err != nil {
-					return nil, err
-				}
-				for p := range pairs {
+	authed := ok.Websocket.CanUseAuthenticatedEndpoints()
+	for _, subs := range ok.Features.Subscriptions {
+		if !authed && subs.Authenticated {
+			continue
+		}
+		for _, baseSub := range ok.Features.Subscriptions {
+			s := *baseSub
+			s.Channel = channelName(s.Channel)
+			switch s.Channel {
+			case channelOrders:
+				for _, a := range assets {
 					subscriptions = append(subscriptions, subscription.Subscription{
-						Channel: subs[c],
-						Asset:   assets[x],
-						Pair:    pairs[p],
+						Channel: s.Channel,
+						Asset:   a,
 					})
 				}
+			case channelCandle, channelTickers, channelFundingRate, channelPublicBlockTrades, channelBlockTickers, channelOpenInterest, channelPriceLimit, channelMarkPrice, channelMarkPriceCandle, channelTrades, channelTradesAll, opAmendOrder, opBatchAmendOrders, opBatchCancelOrders, opBatchOrders, opCancelOrder, opOrder, channelIndexCandle, channelIndexTickers, channelOrderBooks, channelOrderBooks5, channelOrderBooksTBT, channelOrderBooks50TBT:
+				for _, a := range assets {
+					pairs, err := ok.GetEnabledPairs(a)
+					if err != nil {
+						return nil, err
+					}
+					for _, p := range pairs {
+						subscriptions = append(subscriptions, subscription.Subscription{
+							Channel: s.Channel,
+							Asset:   a,
+							Pair:    p,
+						})
+					}
+				}
+			default:
+				subscriptions = append(subscriptions, subscription.Subscription{
+					Channel: s.Channel,
+				})
 			}
-		default:
-			subscriptions = append(subscriptions, subscription.Subscription{
-				Channel: subs[c],
-			})
 		}
 	}
 	return subscriptions, nil
