@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
@@ -2969,9 +2970,8 @@ func TestGenerateDefaultSubscriptions(t *testing.T) {
 			})
 		}
 	}
-	if assert.Len(t, subs, len(expected), "Should generate the correct number of subscriptions when not logged in") {
-		assert.ElementsMatch(t, subs, expected, "Should get the correct subscriptions")
-	}
+	require.Equal(t, len(expected), len(subs), "Should generate the correct number of subscriptions when not logged in")
+	assert.ElementsMatch(t, subs, expected, "Should get the correct subscriptions")
 }
 
 // ************ Authenticated Websocket endpoints Test **********************************************
