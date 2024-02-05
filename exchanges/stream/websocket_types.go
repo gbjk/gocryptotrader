@@ -39,8 +39,7 @@ const (
 type Websocket struct {
 	canUseAuthenticatedEndpoints bool
 	enabled                      bool
-	state                        State
-	connecting                   bool
+	state                        state
 	verbose                      bool
 	connectionMonitorRunning     bool
 	trafficMonitorRunning        bool
