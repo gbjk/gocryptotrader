@@ -100,7 +100,7 @@ func (w *Websocket) Setup(s *WebsocketSetup) error {
 		return errWebsocketSetupIsNil
 	}
 
-	if w.state != uninitialised {
+	if w.IsInitialised() {
 		return fmt.Errorf("%s %w", w.exchangeName, errWebsocketAlreadyInitialised)
 	}
 
@@ -613,20 +613,27 @@ func (w *Websocket) trafficMonitor() {
 	}()
 }
 
+// IsInitialised returns whether the websocket has been Setup() already
+func (w *Websocket) IsInitialised() bool {
+	w.fieldMutex.RLock()
+	defer w.fieldMutex.RUnlock()
+	return w.state != uninitialised
+}
+
 func (w *Websocket) setState(s state) {
 	w.fieldMutex.Lock()
 	w.state = s
 	w.fieldMutex.Unlock()
 }
 
-// IsConnected returns status of connection
+// IsConnected returns whether the websocket is connected
 func (w *Websocket) IsConnected() bool {
 	w.fieldMutex.RLock()
 	defer w.fieldMutex.RUnlock()
 	return w.state == connected
 }
 
-// IsConnecting returns status of connecting
+// IsConnecting returns whether the websocket is connecting
 func (w *Websocket) IsConnecting() bool {
 	w.fieldMutex.RLock()
 	defer w.fieldMutex.RUnlock()
@@ -639,7 +646,7 @@ func (w *Websocket) setEnabled(b bool) {
 	w.fieldMutex.Unlock()
 }
 
-// IsEnabled returns status of enabled
+// IsEnabled returns whether the websocket is enabled
 func (w *Websocket) IsEnabled() bool {
 	w.fieldMutex.RLock()
 	defer w.fieldMutex.RUnlock()
