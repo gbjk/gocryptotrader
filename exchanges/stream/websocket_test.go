@@ -201,10 +201,10 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 
 func TestIsDisconnectionError(t *testing.T) {
 	t.Parallel()
-	assert.False(t, IsDisconnectionError(errors.New("errorText")), "IsADisconnectionError should return false")
-	assert.True(t, IsDisconnectionError(&websocket.CloseError{Code: 1006, Text: "errorText"}), "IsADisconnectionError should return true")
-	assert.False(t, IsDisconnectionError(&net.OpError{Err: errClosedConnection}), "IsADisconnectionError should return false")
-	assert.True(t, IsDisconnectionError(&net.OpError{Err: errors.New("errText")}), "IsADisconnectionError should return true")
+	assert.False(t, IsDisconnectionError(errors.New("errorText")), "IsDisconnectionError should return false")
+	assert.True(t, IsDisconnectionError(&websocket.CloseError{Code: 1006, Text: "errorText"}), "IsDisconnectionError should return true")
+	assert.False(t, IsDisconnectionError(&net.OpError{Err: errClosedConnection}), "IsDisconnectionError should return false")
+	assert.True(t, IsDisconnectionError(&net.OpError{Err: errors.New("errText")}), "IsDisconnectionError should return true")
 }
 
 func TestConnectionMessageErrors(t *testing.T) {
