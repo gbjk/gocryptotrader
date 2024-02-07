@@ -3,6 +3,8 @@ package subscription
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -47,6 +49,9 @@ type Key struct {
 // Map is a container of subscription pointers
 type Map map[any]*Subscription
 
+// List is a container of subscription pointers
+type List []Subscription
+
 type SubscriptionInterface interface {
 }
 
@@ -87,8 +92,8 @@ func (s *Subscription) EnsureKeyed() any {
 // * Empty pairs then only Subscriptions without pairs will be considered
 // * >=1 pairs then Subscriptions which contain all the pairs will be considered
 func (k Key) Match(m Map) *Subscription {
-	for a, v := range m {
-		candidate, ok := a.(Key)
+	for anyKey, s := range m {
+		candidate, ok := anyKey.(Key)
 		if !ok {
 			continue
 		}
@@ -99,11 +104,56 @@ func (k Key) Match(m Map) *Subscription {
 			continue
 		}
 		if (k.Pairs == nil || len(*k.Pairs) == 0) && (candidate.Pairs == nil || len(*candidate.Pairs) == 0) {
-			return v
+			return s
 		}
 		if err := candidate.Pairs.ContainsAll(*k.Pairs, true); err == nil {
-			return v
+			return s
 		}
 	}
 	return nil
+}
+
+// ListToMap creates a Map from a slice of subscriptions
+func ListToMap(s List) *Map {
+	n := Map{}
+	for _, c := range s {
+		n[c.EnsureKeyed()] = &c
+	}
+	return &n
+}
+
+// Diff returns a list of the added and missing subs between two maps
+func (m *Map) Diff(newSubs *Map) (sub, unsub List) {
+	oldSubs := maps.Clone(*m)
+	for _, s := range *newSubs {
+		key := s.EnsureKeyed()
+
+		var found *Subscription
+		if m, ok := key.(MatchableKey); ok {
+			found = m.Match(oldSubs)
+		} else {
+			found = oldSubs[key]
+		}
+
+		if found != nil {
+			delete(oldSubs, found.Key) // If it's in both then we remove it from the unsubscribe list
+		} else {
+			sub = append(sub, *s) // If it's in newSubs but not oldSubs subs we want to subscribe
+		}
+	}
+
+	for _, c := range oldSubs {
+		unsub = append(unsub, *c)
+	}
+
+	return
+}
+
+func (l List) Strings() []string {
+	s := make([]string, len(l))
+	for i := range l {
+		s[i] = l[i].String()
+	}
+	slices.Sort(s)
+	return s
 }

@@ -875,36 +875,10 @@ func (w *Websocket) GetName() string {
 
 // GetChannelDifference finds the difference between the subscribed channels
 // and the new subscription list when pairs are disabled or enabled.
-func (w *Websocket) GetChannelDifference(genSubs []subscription.Subscription) (sub, unsub []subscription.Subscription) {
+func (w *Websocket) GetChannelDifference(newSubs []subscription.Subscription) (sub, unsub []subscription.Subscription) {
 	w.subscriptionMutex.RLock()
-	unsubMap := subscription.Map{}
-	for k, c := range w.subscriptions {
-		unsubMap[k] = c
-	}
-	w.subscriptionMutex.RUnlock()
-
-	for i := range genSubs {
-		key := genSubs[i].EnsureKeyed()
-
-		var found *subscription.Subscription
-		if m, ok := key.(subscription.MatchableKey); ok {
-			found = m.Match(unsubMap)
-		} else {
-			found = unsubMap[key]
-		}
-
-		if found != nil {
-			delete(unsubMap, found.Key) // If it's in both then we remove it from the unsubscribe list
-		} else {
-			sub = append(sub, genSubs[i]) // If it's in genSubs but not existing subs we want to subscribe
-		}
-	}
-
-	for _, c := range unsubMap {
-		unsub = append(unsub, *c)
-	}
-
-	return
+	defer w.subscriptionMutex.RUnlock()
+	return w.subscriptions.Diff(subscription.ListToMap(newSubs))
 }
 
 // UnsubscribeChannels unsubscribes from a websocket channel

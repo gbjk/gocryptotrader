@@ -18,6 +18,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -1045,7 +1046,7 @@ func TestCheckWebsocketURL(t *testing.T) {
 
 func TestGetChannelDifference(t *testing.T) {
 	t.Parallel()
-	web := Websocket{}
+	w := Websocket{}
 
 	newChans := []subscription.Subscription{
 		{
@@ -1058,12 +1059,12 @@ func TestGetChannelDifference(t *testing.T) {
 			Channel: "Test3",
 		},
 	}
-	subs, unsubs := web.GetChannelDifference(newChans)
+	subs, unsubs := w.GetChannelDifference(newChans)
+	require.Equal(t, 3, len(subs), "Should get the correct number of subs")
 	assert.Implements(t, (*subscription.MatchableKey)(nil), subs[0].Key, "Sub key must be matchable")
-	assert.Equal(t, 3, len(subs), "Should get the correct number of subs")
 	assert.Equal(t, 0, len(unsubs), "Should get the correct number of unsubs")
 
-	web.AddSuccessfulSubscriptions(subs...)
+	w.AddSuccessfulSubscriptions(subs...)
 
 	flushedSubs := []subscription.Subscription{
 		{
@@ -1071,7 +1072,7 @@ func TestGetChannelDifference(t *testing.T) {
 		},
 	}
 
-	subs, unsubs = web.GetChannelDifference(flushedSubs)
+	subs, unsubs = w.GetChannelDifference(flushedSubs)
 	assert.Equal(t, 0, len(subs), "Should get the correct number of subs")
 	assert.Equal(t, 2, len(unsubs), "Should get the correct number of unsubs")
 
@@ -1084,7 +1085,7 @@ func TestGetChannelDifference(t *testing.T) {
 		},
 	}
 
-	subs, unsubs = web.GetChannelDifference(flushedSubs)
+	subs, unsubs = w.GetChannelDifference(flushedSubs)
 	if assert.Equal(t, 1, len(subs), "Should get the correct number of subs") {
 		assert.Equal(t, subs[0].Channel, "Test4", "Should subscribe to the right channel")
 	}

@@ -34,11 +34,12 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
+	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 )
 
 var k = &Kraken{}
-var wsConnected bool
+var btcusdtPair = currency.NewPair(currency.BTC, currency.USDT)
 
 // Please add your own APIkeys here or in config/testdata.json to do correct due diligence testing
 const (
@@ -1334,6 +1335,32 @@ func TestWsOwnTradesSub(t *testing.T) {
 	err = k.Unsubscribe(subs)
 	assert.NoError(t, err, "Unsubscribing an auth channel should not error")
 	assert.Len(t, k.Websocket.GetSubscriptions(), 0, "Should have successfully removed channel")
+}
+
+// TestGenerateSubscriptions tests the subscriptions generated from configuration
+func TestGenerateSubscriptions(t *testing.T) {
+	t.Parallel()
+
+	subs, err := k.GenerateSubscriptions()
+	require.NoError(t, err, "GenerateSubscriptions should not error")
+	expected := []subscription.Subscription{}
+	pairs, err := k.GetEnabledPairs(asset.Spot)
+	for i := range pairs {
+		pairs[i].Delimiter = "/"
+	}
+	require.NoError(t, err, "GetEnabledPairs must not error")
+	require.False(t, k.Websocket.CanUseAuthenticatedEndpoints(), "Websocket must not be authenticated by default")
+	for _, exp := range k.Features.Subscriptions {
+		if exp.Authenticated {
+			continue
+		}
+		s := *exp
+		s.Channel = channelName(s.Channel)
+		s.Asset = asset.Spot
+		s.Pairs = pairs
+		expected = append(expected, s)
+	}
+	testsubs.Equal(t, expected, subs)
 }
 
 func TestGetWSToken(t *testing.T) {

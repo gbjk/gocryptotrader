@@ -33,7 +33,8 @@ const (
 	krakenAuthWSURL          = "wss://ws-auth.kraken.com"
 	krakenWSSandboxURL       = "wss://sandbox.kraken.com"
 	krakenWSSupportedVersion = "1.4.0"
-	// WS endpoints
+
+	// Websocket Channels
 	krakenWsHeartbeat               = "heartbeat"
 	krakenWsSystemStatus            = "systemStatus"
 	krakenWsSubscribe               = "subscribe"
@@ -58,20 +59,19 @@ const (
 	krakenWsCandlesDefaultTimeframe = 1
 )
 
+var subscriptionNames = map[string]string{
+	subscription.TickerChannel:    krakenWsTicker,
+	subscription.OrderbookChannel: krakenWsOrderbook,
+	subscription.CandlesChannel:   krakenWsOHLC,
+	subscription.AllTradesChannel: krakenWsTrade,
+	subscription.MyTradesChannel:  krakenWsOwnTrades,
+	subscription.MyOrdersChannel:  krakenWsOpenOrders,
+	// No equivalents for: AllOrders
+}
+
 var (
 	authToken string
 )
-
-// Channels require a topic and a currency
-// Format [[ticker,but-t4u],[orderbook,nce-btt]]
-var defaultSubscribedChannels = []string{
-	krakenWsTicker,
-	krakenWsTrade,
-	krakenWsOrderbook,
-	krakenWsOHLC,
-	krakenWsSpread,
-}
-var authenticatedChannels = []string{krakenWsOwnTrades, krakenWsOpenOrders}
 
 // WsConnect initiates a websocket connection
 func (k *Kraken) WsConnect() error {
@@ -999,41 +999,37 @@ func (k *Kraken) wsProcessCandles(c *subscription.Subscription, response []any, 
 	return nil
 }
 
-// GenerateDefaultSubscriptions Adds default subscriptions to websocket to be handled by ManageSubscriptions()
-func (k *Kraken) GenerateDefaultSubscriptions() ([]subscription.Subscription, error) {
+// channelName converts global channel Names used in config of channel input into kucoin channel names
+// returns the name unchanged if no match is found
+func channelName(name string) string {
+	if s, ok := subscriptionNames[name]; ok {
+		return s
+	}
+	return name
+}
+
+// GenerateSubscriptions sets up the configured subscriptions for the websocket
+func (k *Kraken) GenerateSubscriptions() ([]subscription.Subscription, error) {
+	subscriptions := []subscription.Subscription{}
 	enabledPairs, err := k.GetEnabledPairs(asset.Spot)
 	if err != nil {
 		return nil, err
 	}
-	var subscriptions []subscription.Subscription
-	for i := range defaultSubscribedChannels {
-		/*
-			for j := range enabledPairs {
-				enabledPairs[j].Delimiter = "/"
-			}
-		*/
-		c := subscription.Subscription{
-			Channel: defaultSubscribedChannels[i],
-			Pairs:   enabledPairs,
-			Asset:   asset.Spot,
-			Params:  map[string]any{},
-		}
-		switch defaultSubscribedChannels[i] {
-		case krakenWsOrderbook:
-			c.Params[ChannelOrderbookDepthKey] = krakenWsOrderbookDefaultDepth
-		case krakenWsOHLC:
-			c.Params[ChannelCandlesTimeframeKey] = krakenWsCandlesDefaultTimeframe
-		}
-		subscriptions = append(subscriptions, c)
+	for i := range enabledPairs {
+		enabledPairs[i].Delimiter = "/"
 	}
-	if k.Websocket.CanUseAuthenticatedEndpoints() {
-		for i := range authenticatedChannels {
-			subscriptions = append(subscriptions, subscription.Subscription{
-				Channel: authenticatedChannels[i],
-				Asset:   asset.Spot,
-			})
+	authed := k.Websocket.CanUseAuthenticatedEndpoints()
+	for _, baseSub := range k.Features.Subscriptions {
+		if !authed && baseSub.Authenticated {
+			continue
 		}
+		s := *baseSub
+		s.Channel = channelName(s.Channel)
+		s.Asset = asset.Spot
+		s.Pairs = enabledPairs
+		subscriptions = append(subscriptions, s)
 	}
+
 	return subscriptions, nil
 }
 
@@ -1048,105 +1044,105 @@ func (k *Kraken) Unsubscribe(channels []subscription.Subscription) error {
 }
 
 // subscribeToChan sends a websocket message to receive data from the channel
-func (k *Kraken) subscribeToChan(chans []subscription.Subscription) error {
-	if len(chans) != 1 {
+func (k *Kraken) subscribeToChan(subs []subscription.Subscription) error {
+	if len(subs) != 1 {
 		return errors.New("Kraken subscription batching not yet implemented")
 	}
-	c := chans[0]
-	r, err := k.reqForSub(krakenWsSubscribe, &c)
+	s := subs[0]
+	r, err := k.reqForSub(krakenWsSubscribe, &s)
 	if err != nil {
-		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, c.Channel, c.Pairs, err)
+		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, s.Channel, s.Pairs, err)
 	}
 
-	if !c.Asset.IsValid() {
-		c.Asset = asset.Spot
+	if !s.Asset.IsValid() {
+		s.Asset = asset.Spot
 	}
 
-	err = ensureChannelKeyed(&c, r)
+	err = ensureChannelKeyed(&s, r)
 	if err != nil {
 		return err
 	}
 
-	c.State = subscription.SubscribingState
-	err = k.Websocket.AddSubscription(&c)
+	s.State = subscription.SubscribingState
+	err = k.Websocket.AddSubscription(&s)
 	if err != nil {
-		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, c.Channel, c.Pairs, err)
+		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, s.Channel, s.Pairs, err)
 	}
 
 	conn := k.Websocket.Conn
-	if common.StringDataContains(authenticatedChannels, r.Subscription.Name) {
+	if s.Authenticated {
 		r.Subscription.Token = authToken
 		conn = k.Websocket.AuthConn
 	}
 
 	respRaw, err := conn.SendMessageReturnResponse(r.RequestID, r)
 	if err != nil {
-		k.Websocket.RemoveSubscriptions(c)
-		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, c.Channel, c.Pairs, err)
+		k.Websocket.RemoveSubscriptions(s)
+		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, s.Channel, s.Pairs, err)
 	}
 
 	if err = k.getErrResp(respRaw); err != nil {
-		wErr := fmt.Errorf("%w Channel: %s Pair: %s; %w", stream.ErrSubscriptionFailure, c.Channel, c.Pairs, err)
+		wErr := fmt.Errorf("%w Channel: %s Pair: %s; %w", stream.ErrSubscriptionFailure, s.Channel, s.Pairs, err)
 		k.Websocket.DataHandler <- wErr
 		// Currently all or nothing on pairs; Alternatively parse response and remove failing pairs and retry
-		k.Websocket.RemoveSubscriptions(c)
+		k.Websocket.RemoveSubscriptions(s)
 		return wErr
 	}
 
-	if err = k.Websocket.SetSubscriptionState(&c, subscription.SubscribedState); err != nil {
+	if err = k.Websocket.SetSubscriptionState(&s, subscription.SubscribedState); err != nil {
 		log.Errorf(log.ExchangeSys, "%s error setting channel to subscribed: %s", k.Name, err)
 	}
 
 	if k.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s Pair: %s\n", k.Name, c.Channel, c.Pairs)
+		log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s Pair: %s\n", k.Name, s.Channel, s.Pairs)
 	}
 
 	return nil
 }
 
 // unsubscribeFromChan sends a websocket message to stop receiving data from a channel
-func (k *Kraken) unsubscribeFromChan(chans []subscription.Subscription) error {
-	if len(chans) != 1 {
+func (k *Kraken) unsubscribeFromChan(subs []subscription.Subscription) error {
+	if len(subs) != 1 {
 		return errors.New("Kraken subscription batching not yet implemented")
 	}
-	c := chans[0]
-	r, err := k.reqForSub(krakenWsUnsubscribe, &c)
+	s := subs[0]
+	r, err := k.reqForSub(krakenWsUnsubscribe, &s)
 	if err != nil {
-		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrUnsubscribeFailure, c.Channel, c.Pairs, err)
+		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrUnsubscribeFailure, s.Channel, s.Pairs, err)
 	}
 
-	c.EnsureKeyed()
+	s.EnsureKeyed()
 
-	if err = k.Websocket.SetSubscriptionState(&c, subscription.UnsubscribingState); err != nil {
+	if err = k.Websocket.SetSubscriptionState(&s, subscription.UnsubscribingState); err != nil {
 		// err is probably ErrChannelInStateAlready, but we want to bubble it up to prevent an attempt to Subscribe again
 		// We can catch and ignore it in our call to resub
-		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrUnsubscribeFailure, c.Channel, c.Pairs, err)
+		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrUnsubscribeFailure, s.Channel, s.Pairs, err)
 	}
 
 	conn := k.Websocket.Conn
-	if common.StringDataContains(authenticatedChannels, c.Channel) {
+	if s.Authenticated {
 		conn = k.Websocket.AuthConn
 		r.Subscription.Token = authToken
 	}
 
 	respRaw, err := conn.SendMessageReturnResponse(r.RequestID, r)
 	if err != nil {
-		if e2 := k.Websocket.SetSubscriptionState(&c, subscription.SubscribedState); e2 != nil {
+		if e2 := k.Websocket.SetSubscriptionState(&s, subscription.SubscribedState); e2 != nil {
 			log.Errorf(log.ExchangeSys, "%s error setting channel to subscribed: %s", k.Name, e2)
 		}
 		return err
 	}
 
 	if err = k.getErrResp(respRaw); err != nil {
-		wErr := fmt.Errorf("%w Channel: %s Pair: %s; %w", stream.ErrUnsubscribeFailure, c.Channel, c.Pairs, err)
+		wErr := fmt.Errorf("%w Channel: %s Pair: %s; %w", stream.ErrUnsubscribeFailure, s.Channel, s.Pairs, err)
 		k.Websocket.DataHandler <- wErr
-		if e2 := k.Websocket.SetSubscriptionState(&c, subscription.SubscribedState); e2 != nil {
+		if e2 := k.Websocket.SetSubscriptionState(&s, subscription.SubscribedState); e2 != nil {
 			log.Errorf(log.ExchangeSys, "%s error setting channel to subscribed: %s", k.Name, e2)
 		}
 		return wErr
 	}
 
-	k.Websocket.RemoveSubscriptions(c)
+	k.Websocket.RemoveSubscriptions(s)
 
 	return nil
 }
