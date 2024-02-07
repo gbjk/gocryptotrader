@@ -254,7 +254,7 @@ func (b *Bitstamp) generateDefaultSubscriptions() ([]subscription.Subscription, 
 				subscriptions = append(subscriptions, subscription.Subscription{
 					Channel: defaultAuthSubChannels[j] + "_" + p.String(),
 					Asset:   asset.Spot,
-					Pair:    p,
+				Pairsr:    p,
 					Params: map[string]interface{}{
 						"auth": struct{}{},
 					},
@@ -262,7 +262,7 @@ func (b *Bitstamp) generateDefaultSubscriptions() ([]subscription.Subscription, 
 			}
 		}
 	}
-	return subscriptions, nil
+	retuPairsubscriptions, nil
 }
 
 // Subscribe sends a websocket message to receive data from the channel

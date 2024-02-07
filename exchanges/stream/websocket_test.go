@@ -522,7 +522,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 	assert.Nil(t, ws.GetSubscription(42), "GetSubscription on empty internal map should return")
 	assert.NoError(t, ws.SubscribeToChannels(subs), "Basic Subscribing should not error")
 	assert.Len(t, ws.GetSubscriptions(), 4, "Should have 4 subscriptions")
-	byDefKey := ws.GetSubscription(subscription.DefaultKey{Channel: "TestSub"})
+	byDefKey := ws.GetSubscription(subscription.MultiPairKey{Channel: "TestSub"})
 	if assert.NotNil(t, byDefKey, "GetSubscription by default key should find a channel") {
 		assert.Equal(t, "TestSub", byDefKey.Channel, "GetSubscription by default key should return a pointer a copy of the right channel")
 		assert.NotSame(t, byDefKey, ws.subscriptions["TestSub"], "GetSubscription returns a fresh pointer")

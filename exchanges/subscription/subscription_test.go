@@ -50,9 +50,9 @@ func TestMarshaling(t *testing.T) {
 	assert.NoError(t, err, "Marshalling should not error")
 	assert.Equal(t, `{"enabled":true,"channel":"orderbook","interval":"5m","levels":4}`, string(j), "Marshalling should be clean and concise")
 
-	j, err = json.Marshal(&Subscription{Enabled: true, Channel: OrderbookChannel, Interval: kline.FiveMin, Levels: 4, Pairs: []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)}})
+	j, err = json.Marshal(&Subscription{Enabled: true, Channel: OrderbookChannel, Interval: kline.FiveMin, Levels: 4, Pairs: currency.Pairs{currency.NewPair(currency.BTC, currency.USDT)}})
 	assert.NoError(t, err, "Marshalling should not error")
-	assert.Equal(t, `{"enabled":true,"channel":"orderbook","pairs":["BTCUSDT"],"interval":"5m","levels":4}`, string(j), "Marshalling should be clean and concise")
+	assert.Equal(t, `{"enabled":true,"channel":"orderbook","pairs":"BTCUSDT","interval":"5m","levels":4}`, string(j), "Marshalling should be clean and concise")
 
 	j, err = json.Marshal(&Subscription{Enabled: true, Channel: MyTradesChannel, Authenticated: true})
 	assert.NoError(t, err, "Marshalling should not error")

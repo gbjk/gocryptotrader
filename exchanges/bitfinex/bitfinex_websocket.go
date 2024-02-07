@@ -1771,6 +1771,13 @@ func (b *Bitfinex) subscribeToChan(chans []subscription.Subscription) error {
 
 // subscribeReq returns a map of request params for subscriptions
 func subscribeReq(c *subscription.Subscription) (map[string]interface{}, error) {
+	if c == nil {
+		return common.ErrNilPointer
+	}
+	if len(c.Pairs) != 1 {
+		return subscription.ErrNotSinglePair
+	}
+	pair := c.Pairs[0]
 	req := map[string]interface{}{
 		"event":   "subscribe",
 		"channel": c.Channel,
@@ -1793,13 +1800,13 @@ func subscribeReq(c *subscription.Subscription) (map[string]interface{}, error) 
 		prefix = "f"
 	}
 
-	needsDelimiter := c.Pair.Len() > 6
+	needsDelimiter := pair.Len() > 6
 
 	var formattedPair string
 	if needsDelimiter {
-		formattedPair = c.Pair.Format(currency.PairFormat{Uppercase: true, Delimiter: ":"}).String()
+		formattedPair = pair.Format(currency.PairFormat{Uppercase: true, Delimiter: ":"}).String()
 	} else {
-		formattedPair = currency.PairFormat{Uppercase: true}.Format(c.Pair)
+		formattedPair = currency.PairFormat{Uppercase: true}.Format(pair)
 	}
 
 	if c.Channel == wsCandles {

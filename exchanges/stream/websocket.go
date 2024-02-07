@@ -270,7 +270,7 @@ func (w *Websocket) Connect() error {
 	}
 
 	w.subscriptionMutex.Lock()
-	w.subscriptions = subscriptionMap{}
+	w.subscriptions = subscription.Map{}
 	w.subscriptionMutex.Unlock()
 
 	w.dataMonitor()
@@ -491,7 +491,7 @@ func (w *Websocket) Shutdown() error {
 
 	// flush any subscriptions from last connection if needed
 	w.subscriptionMutex.Lock()
-	w.subscriptions = subscriptionMap{}
+	w.subscriptions = subscription.Map{}
 	w.subscriptionMutex.Unlock()
 
 	close(w.ShutdownC)
@@ -551,7 +551,7 @@ func (w *Websocket) FlushChannels() error {
 		if len(newsubs) != 0 {
 			// Purge subscription list as there will be conflicts
 			w.subscriptionMutex.Lock()
-			w.subscriptions = subscriptionMap{}
+			w.subscriptions = subscription.Map{}
 			w.subscriptionMutex.Unlock()
 			return w.SubscribeToChannels(newsubs)
 		}
@@ -943,7 +943,7 @@ func (w *Websocket) AddSubscription(c *subscription.Subscription) error {
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()
 	if w.subscriptions == nil {
-		w.subscriptions = subscriptionMap{}
+		w.subscriptions = subscription.Map{}
 	}
 	key := c.EnsureKeyed()
 	if _, ok := w.subscriptions[key]; ok {
@@ -962,7 +962,7 @@ func (w *Websocket) SetSubscriptionState(c *subscription.Subscription, state sub
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()
 	if w.subscriptions == nil {
-		w.subscriptions = subscriptionMap{}
+		w.subscriptions = subscription.Map{}
 	}
 	key := c.EnsureKeyed()
 	p, ok := w.subscriptions[key]
@@ -985,7 +985,7 @@ func (w *Websocket) AddSuccessfulSubscriptions(channels ...subscription.Subscrip
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()
 	if w.subscriptions == nil {
-		w.subscriptions = subscriptionMap{}
+		w.subscriptions = subscription.Map{}
 	}
 	for _, cN := range channels {
 		c := cN // cN is an iteration var; Not safe to make a pointer to
@@ -1000,7 +1000,7 @@ func (w *Websocket) RemoveSubscriptions(channels ...subscription.Subscription) {
 	w.subscriptionMutex.Lock()
 	defer w.subscriptionMutex.Unlock()
 	if w.subscriptions == nil {
-		w.subscriptions = subscriptionMap{}
+		w.subscriptions = subscription.Map{}
 	}
 	for i := range channels {
 		key := channels[i].EnsureKeyed()
@@ -1010,16 +1010,23 @@ func (w *Websocket) RemoveSubscriptions(channels ...subscription.Subscription) {
 
 // GetSubscription returns a pointer to a copy of the subscription at the key provided
 // returns nil if no subscription is at that key or the key is nil
+// Keys can implement subscription.MatchableKey in order to provide custom matching logic
 func (w *Websocket) GetSubscription(key any) *subscription.Subscription {
 	if key == nil || w == nil || w.subscriptions == nil {
 		return nil
 	}
 	w.subscriptionMutex.RLock()
 	defer w.subscriptionMutex.RUnlock()
+
+	if m, ok := key.(subscription.MatchableKey); ok {
+		return m.Match(w.subscriptions)
+	}
+
 	if s, ok := w.subscriptions[key]; ok {
 		c := *s
 		return &c
 	}
+
 	return nil
 }
 

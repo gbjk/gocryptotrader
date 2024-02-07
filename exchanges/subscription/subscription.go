@@ -1,12 +1,35 @@
 package subscription
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
+
+const (
+	UnknownState       State = iota // UnknownState subscription state is not registered, but doesn't imply Inactive
+	SubscribingState                // SubscribingState means channel is in the process of subscribing
+	SubscribedState                 // SubscribedState means the channel has finished a successful and acknowledged subscription
+	UnsubscribingState              // UnsubscribingState means the channel has started to unsubscribe, but not yet confirmed
+
+	TickerChannel    = "ticker"    // TickerChannel Subscription Type
+	OrderbookChannel = "orderbook" // OrderbookChannel Subscription Type
+	CandlesChannel   = "candles"   // CandlesChannel Subscription Type
+	AllOrdersChannel = "allOrders" // AllOrdersChannel Subscription Type
+	AllTradesChannel = "allTrades" // AllTradesChannel Subscription Type
+	MyTradesChannel  = "myTrades"  // MyTradesChannel Subscription Type
+	MyOrdersChannel  = "myOrders"  // MyOrdersChannel Subscription Type
+)
+
+var (
+	ErrNotSinglePair = errors.New("only single pair subscriptions expected")
+)
+
+// State tracks the status of a subscription channel
+type State uint8
 
 // MatchableKey interface should be implemented by Key types which want a more complex matching than a simple key equality check
 type MatchableKey interface {
@@ -28,26 +51,11 @@ type SinglePairKey struct {
 	Asset   asset.Item
 }
 
-// State tracks the status of a subscription channel
-type State uint8
-
-const (
-	UnknownState       State = iota // UnknownState subscription state is not registered, but doesn't imply Inactive
-	SubscribingState                // SubscribingState means channel is in the process of subscribing
-	SubscribedState                 // SubscribedState means the channel has finished a successful and acknowledged subscription
-	UnsubscribingState              // UnsubscribingState means the channel has started to unsubscribe, but not yet confirmed
-
-	TickerChannel    = "ticker"    // TickerChannel Subscription Type
-	OrderbookChannel = "orderbook" // OrderbookChannel Subscription Type
-	CandlesChannel   = "candles"   // CandlesChannel Subscription Type
-	AllOrdersChannel = "allOrders" // AllOrdersChannel Subscription Type
-	AllTradesChannel = "allTrades" // AllTradesChannel Subscription Type
-	MyTradesChannel  = "myTrades"  // MyTradesChannel Subscription Type
-	MyOrdersChannel  = "myOrders"  // MyOrdersChannel Subscription Type
-)
-
 // Map is a container of subscription pointers
 type Map map[any]*Subscription
+
+type SubscriptionInterface interface {
+}
 
 // Subscription container for streaming subscriptions
 type Subscription struct {
@@ -81,7 +89,7 @@ func (s *Subscription) EnsureKeyed() any {
 	return s.Key
 }
 
-// Match returns the first subscription which matches the MultiPairKey's Asset, Channel and Pair
+// Match returns the first subscription which matches the MultiPairKey's Asset, Channel and Pairs
 // If the key provided has:
 // * Empty pairs then only Subscriptions without pairs will be considered
 // * >=1 pairs then Subscriptions which contain all the pairs will be considered

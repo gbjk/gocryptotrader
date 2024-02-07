@@ -186,7 +186,7 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 			}
 		}
 
-		c := k.Websocket.GetSubscription(subscription.DefaultKey{Channel: channelName, Pair: wsPair, Asset: asset.Spot})
+		c := k.Websocket.GetSubscription(subscription.MultiPairKey{Channel: channelName, Pairs: []currency.Pairs{wsPair}, Asset: asset.Spot})
 		if c == nil {
 			return fmt.Errorf("%w: %s %s %s", stream.ErrSubscriptionNotFound, asset.Spot, channelName, wsPair)
 		}
@@ -593,7 +593,7 @@ func (k *Kraken) wsProcessTickers(c *subscription.Subscription, data map[string]
 		Bid:          bid,
 		Ask:          ask,
 		AssetType:    c.Asset,
-		Pair:         c.Pair,
+		Pair:         c.Pairs,
 	}
 	return nil
 }
@@ -636,7 +636,7 @@ func (k *Kraken) wsProcessSpread(c *subscription.Subscription, data []interface{
 		log.Debugf(log.ExchangeSys,
 			"%v Spread data for '%v' received. Best bid: '%v' Best ask: '%v' Time: '%v', Bid volume '%v', Ask volume '%v'",
 			k.Name,
-			c.Pair,
+			c.Pairs,
 			bestBid,
 			bestAsk,
 			convert.TimeFromUnixTimestampDecimal(timeData),
@@ -684,7 +684,7 @@ func (k *Kraken) wsProcessTrades(c *subscription.Subscription, data []interface{
 
 		trades[i] = trade.Data{
 			AssetType:    c.Asset,
-			CurrencyPair: c.Pair,
+			CurrencyPair: c.Pairs,
 			Exchange:     k.Name,
 			Price:        price,
 			Amount:       amount,
@@ -715,7 +715,7 @@ func (k *Kraken) wsProcessOrderBook(c *subscription.Subscription, data map[strin
 		defer k.wsRequestMtx.Unlock()
 		err := k.wsProcessOrderBookUpdate(c, askData, bidData, checksum)
 		if err != nil {
-			outbound := c.Pair // Format required "XBT/USD"
+			outbound := c.Pairs // Format required "XBT/USD"
 			outbound.Delimiter = "/"
 			go func(resub *subscription.Subscription) {
 				// This was locking the main websocket reader routine and a
@@ -736,7 +736,7 @@ func (k *Kraken) wsProcessOrderBook(c *subscription.Subscription, data map[strin
 	askSnapshot, askSnapshotExists := data["as"].([]interface{})
 	bidSnapshot, bidSnapshotExists := data["bs"].([]interface{})
 	if !askSnapshotExists && !bidSnapshotExists {
-		return fmt.Errorf("%w for %v %v", errNoWebsocketOrderbookData, c.Pair, c.Asset)
+		return fmt.Errorf("%w for %v %v", errNoWebsocketOrderbookData, c.Pairs, c.Asset)
 	}
 
 	return k.wsProcessOrderBookPartial(c, askSnapshot, bidSnapshot)
@@ -752,7 +752,7 @@ func (k *Kraken) wsProcessOrderBookPartial(c *subscription.Subscription, askData
 		return err
 	}
 	base := orderbook.Base{
-		Pair:                   c.Pair,
+		Pair:                   c.Pairs,
 		Asset:                  c.Asset,
 		VerifyOrderbook:        k.CanVerifyOrderbook,
 		Bids:                   make(orderbook.Items, len(bidData)),
@@ -865,7 +865,7 @@ func (k *Kraken) wsProcessOrderBookUpdate(c *subscription.Subscription, askData,
 	}
 	update := orderbook.Update{
 		Asset: c.Asset,
-		Pair:  c.Pair,
+		Pair:  c.Pairs,
 		Bids:  make([]orderbook.Item, len(bidData)),
 		Asks:  make([]orderbook.Item, len(askData)),
 	}
@@ -981,9 +981,9 @@ func (k *Kraken) wsProcessOrderBookUpdate(c *subscription.Subscription, askData,
 		return err
 	}
 
-	book, err := k.Websocket.Orderbook.GetOrderbook(c.Pair, c.Asset)
+	book, err := k.Websocket.Orderbook.GetOrderbook(c.Pairs, c.Asset)
 	if err != nil {
-		return fmt.Errorf("cannot calculate websocket checksum: book not found for %s %s %w", c.Pair, c.Asset, err)
+		return fmt.Errorf("cannot calculate websocket checksum: book not found for %s %s %w", c.Pairs, c.Asset, err)
 	}
 
 	token, err := strconv.ParseInt(checksum, 10, 64)
@@ -1072,7 +1072,7 @@ func (k *Kraken) wsProcessCandles(c *subscription.Subscription, data []interface
 
 	k.Websocket.DataHandler <- stream.KlineData{
 		AssetType: c.Asset,
-		Pair:      c.Pair,
+		Pair:      c.Pairs,
 		Timestamp: time.Now(),
 		Exchange:  k.Name,
 		StartTime: convert.TimeFromUnixTimestampDecimal(startTime),
@@ -1096,23 +1096,24 @@ func (k *Kraken) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 	}
 	var subscriptions []subscription.Subscription
 	for i := range defaultSubscribedChannels {
-		for j := range enabledPairs {
-			enabledPairs[j].Delimiter = "/"
-			c := subscription.Subscription{
-				Channel: defaultSubscribedChannels[i],
-				Pair:    enabledPairs[j],
-				Asset:   asset.Spot,
-				Params:  map[string]any{},
+		/*
+			for j := range enabledPairs {
+				enabledPairs[j].Delimiter = "/"
 			}
-			switch defaultSubscribedChannels[i] {
-			case krakenWsOrderbook:
-				c.Params[ChannelOrderbookDepthKey] = krakenWsOrderbookDefaultDepth
-			case krakenWsOHLC:
-				c.Params[ChannelCandlesTimeframeKey] = krakenWsCandlesDefaultTimeframe
-			}
-
-			subscriptions = append(subscriptions, c)
+		*/
+		c := subscription.Subscription{
+			Channel: defaultSubscribedChannels[i],
+			Pairs:   enabledPairs,
+			Asset:   asset.Spot,
+			Params:  map[string]any{},
 		}
+		switch defaultSubscribedChannels[i] {
+		case krakenWsOrderbook:
+			c.Params[ChannelOrderbookDepthKey] = krakenWsOrderbookDefaultDepth
+		case krakenWsOHLC:
+			c.Params[ChannelCandlesTimeframeKey] = krakenWsCandlesDefaultTimeframe
+		}
+		subscriptions = append(subscriptions, c)
 	}
 	if k.Websocket.CanUseAuthenticatedEndpoints() {
 		for i := range authenticatedChannels {
@@ -1127,12 +1128,12 @@ func (k *Kraken) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 
 // Subscribe sends a websocket message to receive data from the channel
 func (k *Kraken) Subscribe(channels []subscription.Subscription) error {
-	return k.ParallelChanOp(channels, k.subscribeToChan, 1)
+	return k.ParallelChanOp(channels, k.subscribeToChan, len(chans))
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (k *Kraken) Unsubscribe(channels []subscription.Subscription) error {
-	return k.ParallelChanOp(channels, k.unsubscribeFromChan, 1)
+	return k.ParallelChanOp(channels, k.unsubscribeFromChan, len(chans))
 }
 
 // subscribeToChan sends a websocket message to receive data from the channel
@@ -1143,7 +1144,7 @@ func (k *Kraken) subscribeToChan(chans []subscription.Subscription) error {
 	c := chans[0]
 	r, err := k.reqForSub(krakenWsSubscribe, &c)
 	if err != nil {
-		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, c.Channel, c.Pair, err)
+		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, c.Channel, c.Pairs, err)
 	}
 
 	if !c.Asset.IsValid() {
@@ -1158,7 +1159,7 @@ func (k *Kraken) subscribeToChan(chans []subscription.Subscription) error {
 	c.State = subscription.SubscribingState
 	err = k.Websocket.AddSubscription(&c)
 	if err != nil {
-		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, c.Channel, c.Pair, err)
+		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, c.Channel, c.Pairs, err)
 	}
 
 	conn := k.Websocket.Conn
@@ -1170,11 +1171,11 @@ func (k *Kraken) subscribeToChan(chans []subscription.Subscription) error {
 	respRaw, err := conn.SendMessageReturnResponse(r.RequestID, r)
 	if err != nil {
 		k.Websocket.RemoveSubscriptions(c)
-		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, c.Channel, c.Pair, err)
+		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrSubscriptionFailure, c.Channel, c.Pairs, err)
 	}
 
 	if err = k.getErrResp(respRaw); err != nil {
-		wErr := fmt.Errorf("%w Channel: %s Pair: %s; %w", stream.ErrSubscriptionFailure, c.Channel, c.Pair, err)
+		wErr := fmt.Errorf("%w Channel: %s Pair: %s; %w", stream.ErrSubscriptionFailure, c.Channel, c.Pairs, err)
 		k.Websocket.DataHandler <- wErr
 		k.Websocket.RemoveSubscriptions(c)
 		return wErr
@@ -1185,7 +1186,7 @@ func (k *Kraken) subscribeToChan(chans []subscription.Subscription) error {
 	}
 
 	if k.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s Pair: %s\n", k.Name, c.Channel, c.Pair)
+		log.Debugf(log.ExchangeSys, "%s Subscribed to Channel: %s Pair: %s\n", k.Name, c.Channel, c.Pairs)
 	}
 
 	return nil
@@ -1199,7 +1200,7 @@ func (k *Kraken) unsubscribeFromChan(chans []subscription.Subscription) error {
 	c := chans[0]
 	r, err := k.reqForSub(krakenWsUnsubscribe, &c)
 	if err != nil {
-		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrUnsubscribeFailure, c.Channel, c.Pair, err)
+		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrUnsubscribeFailure, c.Channel, c.Pairs, err)
 	}
 
 	c.EnsureKeyed()
@@ -1207,7 +1208,7 @@ func (k *Kraken) unsubscribeFromChan(chans []subscription.Subscription) error {
 	if err = k.Websocket.SetSubscriptionState(&c, subscription.UnsubscribingState); err != nil {
 		// err is probably ErrChannelInStateAlready, but we want to bubble it up to prevent an attempt to Subscribe again
 		// We can catch and ignore it in our call to resub
-		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrUnsubscribeFailure, c.Channel, c.Pair, err)
+		return fmt.Errorf("%w Channel: %s Pair: %s Error: %w", stream.ErrUnsubscribeFailure, c.Channel, c.Pairs, err)
 	}
 
 	conn := k.Websocket.Conn
@@ -1225,7 +1226,7 @@ func (k *Kraken) unsubscribeFromChan(chans []subscription.Subscription) error {
 	}
 
 	if err = k.getErrResp(respRaw); err != nil {
-		wErr := fmt.Errorf("%w Channel: %s Pair: %s; %w", stream.ErrUnsubscribeFailure, c.Channel, c.Pair, err)
+		wErr := fmt.Errorf("%w Channel: %s Pair: %s; %w", stream.ErrUnsubscribeFailure, c.Channel, c.Pairs, err)
 		k.Websocket.DataHandler <- wErr
 		if e2 := k.Websocket.SetSubscriptionState(&c, subscription.SubscribedState); e2 != nil {
 			log.Errorf(log.ExchangeSys, "%s error setting channel to subscribed: %s", k.Name, e2)
@@ -1250,8 +1251,8 @@ func (k *Kraken) reqForSub(e string, c *subscription.Subscription) (*WebsocketSu
 		},
 	}
 
-	if !c.Pair.IsEmpty() {
-		r.Pairs = []string{c.Pair.String()}
+	if !c.Pairs.IsEmpty() {
+		r.Pairs = []string{c.Pairs.String()}
 	}
 
 	var err error
@@ -1270,7 +1271,7 @@ func ensureChannelKeyed(c *subscription.Subscription, r *WebsocketSubRequest) er
 	if c == nil || r == nil {
 		return common.ErrNilPointer
 	}
-	key, ok := c.EnsureKeyed().(subscription.DefaultKey)
+	key, ok := c.EnsureKeyed().(subscription.MultiPairKey)
 	if !ok {
 		return common.GetTypeAssertError("stream.DefaultChannelKey", c.Key, "subscription.Key") // Should be impossible
 	}

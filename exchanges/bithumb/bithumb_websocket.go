@@ -185,7 +185,7 @@ func (b *Bithumb) GenerateSubscriptions() ([]subscription.Subscription, error) {
 		for y := range channels {
 			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: channels[y],
-				Pair:    pairs[x].Format(pFmt),
+				Pairs:   pairs[x].Format(pFmt),
 				Asset:   asset.Spot,
 			})
 		}
@@ -204,7 +204,7 @@ func (b *Bithumb) Subscribe(channelsToSubscribe []subscription.Subscription) err
 			}
 			subs[channelsToSubscribe[i].Channel] = s
 		}
-		s.Symbols = append(s.Symbols, channelsToSubscribe[i].Pair)
+		s.Symbols = append(s.Symbols, channelsToSubscribe[i].Pairs)
 	}
 
 	tSub, ok := subs["ticker"]
