@@ -642,7 +642,7 @@ func TestGetSubscription(t *testing.T) {
 	assert.Nil(t, (*Websocket).GetSubscription(nil, "imaginary"), "GetSubscription on a nil Websocket should return nil")
 	assert.Nil(t, (&Websocket{}).GetSubscription("empty"), "GetSubscription on a Websocket with no sub map should return nil")
 	w := Websocket{
-		subscriptions: subscriptionMap{
+		subscriptions: subscription.Map{
 			42: {
 				Channel: "hello3",
 			},
@@ -659,7 +659,7 @@ func TestGetSubscription(t *testing.T) {
 func TestGetSubscriptions(t *testing.T) {
 	t.Parallel()
 	w := Websocket{
-		subscriptions: subscriptionMap{
+		subscriptions: subscription.Map{
 			42: {
 				Channel: "hello3",
 			},
@@ -1107,7 +1107,7 @@ func (g *GenSubs) generateSubs() ([]subscription.Subscription, error) {
 	for i := range g.EnabledPairs {
 		superduperchannelsubs[i] = subscription.Subscription{
 			Channel: "TEST:" + strconv.FormatInt(int64(i), 10),
-			Pair:    g.EnabledPairs[i],
+			Pairs:   currency.Pairs{g.EnabledPairs[i]},
 		}
 	}
 	return superduperchannelsubs, nil
@@ -1225,16 +1225,16 @@ func TestFlushChannels(t *testing.T) {
 		t.Fatal(err)
 	}
 	web.subscriptionMutex.Lock()
-	web.subscriptions = subscriptionMap{
+	web.subscriptions = subscription.Map{
 		41: {
 			Key:     41,
 			Channel: "match channel",
-			Pair:    currency.NewPair(currency.BTC, currency.AUD),
+			Pairs:   currency.Pairs{currency.NewPair(currency.BTC, currency.AUD)},
 		},
 		42: {
 			Key:     42,
 			Channel: "unsub channel",
-			Pair:    currency.NewPair(currency.THETA, currency.USDT),
+			Pairs:   currency.Pairs{currency.NewPair(currency.THETA, currency.USDT)},
 		},
 	}
 	web.subscriptionMutex.Unlock()
@@ -1440,7 +1440,7 @@ func TestCheckSubscriptions(t *testing.T) {
 
 	ws.MaxSubscriptionsPerConnection = 2
 
-	ws.subscriptions = subscriptionMap{42: {Key: 42, Channel: "test"}}
+	ws.subscriptions = subscription.Map{42: {Key: 42, Channel: "test"}}
 	err = ws.checkSubscriptions([]subscription.Subscription{{Key: 42, Channel: "test"}})
 	assert.ErrorIs(t, err, ErrSubscribedAlready, "checkSubscriptions should error correctly")
 

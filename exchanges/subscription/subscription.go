@@ -40,7 +40,7 @@ type MatchableKey interface {
 // It provides for matching on one or more keys
 type Key struct {
 	Channel string
-	Pairs   currency.Pairs
+	Pairs   *currency.Pairs
 	Asset   asset.Item
 }
 
@@ -76,7 +76,7 @@ func (s *Subscription) EnsureKeyed() any {
 		s.Key = Key{
 			Channel: s.Channel,
 			Asset:   s.Asset,
-			Pairs:   s.Pairs,
+			Pairs:   &s.Pairs,
 		}
 	}
 	return s.Key
@@ -98,10 +98,10 @@ func (k *Key) Match(m Map) *Subscription {
 		if k.Asset != candidate.Asset {
 			continue
 		}
-		if len(k.Pairs) == 0 && len(candidate.Pairs) == 0 {
+		if len(*k.Pairs) == 0 && len(*candidate.Pairs) == 0 {
 			return v
 		}
-		if err := candidate.Pairs.ContainsAll(k.Pairs, true); err == nil {
+		if err := candidate.Pairs.ContainsAll(*k.Pairs, true); err == nil {
 			return v
 		}
 	}
