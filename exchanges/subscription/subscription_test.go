@@ -18,12 +18,12 @@ func TestEnsureKeyed(t *testing.T) {
 		Asset:   asset.Spot,
 		Pairs:   []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
 	}
-	k1, ok := c.EnsureKeyed().(MultiPairKey)
-	if assert.True(t, ok, "EnsureKeyed should return a MultiPairKey") {
+	k1, ok := c.EnsureKeyed().(Key)
+	if assert.True(t, ok, "EnsureKeyed should return a Key") {
 		assert.Exactly(t, k1, c.Key, "EnsureKeyed should set the same key")
-		assert.Equal(t, k1.Channel, c.Channel, "MultiPairKey channel should be correct")
-		assert.Equal(t, k1.Asset, c.Asset, "MultiPairKey asset should be correct")
-		assert.Equal(t, k1.Pairs, c.Pairs, "MultiPairKey currency should be correct")
+		assert.Equal(t, k1.Channel, c.Channel, "Key channel should be correct")
+		assert.Equal(t, k1.Asset, c.Asset, "Key asset should be correct")
+		assert.Equal(t, k1.Pairs, c.Pairs, "Key currency should be correct")
 	}
 	type platypus string
 	c = Subscription{

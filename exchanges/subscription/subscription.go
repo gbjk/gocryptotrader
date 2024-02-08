@@ -36,18 +36,11 @@ type MatchableKey interface {
 	Match(Map) *Subscription
 }
 
-// MultiPairKey is the fallback key for AddSuccessfulSubscriptions
+// Key is the fallback key for AddSuccessfulSubscriptions
 // It provides for matching on one or more keys
-type MultiPairKey struct {
+type Key struct {
 	Channel string
 	Pairs   currency.Pairs
-	Asset   asset.Item
-}
-
-// SinglePairKey is available as a key type which expects only one pair for a subscription
-type SinglePairKey struct {
-	Channel string
-	Pair    currency.Pair
 	Asset   asset.Item
 }
 
@@ -80,7 +73,7 @@ func (s *Subscription) String() string {
 // Returns key for convenience
 func (s *Subscription) EnsureKeyed() any {
 	if s.Key == nil {
-		s.Key = MultiPairKey{
+		s.Key = Key{
 			Channel: s.Channel,
 			Asset:   s.Asset,
 			Pairs:   s.Pairs,
@@ -89,13 +82,13 @@ func (s *Subscription) EnsureKeyed() any {
 	return s.Key
 }
 
-// Match returns the first subscription which matches the MultiPairKey's Asset, Channel and Pairs
+// Match returns the first subscription which matches the Key's Asset, Channel and Pairs
 // If the key provided has:
 // * Empty pairs then only Subscriptions without pairs will be considered
 // * >=1 pairs then Subscriptions which contain all the pairs will be considered
-func (k *MultiPairKey) Match(m Map) *Subscription {
+func (k *Key) Match(m Map) *Subscription {
 	for a, v := range m {
-		candidate, ok := a.(MultiPairKey)
+		candidate, ok := a.(Key)
 		if !ok {
 			continue
 		}
