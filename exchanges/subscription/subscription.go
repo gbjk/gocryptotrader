@@ -98,7 +98,7 @@ func (k Key) Match(m Map) *Subscription {
 		if k.Asset != candidate.Asset {
 			continue
 		}
-		if len(*k.Pairs) == 0 && len(*candidate.Pairs) == 0 {
+		if (k.Pairs == nil || len(*k.Pairs) == 0) && (candidate.Pairs == nil || len(*candidate.Pairs) == 0) {
 			return v
 		}
 		if err := candidate.Pairs.ContainsAll(*k.Pairs, true); err == nil {

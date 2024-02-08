@@ -1540,7 +1540,7 @@ func TestWsOHLC(t *testing.T) {
 	k.Websocket.AddSuccessfulSubscriptions(subscription.Subscription{
 		Key: subscription.Key{
 			Channel: krakenWsOHLC + "-5",
-			Pairs:   currency.Pairs{btcusdPair},
+			Pairs:   &currency.Pairs{btcusdPair},
 			Asset:   asset.Spot,
 		},
 		Channel: krakenWsOHLC,
@@ -1573,7 +1573,7 @@ func TestWsOrdrbook(t *testing.T) {
 	k.Websocket.AddSuccessfulSubscriptions(subscription.Subscription{
 		Key: subscription.Key{
 			Channel: krakenWsOrderbook + "-100",
-			Pairs:   currency.Pairs{btcusdPair},
+			Pairs:   &currency.Pairs{btcusdPair},
 			Asset:   asset.Spot,
 		},
 		Channel: krakenWsOrderbook,
@@ -2006,7 +2006,7 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 		k.Websocket.AddSuccessfulSubscriptions(subscription.Subscription{
 			Key: subscription.Key{
 				Channel: krakenWsOrderbook + "-10",
-				Pairs:   currency.Pairs{p},
+				Pairs:   &currency.Pairs{p},
 				Asset:   asset.Spot,
 			},
 			Channel: krakenWsOrderbook,

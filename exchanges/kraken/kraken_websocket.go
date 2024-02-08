@@ -186,7 +186,7 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 			}
 		}
 
-		c := k.Websocket.GetSubscription(subscription.Key{Channel: channelName, Pairs: currency.Pairs{wsPair}, Asset: asset.Spot})
+		c := k.Websocket.GetSubscription(subscription.Key{Channel: channelName, Pairs: &currency.Pairs{wsPair}, Asset: asset.Spot})
 		if c == nil {
 			return fmt.Errorf("%w: %s %s %s", stream.ErrSubscriptionNotFound, asset.Spot, channelName, wsPair)
 		}
