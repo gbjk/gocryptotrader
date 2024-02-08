@@ -86,7 +86,7 @@ func (s *Subscription) EnsureKeyed() any {
 // If the key provided has:
 // * Empty pairs then only Subscriptions without pairs will be considered
 // * >=1 pairs then Subscriptions which contain all the pairs will be considered
-func (k *Key) Match(m Map) *Subscription {
+func (k Key) Match(m Map) *Subscription {
 	for a, v := range m {
 		candidate, ok := a.(Key)
 		if !ok {

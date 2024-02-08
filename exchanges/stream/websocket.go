@@ -877,23 +877,31 @@ func (w *Websocket) GetName() string {
 // and the new subscription list when pairs are disabled or enabled.
 func (w *Websocket) GetChannelDifference(genSubs []subscription.Subscription) (sub, unsub []subscription.Subscription) {
 	w.subscriptionMutex.RLock()
-	unsubMap := make(map[any]subscription.Subscription, len(w.subscriptions))
+	unsubMap := subscription.Map{}
 	for k, c := range w.subscriptions {
-		unsubMap[k] = *c
+		unsubMap[k] = c
 	}
 	w.subscriptionMutex.RUnlock()
 
 	for i := range genSubs {
 		key := genSubs[i].EnsureKeyed()
-		if _, ok := unsubMap[key]; ok {
-			delete(unsubMap, key) // If it's in both then we remove it from the unsubscribe list
+
+		var found *subscription.Subscription
+		if m, ok := key.(subscription.MatchableKey); ok {
+			found = m.Match(unsubMap)
+		} else {
+			found = unsubMap[key]
+		}
+
+		if found != nil {
+			delete(unsubMap, found.Key) // If it's in both then we remove it from the unsubscribe list
 		} else {
 			sub = append(sub, genSubs[i]) // If it's in genSubs but not existing subs we want to subscribe
 		}
 	}
 
 	for _, c := range unsubMap {
-		unsub = append(unsub, c)
+		unsub = append(unsub, *c)
 	}
 
 	return

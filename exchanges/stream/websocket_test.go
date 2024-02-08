@@ -1059,8 +1059,9 @@ func TestGetChannelDifference(t *testing.T) {
 		},
 	}
 	subs, unsubs := web.GetChannelDifference(newChans)
-	assert.Len(t, subs, 3, "Should get the correct number of subs")
-	assert.Len(t, unsubs, 0, "Should get the correct number of unsubs")
+	assert.Implements(t, (*subscription.MatchableKey)(nil), subs[0].Key, "Sub key must be matchable")
+	assert.Equal(t, 3, len(subs), "Should get the correct number of subs")
+	assert.Equal(t, 0, len(unsubs), "Should get the correct number of unsubs")
 
 	web.AddSuccessfulSubscriptions(subs...)
 
@@ -1071,8 +1072,8 @@ func TestGetChannelDifference(t *testing.T) {
 	}
 
 	subs, unsubs = web.GetChannelDifference(flushedSubs)
-	assert.Len(t, subs, 0, "Should get the correct number of subs")
-	assert.Len(t, unsubs, 2, "Should get the correct number of unsubs")
+	assert.Equal(t, 0, len(subs), "Should get the correct number of subs")
+	assert.Equal(t, 2, len(unsubs), "Should get the correct number of unsubs")
 
 	flushedSubs = []subscription.Subscription{
 		{
@@ -1084,10 +1085,10 @@ func TestGetChannelDifference(t *testing.T) {
 	}
 
 	subs, unsubs = web.GetChannelDifference(flushedSubs)
-	if assert.Len(t, subs, 1, "Should get the correct number of subs") {
+	if assert.Equal(t, 1, len(subs), "Should get the correct number of subs") {
 		assert.Equal(t, subs[0].Channel, "Test4", "Should subscribe to the right channel")
 	}
-	if assert.Len(t, unsubs, 2, "Should get the correct number of unsubs") {
+	if assert.Equal(t, 2, len(unsubs), "Should get the correct number of unsubs") {
 		sort.Slice(unsubs, func(i, j int) bool { return unsubs[i].Channel <= unsubs[j].Channel })
 		assert.Equal(t, unsubs[0].Channel, "Test1", "Should unsubscribe from the right channels")
 		assert.Equal(t, unsubs[1].Channel, "Test3", "Should unsubscribe from the right channels")
