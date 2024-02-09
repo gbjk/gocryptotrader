@@ -1039,12 +1039,12 @@ func (k *Kraken) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 
 // Subscribe sends a websocket message to receive data from the channel
 func (k *Kraken) Subscribe(channels []subscription.Subscription) error {
-	return k.ParallelChanOp(channels, k.subscribeToChan, len(channels))
+	return k.ParallelChanOp(channels, k.subscribeToChan, 1)
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (k *Kraken) Unsubscribe(channels []subscription.Subscription) error {
-	return k.ParallelChanOp(channels, k.unsubscribeFromChan, len(channels))
+	return k.ParallelChanOp(channels, k.unsubscribeFromChan, 1)
 }
 
 // subscribeToChan sends a websocket message to receive data from the channel
@@ -1088,6 +1088,7 @@ func (k *Kraken) subscribeToChan(chans []subscription.Subscription) error {
 	if err = k.getErrResp(respRaw); err != nil {
 		wErr := fmt.Errorf("%w Channel: %s Pair: %s; %w", stream.ErrSubscriptionFailure, c.Channel, c.Pairs, err)
 		k.Websocket.DataHandler <- wErr
+		// Currently all or nothing on pairs; Alternatively parse response and remove failing pairs and retry
 		k.Websocket.RemoveSubscriptions(c)
 		return wErr
 	}

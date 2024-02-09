@@ -1178,34 +1178,16 @@ func TestWithdrawCancel(t *testing.T) {
 
 // ---------------------------- Websocket tests -----------------------------------------
 
-// setupWs is a helper function to connect both auth and normal websockets
-// It will skip the test if websockets are not enabled
-// It's up to the test to skip if it requires creds, though
-func setupWs(tb testing.TB) {
-	tb.Helper()
-
-	if !k.Websocket.IsEnabled() {
-		tb.Skip("Websocket not enabled")
-	}
-	if k.Websocket.IsConnected() {
-		return
-	}
-
-	if wsConnected {
-		return
-	}
-	wsConnected = true
-
-	// We don't use k.websocket.Connect() because it'd subscribe to channels
-	err := k.WsConnect()
-	assert.NoError(tb, err, "WsConnect should not error")
-}
-
 // TestWsSubscribe tests unauthenticated websocket subscriptions
 // Specifically looking to ensure multiple errors are collected and returned and ws.Subscriptions Added/Removed in cases of:
 // single pass, single fail, mixed fail, multiple pass, all fail
 // No objection to this becoming a fixture test, so long as it integrates through Un/Subscribe roundtrip
 func TestWsSubscribe(t *testing.T) {
+	t.Parallel()
+
+	k := new(Kraken)
+	require.NoError(t, testexch.TestInstance(k), "TestInstance must not error")
+	k.Features.Subscriptions = []*subscription.Subscription{}
 	testexch.SetupWs(t, k)
 
 	err := k.Subscribe([]subscription.Subscription{{Channel: krakenWsTicker, Pairs: currency.Pairs{currency.NewPairWithDelimiter("XBT", "USD", "/")}}})
