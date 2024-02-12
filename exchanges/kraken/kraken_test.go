@@ -1255,6 +1255,8 @@ func TestWsSubscribe(t *testing.T) {
 
 // TestWsOrderbookSub tests orderbook subscriptions for MaxDepth params
 func TestWsOrderbookSub(t *testing.T) {
+	t.Parallel()
+
 	testexch.SetupWs(t, k)
 
 	err := k.Subscribe([]subscription.Subscription{{
