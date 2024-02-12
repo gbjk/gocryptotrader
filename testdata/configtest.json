@@ -1919,8 +1919,8 @@
           "websocketURL": "NON_DEFAULT_HTTP_LINK_TO_WEBSOCKET_EXCHANGE_API"
         },
         "credentials": {
-          "key": "Momma",
-          "secret": "Bear"
+          "key": "Key",
+          "secret": "Secret"
         },
         "credentialsValidator": {
           "requiresKey": true,
