@@ -1256,6 +1256,8 @@ func TestWsSubscribe(t *testing.T) {
 func TestWsOrderbookSub(t *testing.T) {
 	t.Parallel()
 
+	k := new(Kraken)
+	require.NoError(t, testexch.TestInstance(k), "TestInstance must not error")
 	testexch.SetupWs(t, k)
 
 	err := k.Subscribe([]subscription.Subscription{{
@@ -1289,6 +1291,10 @@ func TestWsOrderbookSub(t *testing.T) {
 
 // TestWsCandlesSub tests caPairss subscription for Timeframe params
 func TestWsCandlesSub(t *testing.T) {
+	t.Parallel()
+
+	k := new(Kraken)
+	require.NoError(t, testexch.TestInstance(k), "TestInstance must not error")
 	testexch.SetupWs(t, k)
 
 	err := k.Subscribe([]subscription.Subscription{{
@@ -1322,8 +1328,13 @@ func TestWsCandlesSub(t *testing.T) {
 
 // TestWsOwnTradesSub tests the authenticated WS subscription channel for trades
 func TestWsOwnTradesSub(t *testing.T) {
-	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+	t.Parallel()
+
+	k := new(Kraken)
+	require.NoError(t, testexch.TestInstance(k), "TestInstance must not error")
 	testexch.SetupWs(t, k)
+
+	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
 
 	err := k.Subscribe([]subscription.Subscription{{Channel: krakenWsOwnTrades}})
 	assert.NoError(t, err, "Subsrcibing to ownTrades should not error")

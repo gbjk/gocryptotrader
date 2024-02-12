@@ -970,8 +970,7 @@ func (w *Websocket) AddSuccessfulSubscriptions(channels ...subscription.Subscrip
 	if w.subscriptions == nil {
 		w.subscriptions = subscription.Map{}
 	}
-	for _, cN := range channels {
-		c := cN // cN is an iteration var; Not safe to make a pointer to
+	for _, c := range channels {
 		key := c.EnsureKeyed()
 		c.State = subscription.SubscribedState
 		w.subscriptions[key] = &c

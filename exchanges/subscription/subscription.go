@@ -89,8 +89,8 @@ func (s *Subscription) EnsureKeyed() any {
 
 // Match returns the first subscription which matches the Key's Asset, Channel and Pairs
 // If the key provided has:
-// * Empty pairs then only Subscriptions without pairs will be considered
-// * >=1 pairs then Subscriptions which contain all the pairs will be considered
+// 1) Empty pairs then only Subscriptions without pairs will be considered
+// 2) >=1 pairs then Subscriptions which contain all the pairs will be considered
 func (k Key) Match(m Map) *Subscription {
 	for anyKey, s := range m {
 		candidate, ok := anyKey.(Key)
@@ -103,8 +103,11 @@ func (k Key) Match(m Map) *Subscription {
 		if k.Asset != candidate.Asset {
 			continue
 		}
-		if (k.Pairs == nil || len(*k.Pairs) == 0) && (candidate.Pairs == nil || len(*candidate.Pairs) == 0) {
-			return s
+		if k.Pairs == nil || len(*k.Pairs) == 0 {
+			if candidate.Pairs == nil || len(*candidate.Pairs) == 0 {
+				return s
+			}
+			continue // Case (1) - key doesn't have any pairs but candidate does
 		}
 		if err := candidate.Pairs.ContainsAll(*k.Pairs, true); err == nil {
 			return s
