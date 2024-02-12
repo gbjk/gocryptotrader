@@ -160,6 +160,9 @@ func SetupWs(tb testing.TB, e exchange.IBotExchange) {
 		return
 	}
 
+	// Disable any default subscriptions, which aren't relevant for tests
+	b.Features.Subscriptions = []*subscription.Subscription{}
+
 	err = w.Connect()
 	require.NoError(tb, err, "WsConnect should not error")
 

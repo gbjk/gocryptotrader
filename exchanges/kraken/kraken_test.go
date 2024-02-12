@@ -50,7 +50,7 @@ var btcusdPair = currency.NewPairWithDelimiter("XBT", "USD", "/")
 
 func TestMain(m *testing.M) {
 	var err error
-	k := new(Kraken)
+	k = new(Kraken)
 	if err = testexch.TestInstance(k); err != nil {
 		log.Fatal(err)
 	}
@@ -1186,7 +1186,6 @@ func TestWsSubscribe(t *testing.T) {
 
 	k := new(Kraken)
 	require.NoError(t, testexch.TestInstance(k), "TestInstance must not error")
-	k.Features.Subscriptions = []*subscription.Subscription{}
 	testexch.SetupWs(t, k)
 
 	err := k.Subscribe([]subscription.Subscription{{Channel: krakenWsTicker, Pairs: currency.Pairs{currency.NewPairWithDelimiter("XBT", "USD", "/")}}})
