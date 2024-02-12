@@ -927,8 +927,9 @@ func (w *Websocket) AddSubscription(c *subscription.Subscription) error {
 	if w.subscriptions == nil {
 		w.subscriptions = subscription.Map{}
 	}
+
 	key := c.EnsureKeyed()
-	if _, ok := w.subscriptions[key]; ok {
+	if s := w.getSubscription(key); s != nil {
 		return ErrSubscribedAlready
 	}
 
@@ -999,14 +1000,20 @@ func (w *Websocket) GetSubscription(key any) *subscription.Subscription {
 	}
 	w.subscriptionMutex.RLock()
 	defer w.subscriptionMutex.RUnlock()
+	s := w.getSubscription(key)
+	if s != nil {
+		s = &(*s)
+	}
+	return s
+}
 
+func (w *Websocket) getSubscription(key any) *subscription.Subscription {
 	if m, ok := key.(subscription.MatchableKey); ok {
 		return m.Match(w.subscriptions)
 	}
 
 	if s, ok := w.subscriptions[key]; ok {
-		c := *s
-		return &c
+		return s
 	}
 
 	return nil
