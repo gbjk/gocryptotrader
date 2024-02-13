@@ -37,7 +37,6 @@ import (
 )
 
 var k = &Kraken{}
-var btcusdtPair = currency.NewPair(currency.BTC, currency.USDT)
 
 // Please add your own APIkeys here or in config/testdata.json to do correct due diligence testing
 const (
@@ -1612,7 +1611,7 @@ func TestWsOrdrbook(t *testing.T) {
 
 func TestWsOwnTrades(t *testing.T) {
 	t.Parallel()
-	k.Websocket.AddSuccessfulSubscriptions(subscription.Subscription{Asset: asset.Spot, Channel: krakenWsOwnTrades})
+	k.Websocket.AddSuccessfulSubscriptions(subscription.Subscription{Asset: asset.Spot, Channel: krakenWsOwnTrades, Pairs: currency.Pairs{btcusdPair}})
 	pressXToJSON := []byte(`[
 	  [
 		{
@@ -2014,29 +2013,28 @@ var websocketGSTEUROrderbookUpdates = []string{
 
 func TestWsOrderbookMax10Depth(t *testing.T) {
 	t.Parallel()
-	for _, c := range []string{"XDG/USD", "LUNA/EUR", "GST/EUR"} {
-		p, err := currency.NewPairFromString(c)
-		assert.NoErrorf(t, err, "NewPairFromString %s should not error", c)
-		k.Websocket.AddSuccessfulSubscriptions(subscription.Subscription{
-			Key: subscription.Key{
-				Channel: krakenWsOrderbook + "-10",
-				Pairs:   &currency.Pairs{p},
-				Asset:   asset.Spot,
-			},
-			Channel: krakenWsOrderbook,
-			Pairs:   currency.Pairs{p},
-			Asset:   asset.Spot,
-			Params: map[string]any{
-				ChannelOrderbookDepthKey: 10,
-			},
-		})
+	pairs := currency.Pairs{
+		currency.NewPairWithDelimiter("XDG", "USD", "/"),
+		currency.NewPairWithDelimiter("LUNA", "EUR", "/"),
+		currency.NewPairWithDelimiter("GST", "EUR", "/"),
 	}
+	k.Websocket.AddSuccessfulSubscriptions(subscription.Subscription{
+		Key: subscription.Key{
+			Channel: krakenWsOrderbook + "-10",
+			Pairs:   &pairs,
+			Asset:   asset.Spot,
+		},
+		Channel: krakenWsOrderbook,
+		Pairs:   pairs,
+		Asset:   asset.Spot,
+		Params: map[string]any{
+			ChannelOrderbookDepthKey: 10,
+		},
+	})
 
 	for x := range websocketXDGUSDOrderbookUpdates {
 		err := k.wsHandleData([]byte(websocketXDGUSDOrderbookUpdates[x]))
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err, "wsHandleData should not error")
 	}
 
 	for x := range websocketLUNAEUROrderbookUpdates {
@@ -2045,17 +2043,15 @@ func TestWsOrderbookMax10Depth(t *testing.T) {
 		// storage and checksum calc. Might need to store raw strings as fields
 		// in the orderbook.Item struct.
 		// Required checksum: 7465000014735432016076747100005084881400000007476000097005027047670474990000293338023886300750000004333333333333375020000152914844934167507000014652990542161752500007370728572000475400000670061645671407546000098022663603417745900007102987806720745800001593557686404000745200003375861179634000743500003156650585902777434000030172726079999999743200006461149653837000743100001042285966000000074300000403660461058200074200000369021657320475740500001674242117790510
-		if err != nil && x != len(websocketLUNAEUROrderbookUpdates)-1 {
-			t.Fatal(err)
+		if x != len(websocketLUNAEUROrderbookUpdates)-1 {
+			require.NoError(t, err, "wsHandleData should not error")
 		}
 	}
 
 	// This has less than 10 bids and still needs a checksum calc.
 	for x := range websocketGSTEUROrderbookUpdates {
 		err := k.wsHandleData([]byte(websocketGSTEUROrderbookUpdates[x]))
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err, "wsHandleData should not error")
 	}
 }
 
