@@ -973,14 +973,19 @@ func (k *Kraken) wsProcessCandles(channelName string, response []any, pair curre
 		return fmt.Errorf("%w: %s %s %s", stream.ErrSubscriptionNotFound, asset.Spot, channelName, pair)
 	}
 
-	dataStr, ok := response[1].([]string)
 	// 8 string quoted floats followed by 1 integer for trade count
+	dataStr, ok := response[1].([]any)
 	if !ok || len(dataStr) != 9 {
 		return errors.New("received invalid candle data")
 	}
 	data := make([]float64, 8)
 	for i := 0; i < 8; i++ {
-		f, err := strconv.ParseFloat(dataStr[i], 64)
+		s, ok := dataStr[i].(string)
+		if !ok {
+			return fmt.Errorf("received invalid candle data: %w", common.GetTypeAssertError("string", dataStr[i], "candle-data"))
+		}
+
+		f, err := strconv.ParseFloat(s, 64)
 		if err != nil {
 			return fmt.Errorf("received invalid candle data: %w", err)
 		}
