@@ -496,13 +496,23 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 
 // wsProcessTickers converts ticker data and sends it to the datahandler
 func (k *Kraken) wsProcessTickers(response []any, pair currency.Pair) error {
-	t, ok := response[1].(map[string]string)
+	t, ok := response[1].(map[string]any)
 	if !ok {
 		return errors.New("received invalid ticker data")
 	}
 	data := make([]float64, 9)
-	for i, a := range []byte("abcvptlho") {
-		f, err := strconv.ParseFloat(t[string(a)], 64)
+	for i, b := range []byte("abcvptlho") {
+		key := string(b)
+		a, ok := t[key].([]any)
+		if !ok {
+			return fmt.Errorf("received invalid ticker data: %w", common.GetTypeAssertError("[]any", t[key], "ticker."+key))
+		}
+		var s string
+		if s, ok = a[0].(string); !ok {
+			return fmt.Errorf("received invalid ticker data: %w", common.GetTypeAssertError("string", a[0], "ticker."+key+"[0]"))
+		}
+
+		f, err := strconv.ParseFloat(s, 64)
 		if err != nil {
 			return fmt.Errorf("received invalid ticker data: %w", err)
 		}
