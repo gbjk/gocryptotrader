@@ -10,7 +10,7 @@ import (
 
 func Equal(tb testing.TB, a, b subscription.List) {
 	tb.Helper()
-	added, missing := subscription.ListToMap(a).Diff(subscription.ListToMap(b))
+	added, missing := subscription.NewStoreFromList(a).Diff(b)
 	if len(added) > 0 || len(missing) > 0 {
 		fail := "Differences:"
 		if len(added) > 0 {

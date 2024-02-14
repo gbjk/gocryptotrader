@@ -74,10 +74,8 @@ func New() *Websocket {
 		ToRoutine:         make(chan interface{}, defaultJobBuffer),
 		TrafficAlert:      make(chan struct{}),
 		ReadMessageErrors: make(chan error),
-		Subscribe:         make(chan []subscription.Subscription),
-		Unsubscribe:       make(chan []subscription.Subscription),
 		Match:             NewMatch(),
-		subscriptions:     subscription.Map{},
+		subscriptions:     subscription.NewStore(),
 	}
 }
 
@@ -538,9 +536,7 @@ func (w *Websocket) FlushChannels() error {
 
 		if len(newsubs) != 0 {
 			// Purge subscription list as there will be conflicts
-			w.subscriptionMutex.Lock()
-			w.subscriptions = subscription.Map{}
-			w.subscriptionMutex.Unlock()
+			w.subscriptions.Clear()
 			return w.SubscribeToChannels(newsubs)
 		}
 		return nil
@@ -863,11 +859,11 @@ func (w *Websocket) GetName() string {
 
 // GetChannelDifference finds the difference between the subscribed channels
 // and the new subscription list when pairs are disabled or enabled.
-func (w *Websocket) GetChannelDifference(newSubs []subscription.Subscription) (sub, unsub []subscription.Subscription) {
+func (w *Websocket) GetChannelDifference(newSubs []*subscription.Subscription) (sub, unsub []*subscription.Subscription) {
 	if w.subscriptions == nil {
-		w.subscriptions = subscription.Map{}
+		w.subscriptions = subscription.NewStore()
 	}
-	return w.subscriptions.Diff(subscription.ListToMap(newSubs))
+	return w.subscriptions.Diff(newSubs)
 }
 
 // UnsubscribeChannels unsubscribes from a list of websocket channel
@@ -883,16 +879,17 @@ func (w *Websocket) UnsubscribeChannels(channels []*subscription.Subscription) e
 
 // ResubscribeToChannel resubscribes to channel
 func (w *Websocket) ResubscribeToChannel(s *subscription.Subscription) error {
-	err := w.UnsubscribeChannels(s)
+	l := subscription.List{s}
+	err := w.UnsubscribeChannels(l)
 	if err != nil {
 		return err
 	}
-	return w.SubscribeToChannels(s)
+	return w.SubscribeToChannels(l)
 }
 
 // SubscribeToChannels subscribes to websocket channels using the exchange specific Subscriber method
 // Errors are returned for duplicates or exceeding max Subscriptions
-func (w *Websocket) SubscribeToChannels(channels []*subscription.Subscription) error {
+func (w *Websocket) SubscribeToChannels(channels subscription.List) error {
 	if err := w.checkSubscriptions(channels); err != nil {
 		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 	}
@@ -904,18 +901,18 @@ func (w *Websocket) SubscribeToChannels(channels []*subscription.Subscription) e
 
 // AddSubscription adds a subscription to the subscription lists
 func (w *Websocket) AddSubscription(c *subscription.Subscription) error {
-	if w == nil || key == nil {
+	if w == nil || c == nil {
 		return common.ErrNilPointer
 	}
-	if w.subscriptions == nil 
-		w.subscriptions = subscription.Map{}
+	if w.subscriptions == nil {
+		w.subscriptions = subscription.NewStore()
 	}
 	return w.subscriptions.Add(c)
 }
 
 // RemoveSubscriptions removes subscriptions from the subscription list
 func (w *Websocket) RemoveSubscription(s *subscription.Subscription) {
-	if w == nil || w.subscriptions == nil || key == nil {
+	if w == nil || w.subscriptions == nil || s == nil {
 		return
 	}
 	w.subscriptions.Remove(s)
@@ -932,8 +929,8 @@ func (w *Websocket) GetSubscription(key any) *subscription.Subscription {
 }
 
 // GetSubscriptions returns a new slice of the subscriptions
-func (w *Websocket) GetSubscriptions() []*subscription.Subscription {
-	if key == nil {
+func (w *Websocket) GetSubscriptions() subscription.List {
+	if w == nil || w.subscriptions == nil {
 		return nil
 	}
 	return w.subscriptions.List()
@@ -980,12 +977,12 @@ func checkWebsocketURL(s string) error {
 
 // checkSubscriptions checks subscriptions against the max subscription limit and if the subscription already exists
 // The subscription state is not considered when counting existing subscriptions
-func (w *Websocket) checkSubscriptions(subs []*subscription.Subscription) error {
+func (w *Websocket) checkSubscriptions(subs subscription.List) error {
 	if len(subs) == 0 {
 		return errNoSubscriptionsSupplied
 	}
 
-	c := w.subscriptions.Len()
+	existing := w.subscriptions.Len()
 	if w.MaxSubscriptionsPerConnection > 0 && existing+len(subs) > w.MaxSubscriptionsPerConnection {
 		return fmt.Errorf("%w: current subscriptions: %v, incoming subscriptions: %v, max subscriptions per connection: %v - please reduce enabled pairs",
 			errSubscriptionsExceedsLimit,

@@ -48,18 +48,13 @@ type Websocket struct {
 	connector                    func() error
 
 	subscriptionMutex sync.RWMutex
-	subscriptions     *subscription.Map
-	Subscribe         chan []subscription.Subscription
-	Unsubscribe       chan []subscription.Subscription
+	subscriptions     *subscription.Store
 
-	// Subscriber function for package defined websocket subscriber
-	// functionality
-	Subscriber func([]subscription.Subscription) error
-	// Unsubscriber function for packaged defined websocket unsubscriber
-	// functionality
-	Unsubscriber func([]subscription.Subscription) error
-	// GenerateSubs function for package defined websocket generate
-	// subscriptions functionality
+	// Subscriber function for exchange specific subscribe implementation
+	Subscriber func([]*subscription.Subscription) error
+	// Subscriber function for exchange specific unsubscribe implementation
+	Unsubscriber func([]*subscription.Subscription) error
+	// GenerateSubs function for exchange specific generating subscriptions from Features.Subscriptions, Pairs and Assets
 	GenerateSubs func() ([]*subscription.Subscription, error)
 
 	DataHandler chan interface{}
@@ -107,8 +102,8 @@ type WebsocketSetup struct {
 	RunningURL            string
 	RunningURLAuth        string
 	Connector             func() error
-	Subscriber            func([]subscription.Subscription) error
-	Unsubscriber          func([]subscription.Subscription) error
+	Subscriber            func([]*subscription.Subscription) error
+	Unsubscriber          func([]*subscription.Subscription) error
 	GenerateSubscriptions func() ([]*subscription.Subscription, error)
 	Features              *protocol.Features
 

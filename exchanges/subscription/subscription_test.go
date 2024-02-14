@@ -13,28 +13,25 @@ import (
 // TestEnsureKeyed logic test
 func TestEnsureKeyed(t *testing.T) {
 	t.Parallel()
-	c := Subscription{
+	c := &Subscription{
 		Channel: "candles",
 		Asset:   asset.Spot,
 		Pairs:   []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
 	}
-	k1, ok := c.EnsureKeyed().(Key)
-	if assert.True(t, ok, "EnsureKeyed should return a Key") {
-		assert.Exactly(t, k1, c.Key, "EnsureKeyed should set the same key")
-		assert.Equal(t, k1.Channel, c.Channel, "Key channel should be correct")
-		assert.Equal(t, k1.Asset, c.Asset, "Key asset should be correct")
-		assert.Equal(t, k1.Pairs, c.Pairs, "Key currency should be correct")
+	k1, ok := c.ensureKeyed().(*Subscription)
+	if assert.True(t, ok, "EnsureKeyed should return a *Subscription") {
+		assert.Same(t, k1, c, "Key should point to the same struct")
 	}
 	type platypus string
-	c = Subscription{
-		Key:     platypus("Gerald"),
+	c = &Subscription{
+		key:     platypus("Gerald"),
 		Channel: "orderbook",
 		Asset:   asset.Margin,
 		Pairs:   []currency.Pair{currency.NewPair(currency.ETH, currency.USDC)},
 	}
-	k2, ok := c.EnsureKeyed().(platypus)
+	k2, ok := c.ensureKeyed().(platypus)
 	if assert.True(t, ok, "EnsureKeyed should return a platypus") {
-		assert.Exactly(t, k2, c.Key, "EnsureKeyed should set the same key")
+		assert.Exactly(t, k2, c.key, "ensureKeyed should set the same key")
 		assert.EqualValues(t, "Gerald", k2, "key should have the correct value")
 	}
 }
