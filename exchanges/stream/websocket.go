@@ -889,33 +889,60 @@ func (w *Websocket) ResubscribeToChannel(s *subscription.Subscription) error {
 
 // SubscribeToChannels subscribes to websocket channels using the exchange specific Subscriber method
 // Errors are returned for duplicates or exceeding max Subscriptions
-func (w *Websocket) SubscribeToChannels(channels subscription.List) error {
-	if err := w.checkSubscriptions(channels); err != nil {
+func (w *Websocket) SubscribeToChannels(subs subscription.List) error {
+	if err := w.checkSubscriptions(subs); err != nil {
 		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 	}
-	if err := w.Subscriber(channels); err != nil {
+	if err := w.Subscriber(subs); err != nil {
 		return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 	}
 	return nil
 }
 
-// AddSubscription adds a subscription to the subscription lists
-func (w *Websocket) AddSubscription(c *subscription.Subscription) error {
-	if w == nil || c == nil {
+// AddSubscription adds a subscription to the subscription store
+func (w *Websocket) AddSubscription(s *subscription.Subscription) error {
+	if w == nil || s == nil {
 		return common.ErrNilPointer
 	}
 	if w.subscriptions == nil {
 		w.subscriptions = subscription.NewStore()
 	}
-	return w.subscriptions.Add(c)
+	return w.subscriptions.Add(s)
 }
 
-// RemoveSubscriptions removes subscriptions from the subscription list
+// AddSubscriptions adds subscriptions to the subscription store
+func (w *Websocket) AddSubscriptions(subs subscription.List) error {
+	if w == nil {
+		return common.ErrNilPointer
+	}
+	if w.subscriptions == nil {
+		w.subscriptions = subscription.NewStore()
+	}
+	var errs error
+	for _, s := range subs {
+		if err := w.subscriptions.Add(s); err != nil {
+			errs = common.AppendError(errs, err)
+		}
+	}
+	return errs
+}
+
+// RemoveSubscription removes a subscription from the subscription store
 func (w *Websocket) RemoveSubscription(s *subscription.Subscription) {
 	if w == nil || w.subscriptions == nil || s == nil {
 		return
 	}
 	w.subscriptions.Remove(s)
+}
+
+// RemoveSubscriptions removes subscriptions from the subscription list
+func (w *Websocket) RemoveSubscriptions(subs subscription.List) {
+	if w == nil || w.subscriptions == nil {
+		return
+	}
+	for _, s := range subs {
+		w.subscriptions.Remove(s)
+	}
 }
 
 // GetSubscription returns a subscription at the key provided

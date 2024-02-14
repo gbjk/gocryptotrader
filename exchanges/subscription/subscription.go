@@ -73,7 +73,7 @@ func (s *Subscription) State() State {
 func (s *Subscription) SetState(state State) error {
 	s.m.Lock()
 	defer s.m.Unlock()
-	if state == s.State() {
+	if state == s.state {
 		return ErrInStateAlready
 	}
 	if state > UnsubscribingState {
