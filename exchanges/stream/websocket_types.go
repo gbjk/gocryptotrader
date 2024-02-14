@@ -51,11 +51,11 @@ type Websocket struct {
 	subscriptions     *subscription.Store
 
 	// Subscriber function for exchange specific subscribe implementation
-	Subscriber func([]*subscription.Subscription) error
+	Subscriber func(subscription.List) error
 	// Subscriber function for exchange specific unsubscribe implementation
-	Unsubscriber func([]*subscription.Subscription) error
+	Unsubscriber func(subscription.List) error
 	// GenerateSubs function for exchange specific generating subscriptions from Features.Subscriptions, Pairs and Assets
-	GenerateSubs func() ([]*subscription.Subscription, error)
+	GenerateSubs func() (subscription.List, error)
 
 	DataHandler chan interface{}
 	ToRoutine   chan interface{}
@@ -102,9 +102,9 @@ type WebsocketSetup struct {
 	RunningURL            string
 	RunningURLAuth        string
 	Connector             func() error
-	Subscriber            func([]*subscription.Subscription) error
-	Unsubscriber          func([]*subscription.Subscription) error
-	GenerateSubscriptions func() ([]*subscription.Subscription, error)
+	Subscriber            func(subscription.List) error
+	Unsubscriber          func(subscription.List) error
+	GenerateSubscriptions func() (subscription.List, error)
 	Features              *protocol.Features
 
 	// Local orderbook buffer config values

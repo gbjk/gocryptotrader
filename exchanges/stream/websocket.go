@@ -859,7 +859,7 @@ func (w *Websocket) GetName() string {
 
 // GetChannelDifference finds the difference between the subscribed channels
 // and the new subscription list when pairs are disabled or enabled.
-func (w *Websocket) GetChannelDifference(newSubs []*subscription.Subscription) (sub, unsub []*subscription.Subscription) {
+func (w *Websocket) GetChannelDifference(newSubs subscription.List) (sub, unsub subscription.List) {
 	if w.subscriptions == nil {
 		w.subscriptions = subscription.NewStore()
 	}
@@ -867,7 +867,7 @@ func (w *Websocket) GetChannelDifference(newSubs []*subscription.Subscription) (
 }
 
 // UnsubscribeChannels unsubscribes from a list of websocket channel
-func (w *Websocket) UnsubscribeChannels(channels []*subscription.Subscription) error {
+func (w *Websocket) UnsubscribeChannels(channels subscription.List) error {
 	if len(channels) == 0 {
 		return fmt.Errorf("%s websocket: %w", w.exchangeName, errNoSubscriptionsSupplied)
 	}

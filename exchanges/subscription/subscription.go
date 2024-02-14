@@ -39,6 +39,7 @@ type State uint8
 // Subscription container for streaming subscriptions
 type Subscription struct {
 	Enabled       bool                   `json:"enabled"`
+	Key           any                    `json:"-"`
 	Channel       string                 `json:"channel,omitempty"`
 	Pairs         currency.Pairs         `json:"pairs,omitempty"`
 	Asset         asset.Item             `json:"asset,omitempty"`
@@ -46,7 +47,6 @@ type Subscription struct {
 	Interval      kline.Interval         `json:"interval,omitempty"`
 	Levels        int                    `json:"levels,omitempty"`
 	Authenticated bool                   `json:"authenticated,omitempty"`
-	key           any
 	state         State
 	m             sync.RWMutex
 }
@@ -83,13 +83,13 @@ func (s *Subscription) SetState(state State) error {
 	return nil
 }
 
-// ensureKeyed sets the default key on a channel if it doesn't have one
+// EnsureKeyed sets the default key on a channel if it doesn't have one
 // Returns key for convenience
-func (s *Subscription) ensureKeyed() any {
-	if s.key == nil {
-		s.key = s
+func (s *Subscription) EnsureKeyed() any {
+	if s.Key == nil {
+		s.Key = s
 	}
-	return s.key
+	return s.Key
 }
 
 // Match returns if the two keys match Channels, Assets, Pairs, Interval and Levels:

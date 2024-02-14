@@ -74,14 +74,14 @@ var defaultSetup = &WebsocketSetup{
 	DefaultURL:   "testDefaultURL",
 	RunningURL:   "wss://testRunningURL",
 	Connector:    func() error { return nil },
-	Subscriber:   func(_ []subscription.Subscription) error { return nil },
-	Unsubscriber: func(_ []subscription.Subscription) error { return nil },
-	GenerateSubscriptions: func() ([]subscription.Subscription, error) {
-		return []subscription.Subscription{
+	Subscriber:   func(_ subscription.List) error { return nil },
+	Unsubscriber: func(_ subscription.List) error { return nil },
+	GenerateSubscriptions: func() (subscription.List, error) {
+		return subscription.List{
 			{Channel: "TestSub"},
 			{Channel: "TestSub2", Key: "purple"},
-			{Channel: "TestSub3", Key: testSubKey{"mauve"}},
-			{Channel: "TestSub4", Key: 42},
+			{Channel: "TestSub3", key: testSubKey{"mauve"}},
+			{Channel: "TestSub4", key: 42},
 		}, nil
 	},
 	Features: &protocol.Features{Subscribe: true, Unsubscribe: true},

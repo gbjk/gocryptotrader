@@ -18,20 +18,20 @@ func TestEnsureKeyed(t *testing.T) {
 		Asset:   asset.Spot,
 		Pairs:   []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
 	}
-	k1, ok := c.ensureKeyed().(*Subscription)
+	k1, ok := c.EnsureKeyed().(*Subscription)
 	if assert.True(t, ok, "EnsureKeyed should return a *Subscription") {
 		assert.Same(t, k1, c, "Key should point to the same struct")
 	}
 	type platypus string
 	c = &Subscription{
-		key:     platypus("Gerald"),
+		Key:     platypus("Gerald"),
 		Channel: "orderbook",
 		Asset:   asset.Margin,
 		Pairs:   []currency.Pair{currency.NewPair(currency.ETH, currency.USDC)},
 	}
-	k2, ok := c.ensureKeyed().(platypus)
+	k2, ok := c.EnsureKeyed().(platypus)
 	if assert.True(t, ok, "EnsureKeyed should return a platypus") {
-		assert.Exactly(t, k2, c.key, "ensureKeyed should set the same key")
+		assert.Exactly(t, k2, c.Key, "ensureKeyed should set the same key")
 		assert.EqualValues(t, "Gerald", k2, "key should have the correct value")
 	}
 }

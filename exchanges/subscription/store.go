@@ -32,7 +32,7 @@ func NewStoreFromList(s List) *Store {
 func (s *Store) Add(sub *Subscription) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	key := sub.ensureKeyed()
+	key := sub.EnsureKeyed()
 	if e := s.get(key); e != nil {
 		return ErrDuplicate
 	}
@@ -58,9 +58,9 @@ func (s *Store) Get(key any) *Subscription {
 func (s *Store) get(key any) *Subscription {
 	switch v := key.(type) {
 	case *Subscription:
-		return s.get(v.ensureKeyed())
+		return s.get(v.EnsureKeyed())
 	case Subscription:
-		return s.get(v.ensureKeyed())
+		return s.get(v.EnsureKeyed())
 	case MatchableKey:
 		return s.match(v)
 	default:
@@ -74,7 +74,7 @@ func (s *Store) Remove(sub *Subscription) {
 	defer s.mu.Unlock()
 
 	if found := s.get(sub); found != nil {
-		delete(s.m, found.key)
+		delete(s.m, found.Key)
 	}
 }
 
@@ -119,7 +119,7 @@ func (s *Store) Diff(compare List) (added, removed List) {
 	removedMap := maps.Clone(s.m)
 	for _, sub := range compare {
 		if found := s.get(sub); found != nil {
-			delete(removedMap, found.key)
+			delete(removedMap, found.Key)
 		} else {
 			added = append(added, sub)
 		}
