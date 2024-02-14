@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"sync"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -26,8 +27,11 @@ const (
 	MyOrdersChannel  = "myOrders"  // MyOrdersChannel Subscription Type
 )
 
+// Public errors
 var (
-	ErrNotSinglePair = errors.New("only single pair subscriptions expected")
+	ErrNotSinglePair  = errors.New("only single pair subscriptions expected")
+	ErrInStateAlready = errors.New("subscription already in state")
+	ErrInvalidState   = errors.New("invalid Channel state")
 )
 
 // State tracks the status of a subscription channel
@@ -52,21 +56,19 @@ type Map map[any]*Subscription
 // List is a container of subscription pointers
 type List []Subscription
 
-type SubscriptionInterface interface {
-}
-
 // Subscription container for streaming subscriptions
 type Subscription struct {
 	Enabled       bool                   `json:"enabled"`
-	Key           any                    `json:"-"`
 	Channel       string                 `json:"channel,omitempty"`
 	Pairs         currency.Pairs         `json:"pairs,omitempty"`
 	Asset         asset.Item             `json:"asset,omitempty"`
 	Params        map[string]interface{} `json:"params,omitempty"`
-	State         State                  `json:"-"`
 	Interval      kline.Interval         `json:"interval,omitempty"`
 	Levels        int                    `json:"levels,omitempty"`
 	Authenticated bool                   `json:"authenticated,omitempty"`
+	key           any
+	state         State
+	m             sync.RWMutex
 }
 
 // String implements the Stringer interface for Subscription, giving a human representation of the subscription
@@ -74,17 +76,39 @@ func (s *Subscription) String() string {
 	return fmt.Sprintf("%s %s %s", s.Channel, s.Asset, s.Pairs)
 }
 
+// State returns the subscription state
+func (s *Subscription) State() State {
+	s.m.RLock()
+	defer s.m.RUnlock()
+	return s.state
+}
+
+// SetState sets the subscription state
+// Errors if already in that state or the new state is not valid
+func (s *Subscription) SetState(state State) error {
+	s.m.Lock()
+	defer s.m.Unlock()
+	if state == s.State() {
+		return ErrInStateAlready
+	}
+	if state > UnsubscribingState {
+		return ErrInvalidState
+	}
+	s.state = state
+	return nil
+}
+
 // EnsureKeyed sets the default key on a channel if it doesn't have one
 // Returns key for convenience
 func (s *Subscription) EnsureKeyed() any {
-	if s.Key == nil {
-		s.Key = Key{
+	if s.key == nil {
+		s.key = Key{
 			Channel: s.Channel,
 			Asset:   s.Asset,
 			Pairs:   &s.Pairs,
 		}
 	}
-	return s.Key
+	return s.key
 }
 
 // Match returns the first subscription which matches the Key's Asset, Channel and Pairs
@@ -139,7 +163,7 @@ func (m *Map) Diff(newSubs *Map) (sub, unsub List) {
 		}
 
 		if found != nil {
-			delete(oldSubs, found.Key) // If it's in both then we remove it from the unsubscribe list
+			delete(oldSubs, found.key) // If it's in both then we remove it from the unsubscribe list
 		} else {
 			sub = append(sub, *s) // If it's in newSubs but not oldSubs subs we want to subscribe
 		}

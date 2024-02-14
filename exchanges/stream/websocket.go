@@ -24,24 +24,19 @@ const (
 	defaultTrafficPeriod = time.Second
 )
 
+// Public errors
 var (
-	// ErrSubscriptionNotFound defines an error when a subscription is not found
-	ErrSubscriptionNotFound = errors.New("subscription not found")
-	// ErrSubscribedAlready defines an error when a channel is already subscribed
-	ErrSubscribedAlready = errors.New("duplicate subscription")
-	// ErrSubscriptionFailure defines an error when a subscription fails
-	ErrSubscriptionFailure = errors.New("subscription failure")
-	// ErrSubscriptionNotSupported defines an error when a subscription channel is not supported by an exchange
+	ErrSubscriptionNotFound     = errors.New("subscription not found")
+	ErrSubscribedAlready        = errors.New("duplicate subscription")
+	ErrSubscriptionFailure      = errors.New("subscription failure")
 	ErrSubscriptionNotSupported = errors.New("subscription channel not supported ")
-	// ErrUnsubscribeFailure defines an error when a unsubscribe fails
-	ErrUnsubscribeFailure = errors.New("unsubscribe failure")
-	// ErrChannelInStateAlready defines an error when a subscription channel is already in a new state
-	ErrChannelInStateAlready = errors.New("channel already in state")
-	// ErrAlreadyDisabled is returned when you double-disable the websocket
-	ErrAlreadyDisabled = errors.New("websocket already disabled")
-	// ErrNotConnected defines an error when websocket is not connected
-	ErrNotConnected = errors.New("websocket is not connected")
+	ErrUnsubscribeFailure       = errors.New("unsubscribe failure")
+	ErrAlreadyDisabled          = errors.New("websocket already disabled")
+	ErrNotConnected             = errors.New("websocket is not connected")
+)
 
+// Private errors
+var (
 	errAlreadyRunning                       = errors.New("connection monitor is already running")
 	errExchangeConfigIsNil                  = errors.New("exchange config is nil")
 	errWebsocketIsNil                       = errors.New("websocket is nil")
@@ -62,7 +57,6 @@ var (
 	errSubscriptionsExceedsLimit            = errors.New("subscriptions exceeds limit")
 	errInvalidMaxSubscriptions              = errors.New("max subscriptions cannot be less than 0")
 	errNoSubscriptionsSupplied              = errors.New("no subscriptions supplied")
-	errInvalidChannelState                  = errors.New("invalid Channel state")
 )
 
 var globalReporter Reporter
@@ -952,14 +946,7 @@ func (w *Websocket) SetSubscriptionState(c *subscription.Subscription, state sub
 	if !ok {
 		return ErrSubscriptionNotFound
 	}
-	if state == p.State {
-		return ErrChannelInStateAlready
-	}
-	if state > subscription.UnsubscribingState {
-		return errInvalidChannelState
-	}
-	p.State = state
-	return nil
+	return p.SetState(state)
 }
 
 // AddSuccessfulSubscriptions adds subscriptions to the subscription lists that
@@ -972,7 +959,7 @@ func (w *Websocket) AddSuccessfulSubscriptions(channels ...subscription.Subscrip
 	}
 	for _, c := range channels {
 		key := c.EnsureKeyed()
-		c.State = subscription.SubscribedState
+		c.SetState(subscription.SubscribedState)
 		w.subscriptions[key] = &c
 	}
 }
@@ -999,11 +986,10 @@ func (w *Websocket) GetSubscription(key any) *subscription.Subscription {
 	}
 	w.subscriptionMutex.RLock()
 	defer w.subscriptionMutex.RUnlock()
-	s := w.getSubscription(key)
-	if s != nil {
-		s = &(*s)
+	if s := w.getSubscription(key); s != nil {
+		return s
 	}
-	return s
+	return nil
 }
 
 func (w *Websocket) getSubscription(key any) *subscription.Subscription {
