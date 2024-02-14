@@ -48,7 +48,7 @@ type Websocket struct {
 	connector                    func() error
 
 	subscriptionMutex sync.RWMutex
-	subscriptions     subscription.Map
+	subscriptions     *subscription.Map
 	Subscribe         chan []subscription.Subscription
 	Unsubscribe       chan []subscription.Subscription
 
@@ -60,7 +60,7 @@ type Websocket struct {
 	Unsubscriber func([]subscription.Subscription) error
 	// GenerateSubs function for package defined websocket generate
 	// subscriptions functionality
-	GenerateSubs func() ([]subscription.Subscription, error)
+	GenerateSubs func() ([]*subscription.Subscription, error)
 
 	DataHandler chan interface{}
 	ToRoutine   chan interface{}
@@ -109,7 +109,7 @@ type WebsocketSetup struct {
 	Connector             func() error
 	Subscriber            func([]subscription.Subscription) error
 	Unsubscriber          func([]subscription.Subscription) error
-	GenerateSubscriptions func() ([]subscription.Subscription, error)
+	GenerateSubscriptions func() ([]*subscription.Subscription, error)
 	Features              *protocol.Features
 
 	// Local orderbook buffer config values
