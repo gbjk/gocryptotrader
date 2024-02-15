@@ -181,22 +181,93 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 	err := ws.Setup(defaultSetup)
 	require.NoError(t, err, "Setup must not error")
 
-	ws.trafficTimeout = time.Millisecond * 42
+	signal := struct{}{}
+	patience := 10 * time.Millisecond
+	trafficCheckInterval = 50 * time.Millisecond
+	ws.trafficTimeout = 200 * time.Millisecond
 	ws.ShutdownC = make(chan struct{})
+
+	thenish := time.Now()
+	ws.trafficMonitor()
+
+	assert.True(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be running")
+	require.Equal(t, disconnected, ws.state.Load(), "websocket must be disconnected")
+
+	// Behaviour: Test multiple traffic alerts work and only process one trafficAlert per interval
+	for i := 0; i < 2; i++ {
+		ws.state.Store(disconnected)
+
+		select {
+		case ws.TrafficAlert <- signal:
+			if i == 0 {
+				require.WithinDurationf(t, time.Now(), thenish, trafficCheckInterval, "First Non-blocking test must happen before the traffic is checked")
+			}
+		default:
+			require.Failf(t, "", "TrafficAlert should not block; Check #%d", i)
+		}
+
+		select {
+		case ws.TrafficAlert <- signal:
+			require.Failf(t, "", "TrafficAlert should block after first slot used; Check #%d", i)
+		default:
+			if i == 0 {
+				require.WithinDuration(t, time.Now(), thenish, trafficCheckInterval, "First Blocking test must happen before the traffic is checked")
+			}
+		}
+
+		require.EventuallyWithTf(t, func(c *assert.CollectT) {
+			assert.Truef(c, ws.IsConnected(), "state should been marked as connected; Check #%d", i)
+			assert.Emptyf(c, ws.TrafficAlert, "trafficAlert channel should be drained; Check #%d", i)
+		}, 2*trafficCheckInterval, patience, "trafficAlert should be read and state connected; Check #%d", i)
+	}
+
+	// Behaviour: Shuts down websocket and exits on timeout
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.Equal(c, disconnected, ws.state.Load(), "websocket must be disconnected")
+		assert.False(c, ws.IsTrafficMonitorRunning(), "trafficMonitor shound be shut down")
+	}, 2*ws.trafficTimeout, patience, "trafficTimeout should trigger a shutdown")
+
+	// Behaviour: connecting status doesn't trigger shutdown
+	ws.state.Store(connecting)
+	ws.trafficTimeout = 50 * time.Millisecond
+	ws.trafficMonitor()
+	assert.True(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be running")
+	require.Equal(t, connecting, ws.state.Load(), "websocket must be connecting")
+	<-time.After(4 * ws.trafficTimeout)
+	require.Equal(t, connecting, ws.state.Load(), "websocket must still be connecting after several checks")
+	ws.state.Store(connected)
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		assert.Equal(c, disconnected, ws.state.Load(), "websocket must be disconnected")
+		assert.False(c, ws.IsTrafficMonitorRunning(), "trafficMonitor shound be shut down")
+	}, 4*ws.trafficTimeout, patience, "trafficTimeout should trigger a shutdown after connecting status changes")
+
+	// Behaviour: shutdown is processed and waitgroup is cleared
+	trafficCheckInterval = 10 * time.Millisecond
+	ws.state.Store(connected)
+	ws.trafficTimeout = time.Minute
 	ws.trafficMonitor()
 	assert.True(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be running")
 
-	// Deploy traffic alert
-	ws.TrafficAlert <- struct{}{}
-	// try to add another traffic monitor
-	ws.trafficMonitor()
-	assert.True(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be running")
+	wgReady := make(chan bool)
+	go func() {
+		ws.Wg.Wait()
+		close(wgReady)
+	}()
+	select {
+	case <-wgReady:
+		require.Failf(t, "", "WaitGroup should be blocking still")
+	case <-time.After(1 * trafficCheckInterval):
+	}
 
-	// prevent shutdown routine
-	ws.setState(disconnected)
-	// await timeout closure
-	ws.Wg.Wait()
-	assert.False(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be not be running")
+	close(ws.ShutdownC)
+
+	<-time.After(2 * trafficCheckInterval)
+	assert.False(t, ws.IsTrafficMonitorRunning(), "traffic monitor should be shutdown")
+	select {
+	case <-wgReady:
+	default:
+		require.Failf(t, "", "WaitGroup should be freed now")
+	}
 }
 
 func TestIsDisconnectionError(t *testing.T) {
@@ -1079,18 +1150,11 @@ func TestSetupNewConnection(t *testing.T) {
 	err = nonsenseWebsock.SetupNewConnection(ConnectionSetup{URL: "urlstring"})
 	assert.ErrorIs(t, err, errTrafficAlertNil, "SetupNewConnection should error correctly")
 
-	nonsenseWebsock.TrafficAlert = make(chan struct{})
+	nonsenseWebsock.TrafficAlert = make(chan struct{}, 1)
 	err = nonsenseWebsock.SetupNewConnection(ConnectionSetup{URL: "urlstring"})
 	assert.ErrorIs(t, err, errReadMessageErrorsNil, "SetupNewConnection should error correctly")
 
-	web := Websocket{
-		connector:         connect,
-		Wg:                new(sync.WaitGroup),
-		ShutdownC:         make(chan struct{}),
-		TrafficAlert:      make(chan struct{}),
-		ReadMessageErrors: make(chan error),
-		DataHandler:       make(chan interface{}),
-	}
+	web := NewWebsocket()
 
 	err = web.Setup(defaultSetup)
 	assert.NoError(t, err, "Setup should not error")
