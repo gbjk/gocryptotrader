@@ -239,14 +239,14 @@ func TestConnectionMessageErrors(t *testing.T) {
 
 	ws.TrafficAlert <- struct{}{}
 
-	c := func(ta *assert.CollectT) {
+	c := func(tb *assert.CollectT) {
 		select {
 		case v := <-ws.ToRoutine:
 			switch err := v.(type) {
 			case *websocket.CloseError:
-				assert.Equal(t, "SpecialText", err.Text, "Should get correct Close Error")
+				assert.Equal(tb, "SpecialText", err.Text, "Should get correct Close Error")
 			case error:
-				assert.ErrorIs(t, err, errDastardlyReason, "Should get the correct error")
+				assert.ErrorIs(tb, err, errDastardlyReason, "Should get the correct error")
 			}
 		default:
 		}
