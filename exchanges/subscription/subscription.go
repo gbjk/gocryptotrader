@@ -27,6 +27,7 @@ const (
 
 // Public errors
 var (
+	ErrNotFound       = errors.New("subscription not found")
 	ErrNotSinglePair  = errors.New("only single pair subscriptions expected")
 	ErrInStateAlready = errors.New("subscription already in state")
 	ErrInvalidState   = errors.New("invalid subscription state")

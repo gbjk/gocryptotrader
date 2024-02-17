@@ -26,7 +26,6 @@ const (
 
 // Public errors
 var (
-	ErrSubscriptionNotFound     = errors.New("subscription not found")
 	ErrSubscriptionFailure      = errors.New("subscription failure")
 	ErrSubscriptionNotSupported = errors.New("subscription channel not supported ")
 	ErrUnsubscribeFailure       = errors.New("unsubscribe failure")
@@ -876,7 +875,7 @@ func (w *Websocket) UnsubscribeChannels(channels subscription.List) error {
 	}
 	for _, s := range channels {
 		if w.subscriptions.Get(s) == nil {
-			return fmt.Errorf("%s websocket: %w: %s", w.exchangeName, ErrSubscriptionNotFound, s)
+			return fmt.Errorf("%s websocket: %w: %s", w.exchangeName, subscription.ErrNotFound, s)
 		}
 	}
 	return w.Unsubscriber(channels)

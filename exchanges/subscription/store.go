@@ -3,6 +3,8 @@ package subscription
 import (
 	"maps"
 	"sync"
+
+	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 // Store is a container of subscription pointers
@@ -30,6 +32,9 @@ func NewStoreFromList(s List) *Store {
 // Key can be already set; if ommitted EnsureKeyed will be used
 // Errors if it already exists
 func (s *Store) Add(sub *Subscription) error {
+	if s == nil {
+		return common.ErrNilPointer
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	key := sub.EnsureKeyed()
@@ -45,6 +50,9 @@ func (s *Store) Add(sub *Subscription) error {
 // Get returns a pointer to a subscription or nil if not found
 // If key implements MatchableKey then key.Match will be used
 func (s *Store) Get(key any) *Subscription {
+	if s == nil {
+		return nil
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.get(key)
@@ -72,20 +80,29 @@ func (s *Store) get(key any) *Subscription {
 }
 
 // Remove removes a subscription from the store
-func (s *Store) Remove(sub *Subscription) {
+func (s *Store) Remove(sub *Subscription) error {
+	if s == nil {
+		return common.ErrNilPointer
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if found := s.get(sub); found != nil {
 		delete(s.m, found.Key)
+		return nil
 	}
+
+	return ErrNotFound
 }
 
 // List returns a slice of Subscriptions pointers
-func (s *Store) List() []*Subscription {
+func (s *Store) List() List {
+	if s == nil {
+		return List{}
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	subs := make([]*Subscription, 0, len(s.m))
+	subs := make(List, 0, len(s.m))
 	for _, s := range s.m {
 		subs = append(subs, s)
 	}
@@ -94,6 +111,9 @@ func (s *Store) List() []*Subscription {
 
 // Clear empties the subscription store
 func (s *Store) Clear() {
+	if s == nil {
+		return
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	clear(s.m)
@@ -117,6 +137,9 @@ func (s *Store) match(key MatchableKey) *Subscription {
 // The store Diff is invoked upon is read-lock protected
 // The new store is assumed to be a new instance and enjoys no locking protection
 func (s *Store) Diff(compare List) (added, removed List) {
+	if s == nil {
+		return
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	removedMap := maps.Clone(s.m)
@@ -137,6 +160,9 @@ func (s *Store) Diff(compare List) (added, removed List) {
 
 // Len returns the number of subscriptions
 func (s *Store) Len() int {
+	if s == nil {
+		return 0
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return len(s.m)
