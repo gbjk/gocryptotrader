@@ -19,6 +19,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -1406,6 +1407,10 @@ func TestCheckSubscriptions(t *testing.T) {
 
 	ws.MaxSubscriptionsPerConnection = 1
 
+	err = ws.checkSubscriptions(subscription.List{{}, {}})
+	assert.ErrorIs(t, err, common.ErrNilPointer, "checkSubscriptions should error correctly when subscriptions is empty")
+
+	ws.subscriptions = subscription.NewStore()
 	err = ws.checkSubscriptions(subscription.List{{}, {}})
 	assert.ErrorIs(t, err, errSubscriptionsExceedsLimit, "checkSubscriptions should error correctly")
 

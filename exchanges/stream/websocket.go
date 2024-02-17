@@ -1008,6 +1008,9 @@ func (w *Websocket) checkSubscriptions(subs subscription.List) error {
 	if len(subs) == 0 {
 		return errNoSubscriptionsSupplied
 	}
+	if w.subscriptions == nil {
+		return common.ErrNilPointer
+	}
 
 	existing := w.subscriptions.Len()
 	if w.MaxSubscriptionsPerConnection > 0 && existing+len(subs) > w.MaxSubscriptionsPerConnection {
