@@ -105,6 +105,11 @@ func (d *dodgyConnection) Connect() error {
 	return fmt.Errorf("cannot connect: %w", errDastardlyReason)
 }
 
+func TestMain(_ *testing.M) {
+	// Change trafficCheckInterval for TestTrafficMonitorTimeout before parallel tests to avoid racing
+	trafficCheckInterval = 50 * time.Millisecond
+}
+
 func TestSetup(t *testing.T) {
 	t.Parallel()
 	var w *Websocket
@@ -183,7 +188,7 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 
 	signal := struct{}{}
 	patience := 10 * time.Millisecond
-	trafficCheckInterval = 50 * time.Millisecond
+	// trafficCheckInterval is changed in TestMain to avoid racing
 	ws.trafficTimeout = 200 * time.Millisecond
 	ws.ShutdownC = make(chan struct{})
 
