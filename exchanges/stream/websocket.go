@@ -499,7 +499,7 @@ func (w *Websocket) FlushChannels() error {
 	}
 
 	if !w.IsConnected() {
-		return fmt.Errorf("%s websocket: service not connected", w.exchangeName)
+		return fmt.Errorf("%s %w", w.exchangeName, ErrNotConnected)
 	}
 
 	if w.features.Subscribe {
