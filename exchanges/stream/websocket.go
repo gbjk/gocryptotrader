@@ -872,7 +872,12 @@ func (w *Websocket) UnsubscribeChannels(channels subscription.List) error {
 		return fmt.Errorf("%s websocket: %w", w.exchangeName, errNoSubscriptionsSupplied)
 	}
 	if w.subscriptions == nil {
-		return nil
+		return common.ErrNilPointer
+	}
+	for _, s := range channels {
+		if w.subscriptions.Get(s) == nil {
+			return fmt.Errorf("%s websocket: %w: %s", w.exchangeName, ErrSubscriptionNotFound, s)
+		}
 	}
 	return w.Unsubscriber(channels)
 }

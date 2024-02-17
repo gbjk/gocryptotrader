@@ -51,16 +51,19 @@ func (s *Store) Get(key any) *Subscription {
 }
 
 // get returns a pointer to subscription or nil if not found
-// If key implements MatchableKey then key.Match will be used
-// If key is actually a subscription then ensureKeyed will be used and we'll return the
+// If the key passed in is a Subscription then its Key will be used; which may be a pointer to itself.
+// If key implements MatchableKey then key.Match will be used; Note that *Subscription implements MatchableKey
 // This method provides no locking protection
-// returned subscriptions are implicitly guaranteed to have a key
+// returned subscriptions are implicitly guaranteed to have a Key
 func (s *Store) get(key any) *Subscription {
 	switch v := key.(type) {
-	case *Subscription:
-		return s.get(v.EnsureKeyed())
 	case Subscription:
-		return s.get(v.EnsureKeyed())
+		key = v.EnsureKeyed()
+	case *Subscription:
+		key = v.EnsureKeyed()
+	}
+
+	switch v := key.(type) {
 	case MatchableKey:
 		return s.match(v)
 	default:

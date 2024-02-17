@@ -93,7 +93,7 @@ func (s *Subscription) EnsureKeyed() any {
 }
 
 // Match returns if the two keys match Channels, Assets, Pairs, Interval and Levels:
-// Pairs comparison:
+// Key Pairs comparison:
 // 1) Empty pairs then only Subscriptions without pairs match
 // 2) >=1 pairs then Subscriptions which contain all the pairs match
 // Such that a subscription for all enabled pairs will be matched when seaching for any one pair
@@ -103,8 +103,10 @@ func (s *Subscription) Match(key any) bool {
 	case !ok,
 		s.Channel != b.Channel,
 		s.Asset != b.Asset,
-		len(s.Pairs) == 0 && len(b.Pairs) != 0,
-		s.Pairs.ContainsAll(b.Pairs, true) != nil,
+		len(b.Pairs) == 0 && len(s.Pairs) != 0,
+		// len(b.Pairs) == 0 && len(s.Pairs) == 0: Okay; continue to next non-pairs check
+		len(b.Pairs) != 0 && len(s.Pairs) == 0,
+		len(b.Pairs) != 0 && s.Pairs.ContainsAll(b.Pairs, true) != nil,
 		s.Levels != b.Levels,
 		s.Interval != b.Interval:
 		return false
