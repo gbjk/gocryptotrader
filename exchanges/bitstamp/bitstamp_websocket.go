@@ -246,7 +246,7 @@ func (b *Bitstamp) generateDefaultSubscriptions() ([]subscription.Subscription, 
 			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: defaultSubChannels[j] + "_" + p.String(),
 				Asset:   asset.Spot,
-				Pair:    p,
+				Pairs:   currency.Pairs{p},
 			})
 		}
 		if b.Websocket.CanUseAuthenticatedEndpoints() {
@@ -254,7 +254,7 @@ func (b *Bitstamp) generateDefaultSubscriptions() ([]subscription.Subscription, 
 				subscriptions = append(subscriptions, subscription.Subscription{
 					Channel: defaultAuthSubChannels[j] + "_" + p.String(),
 					Asset:   asset.Spot,
-					Pair:    p,
+					Pairs:   currency.Pairs{p},
 					Params: map[string]interface{}{
 						"auth": struct{}{},
 					},
