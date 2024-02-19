@@ -859,7 +859,7 @@ func (k *Kraken) wsProcessOrderBook(channelData *WebsocketChannelData, data map[
 				}
 			}(&subscription.Subscription{
 				Channel: krakenWsOrderbook,
-				Pair:    outbound,
+				Pairs:   currency.Pairs{outbound},
 				Asset:   asset.Spot,
 			})
 			return err
@@ -1221,7 +1221,7 @@ func (k *Kraken) GenerateDefaultSubscriptions() ([]subscription.Subscription, er
 			enabledPairs[j].Delimiter = "/"
 			subscriptions = append(subscriptions, subscription.Subscription{
 				Channel: defaultSubscribedChannels[i],
-				Pair:    enabledPairs[j],
+				Pairs:   currency.Pairs{enabledPairs[j]},
 				Asset:   asset.Spot,
 			})
 		}
@@ -1248,7 +1248,7 @@ channels:
 		}
 
 		for j := range *s {
-			(*s)[j].Pairs = append((*s)[j].Pairs, channelsToSubscribe[i].Pair.String())
+			(*s)[j].Pairs = append((*s)[j].Pairs, channelsToSubscribe[i].Pairs[0].String())
 			(*s)[j].Channels = append((*s)[j].Channels, channelsToSubscribe[i])
 			continue channels
 		}
@@ -1264,8 +1264,8 @@ channels:
 		if channelsToSubscribe[i].Channel == "book" {
 			outbound.Subscription.Depth = krakenWsOrderbookDepth
 		}
-		if !channelsToSubscribe[i].Pair.IsEmpty() {
-			outbound.Pairs = []string{channelsToSubscribe[i].Pair.String()}
+		if !channelsToSubscribe[i].Pairs[0].IsEmpty() {
+			outbound.Pairs = []string{channelsToSubscribe[i].Pairs[0].String()}
 		}
 		if common.StringDataContains(authenticatedChannels, channelsToSubscribe[i].Channel) {
 			outbound.Subscription.Token = authToken
@@ -1306,7 +1306,7 @@ channels:
 		for y := range unsubs {
 			if unsubs[y].Subscription.Name == channelsToUnsubscribe[x].Channel {
 				unsubs[y].Pairs = append(unsubs[y].Pairs,
-					channelsToUnsubscribe[x].Pair.String())
+					channelsToUnsubscribe[x].Pairs[0].String())
 				unsubs[y].Channels = append(unsubs[y].Channels,
 					channelsToUnsubscribe[x])
 				continue channels
@@ -1326,7 +1326,7 @@ channels:
 
 		unsub := WebsocketSubscriptionEventRequest{
 			Event: krakenWsUnsubscribe,
-			Pairs: []string{channelsToUnsubscribe[x].Pair.String()},
+			Pairs: []string{channelsToUnsubscribe[x].Pairs[0].String()},
 			Subscription: WebsocketSubscriptionData{
 				Name:  channelsToUnsubscribe[x].Channel,
 				Depth: depth,
