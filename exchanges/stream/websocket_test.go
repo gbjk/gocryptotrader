@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -105,9 +106,10 @@ func (d *dodgyConnection) Connect() error {
 	return fmt.Errorf("cannot connect: %w", errDastardlyReason)
 }
 
-func TestMain(_ *testing.M) {
+func TestMain(m *testing.M) {
 	// Change trafficCheckInterval for TestTrafficMonitorTimeout before parallel tests to avoid racing
 	trafficCheckInterval = 50 * time.Millisecond
+	os.Exit(m.Run())
 }
 
 func TestSetup(t *testing.T) {
