@@ -249,7 +249,6 @@ func TestTrafficMonitorTimeout(t *testing.T) {
 	}, 4*ws.trafficTimeout, patience, "trafficTimeout should trigger a shutdown after connecting status changes")
 
 	// Behaviour: shutdown is processed and waitgroup is cleared
-	trafficCheckInterval = 10 * time.Millisecond
 	ws.state.Store(connected)
 	ws.trafficTimeout = time.Minute
 	ws.trafficMonitor()
