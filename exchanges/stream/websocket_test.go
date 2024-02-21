@@ -276,7 +276,7 @@ func TestTrafficMonitorShutdown(t *testing.T) {
 	select {
 	case <-wgReady:
 		require.Failf(t, "", "WaitGroup should be blocking still")
-	case <-time.After(1 * trafficCheckInterval):
+	case <-time.After(trafficCheckInterval):
 	}
 
 	close(ws.ShutdownC)
