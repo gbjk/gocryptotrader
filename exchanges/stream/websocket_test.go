@@ -229,7 +229,7 @@ func TestTrafficMonitorTrafficAlerts(t *testing.T) {
 
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.Equal(c, disconnected, ws.state.Load(), "websocket must be disconnected")
-		assert.False(c, ws.IsTrafficMonitorRunning(), "trafficMonitor shound be shut down")
+		assert.False(c, ws.IsTrafficMonitorRunning(), "trafficMonitor should be shut down")
 	}, 2*ws.trafficTimeout, patience, "trafficTimeout should trigger a shutdown once we stop feeding trafficAlerts")
 }
 
@@ -251,7 +251,7 @@ func TestTrafficMonitorConnecting(t *testing.T) {
 	ws.state.Store(connected)
 	require.EventuallyWithT(t, func(c *assert.CollectT) {
 		assert.Equal(c, disconnected, ws.state.Load(), "websocket must be disconnected")
-		assert.False(c, ws.IsTrafficMonitorRunning(), "trafficMonitor shound be shut down")
+		assert.False(c, ws.IsTrafficMonitorRunning(), "trafficMonitor should be shut down")
 	}, 4*ws.trafficTimeout, 10*time.Millisecond, "trafficTimeout should trigger a shutdown after connecting status changes")
 }
 
@@ -263,7 +263,6 @@ func TestTrafficMonitorShutdown(t *testing.T) {
 	require.NoError(t, err, "Setup must not error")
 
 	ws.ShutdownC = make(chan struct{})
-	ws.trafficTimeout = 50 * time.Millisecond
 	ws.state.Store(connected)
 	ws.trafficTimeout = time.Minute
 	ws.trafficMonitor()
