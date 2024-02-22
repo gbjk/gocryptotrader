@@ -88,8 +88,8 @@ func (s *Subscription) SetState(state State) error {
 	return nil
 }
 
-// EnsureKeyed sets the default key on a channel if it doesn't have one
-// Returns key for convenience
+// EnsureKeyed returns the subscription key
+// If no key exists then a pointer to the subscription itself will be used, since Subscriptions implement MatchableKey
 func (s *Subscription) EnsureKeyed() any {
 	if s.Key == nil {
 		s.Key = s
@@ -103,17 +103,25 @@ func (s *Subscription) EnsureKeyed() any {
 // 2) >=1 pairs then Subscriptions which contain all the pairs match
 // Such that a subscription for all enabled pairs will be matched when seaching for any one pair
 func (s *Subscription) Match(key any) bool {
-	b, ok := key.(*Subscription)
+	var b *Subscription
+	switch v := key.(type) {
+	case *Subscription:
+		b = v
+	case Subscription:
+		b = &v
+	default:
+		return false
+	}
+
 	switch {
-	case !ok,
-		s.Channel != b.Channel,
-		s.Asset != b.Asset,
-		len(b.Pairs) == 0 && len(s.Pairs) != 0,
+	case b.Channel != s.Channel,
+		b.Asset != s.Asset,
 		// len(b.Pairs) == 0 && len(s.Pairs) == 0: Okay; continue to next non-pairs check
+		len(b.Pairs) == 0 && len(s.Pairs) != 0,
 		len(b.Pairs) != 0 && len(s.Pairs) == 0,
 		len(b.Pairs) != 0 && s.Pairs.ContainsAll(b.Pairs, true) != nil,
-		s.Levels != b.Levels,
-		s.Interval != b.Interval:
+		b.Levels != s.Levels,
+		b.Interval != s.Interval:
 		return false
 	}
 

@@ -11,36 +11,67 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
-// TestEnsureKeyed logic test
-func TestEnsureKeyed(t *testing.T) {
-	t.Parallel()
+var (
+	btcusdtPair = currency.NewPair(currency.BTC, currency.USDT)
+	ethusdcPair = currency.NewPair(currency.ETH, currency.USDC)
+	ltcusdcPair = currency.NewPair(currency.LTC, currency.USDC)
+)
+
+// TestSubscriptionString exercises the String method
+func TestSubscriptionString(t *testing.T) {
 	s := &Subscription{
 		Channel: "candles",
 		Asset:   asset.Spot,
-		Pairs:   []currency.Pair{currency.NewPair(currency.BTC, currency.USDT)},
+		Pairs:   currency.Pairs{btcusdtPair, ethusdcPair.Format(currency.PairFormat{Delimiter: "/"})},
 	}
+	assert.Equal(t, "candles spot BTC/USDT,ETH/USDC", s.String(), "Subscription String should return correct value")
+}
+
+// TestState exercises the state getter
+func TestState(t *testing.T) {
+	t.Parallel()
+	s := &Subscription{}
+	assert.Equal(t, InactiveState, s.State(), "State should return initial state")
+	s.state = SubscribedState
+	assert.Equal(t, SubscribedState, s.State(), "State should return correct state")
+}
+
+// TestSetState exercises the state setter
+func TestSetState(t *testing.T) {
+	t.Parallel()
+
+	s := &Subscription{state: UnsubscribingState}
+
+	for i := InactiveState; i <= UnsubscribingState; i++ {
+		assert.NoErrorf(t, s.SetState(i), "State should not error setting state %s", i)
+	}
+	assert.ErrorIs(t, s.SetState(UnsubscribingState), ErrInStateAlready, "SetState should error on same state")
+	assert.ErrorIs(t, s.SetState(UnsubscribingState+1), ErrInvalidState, "Setting an invalid state should error")
+}
+
+// TestEnsureKeyed exercises the key getter and ensures it sets a self-pointer key for non
+func TestEnsureKeyed(t *testing.T) {
+	t.Parallel()
+	s := &Subscription{}
 	k1, ok := s.EnsureKeyed().(*Subscription)
 	if assert.True(t, ok, "EnsureKeyed should return a *Subscription") {
-		assert.Same(t, k1, s, "Key should point to the same struct")
+		assert.Same(t, s, k1, "Key should point to the same struct")
 	}
 	type platypus string
 	s = &Subscription{
 		Key:     platypus("Gerald"),
 		Channel: "orderbook",
-		Asset:   asset.Margin,
-		Pairs:   []currency.Pair{currency.NewPair(currency.ETH, currency.USDC)},
 	}
-	k2, ok := s.EnsureKeyed().(platypus)
-	if assert.True(t, ok, "EnsureKeyed should return a platypus") {
-		assert.Exactly(t, k2, s.Key, "ensureKeyed should set the same key")
-		assert.EqualValues(t, "Gerald", k2, "key should have the correct value")
-	}
+	k2 := s.EnsureKeyed()
+	assert.IsType(t, platypus(""), k2, "EnsureKeyed should return a platypus")
+	assert.Equal(t, s.Key, k2, "Key should be the key provided")
 }
 
-// TestMarshalling logic test
-func TestMarshaling(t *testing.T) {
+// TestSubscriptionMarshalling ensures json Marshalling is clean and concise
+// Since there is no UnmarshalJSON, this just exercises the json field tags of Subscription, and regressions in conciseness
+func TestSubscriptionMarshaling(t *testing.T) {
 	t.Parallel()
-	j, err := json.Marshal(&Subscription{Channel: CandlesChannel})
+	j, err := json.Marshal(&Subscription{Key: 42, Channel: CandlesChannel})
 	assert.NoError(t, err, "Marshalling should not error")
 	assert.Equal(t, `{"enabled":false,"channel":"candles"}`, string(j), "Marshalling should be clean and concise")
 
@@ -57,16 +88,44 @@ func TestMarshaling(t *testing.T) {
 	assert.Equal(t, `{"enabled":true,"channel":"myTrades","authenticated":true}`, string(j), "Marshalling should be clean and concise")
 }
 
-// TestSetState tests Subscription state changes
-func TestSetState(t *testing.T) {
+// TestSubscriptionMatch exercises the Subscription MatchableKey interface implementation
+func TestSubscriptionMatch(t *testing.T) {
 	t.Parallel()
+	require.Implements(t, (*MatchableKey)(nil), new(Subscription), "Must implement MatchableKey")
+	s := &Subscription{Channel: TickerChannel}
+	assert.NotNil(t, s.EnsureKeyed(), "EnsureKeyed should work")
+	assert.False(t, s.Match(42), "Match should reject an invalid key type")
+	try := &Subscription{Channel: OrderbookChannel}
+	require.False(t, s.Match(try), "Gate 1: Match must reject a bad Channel")
+	try = &Subscription{Channel: TickerChannel}
+	require.True(t, s.Match(Subscription{Channel: TickerChannel}), "Match must accept a pass-by-value subscription")
+	require.True(t, s.Match(try), "Gate 1: Match must accept a good Channel")
+	s.Asset = asset.Spot
+	require.False(t, s.Match(try), "Gate 2: Match must reject a bad Asset")
+	try.Asset = asset.Spot
+	require.True(t, s.Match(try), "Gate 2: Match must accept a good Asset")
 
-	s := &Subscription{Key: 42, Channel: "Gophers"}
-	assert.Equal(t, InactiveState, s.State(), "State should start as unknown")
-	require.NoError(t, s.SetState(SubscribingState), "SetState should not error")
-	assert.Equal(t, SubscribingState, s.State(), "State should be set correctly")
-	assert.ErrorIs(t, s.SetState(SubscribingState), ErrInStateAlready, "SetState should error on same state")
-	assert.ErrorIs(t, s.SetState(UnsubscribingState+1), ErrInvalidState, "Setting an invalid state should error")
-	require.NoError(t, s.SetState(UnsubscribingState), "SetState should not error")
-	assert.Equal(t, UnsubscribingState, s.State(), "State should be set correctly")
+	s.Pairs = currency.Pairs{btcusdtPair}
+	require.False(t, s.Match(try), "Gate 3: Match must reject a pair list when searching for no pairs")
+	try.Pairs = s.Pairs
+	s.Pairs = nil
+	require.False(t, s.Match(try), "Gate 4: Match must reject empty Pairs when searching for a list")
+	s.Pairs = try.Pairs
+	require.True(t, s.Match(try), "Gate 5: Match must accept matching pairs")
+	s.Pairs = currency.Pairs{ethusdcPair}
+	require.False(t, s.Match(try), "Gate 5: Match must reject mismatched pairs")
+	s.Pairs = currency.Pairs{btcusdtPair, ethusdcPair}
+	require.True(t, s.Match(try), "Gate 5: Match must accept one of the key pairs matching in sub pairs")
+	try.Pairs = currency.Pairs{btcusdtPair, ltcusdcPair}
+	require.False(t, s.Match(try), "Gate 5: Match must reject when sub pair list doesn't contain all key pairs")
+	s.Pairs = currency.Pairs{btcusdtPair, ethusdcPair, ltcusdcPair}
+	require.True(t, s.Match(try), "Gate 5: Match must accept all of the key pairs are contained in sub pairs")
+	s.Levels = 4
+	require.False(t, s.Match(try), "Gate 6: Match must reject a bad Level")
+	try.Levels = 4
+	require.True(t, s.Match(try), "Gate 6: Match must accept a good Level")
+	s.Interval = kline.FiveMin
+	require.False(t, s.Match(try), "Gate 7: Match must reject a bad Interval")
+	try.Interval = kline.FiveMin
+	require.True(t, s.Match(try), "Gate 7: Match must accept a good Inteval")
 }
