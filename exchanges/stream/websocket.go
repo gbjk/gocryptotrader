@@ -22,15 +22,14 @@ const (
 
 // Public websocket errors
 var (
-	ErrWebsocketNotEnabled        = errors.New("websocket not enabled")
-	ErrSubscriptionFailure        = errors.New("subscription failure")
-	ErrSubscriptionPartialFailure = errors.New("partial failure")
-	ErrSubscriptionNotSupported   = errors.New("subscription channel not supported ")
-	ErrUnsubscribeFailure         = errors.New("unsubscribe failure")
-	ErrAlreadyDisabled            = errors.New("websocket already disabled")
-	ErrNotConnected               = errors.New("websocket is not connected")
-	ErrNoMessageListener          = errors.New("websocket listener not found for message")
-	ErrSignatureTimeout           = errors.New("websocket timeout waiting for response with signature")
+	ErrWebsocketNotEnabled      = errors.New("websocket not enabled")
+	ErrSubscriptionFailure      = errors.New("subscription failure")
+	ErrSubscriptionNotSupported = errors.New("subscription channel not supported ")
+	ErrUnsubscribeFailure       = errors.New("unsubscribe failure")
+	ErrAlreadyDisabled          = errors.New("websocket already disabled")
+	ErrNotConnected             = errors.New("websocket is not connected")
+	ErrNoMessageListener        = errors.New("websocket listener not found for message")
+	ErrSignatureTimeout         = errors.New("websocket timeout waiting for response with signature")
 )
 
 // Private websocket errors
@@ -801,8 +800,13 @@ func (w *Websocket) UnsubscribeChannels(channels subscription.List) error {
 }
 
 // ResubscribeToChannel resubscribes to channel
+// Sets state to Resubscribing, and exchanges which want to maintain a lock on it can respect this state and not RemoveSubscription
+// Errors if subscription is already subscribing
 func (w *Websocket) ResubscribeToChannel(s *subscription.Subscription) error {
 	l := subscription.List{s}
+	if err := s.SetState(subscription.ResubscribingState); err != nil {
+		return err
+	}
 	err := w.UnsubscribeChannels(l)
 	if err != nil {
 		return err
