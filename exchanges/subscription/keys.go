@@ -23,7 +23,9 @@ func (k SubsetPairsKey) GetSubscription() *Subscription {
 }
 
 // Match implements MatchableKey
-// Returns true if the key fields exactly matches the subscription, including all Pairs
+// With empty pairs then only a sub without pairs will match
+// Otherwise a sub which contains all the pairs will match
+// Most likely usage is searching for a subscriptions to many pairs given just one of those pairs
 func (k SubsetPairsKey) Match(eachKey MatchableKey) bool {
 	eachSub := eachKey.GetSubscription()
 	switch {
@@ -33,6 +35,32 @@ func (k SubsetPairsKey) Match(eachKey MatchableKey) bool {
 		len(eachSub.Pairs) == 0 && len(k.Pairs) != 0,
 		len(eachSub.Pairs) != 0 && len(k.Pairs) == 0,
 		len(k.Pairs) != 0 && eachSub.Pairs.ContainsAll(k.Pairs, true) != nil,
+		eachSub.Levels != k.Levels,
+		eachSub.Interval != k.Interval:
+		return false
+	}
+
+	return true
+}
+
+// IgnoringPairsKey is a key type for finding subscriptions to group together for requests
+type IgnoringPairsKey struct {
+	*Subscription
+}
+
+var _ MatchableKey = IgnoringPairsKey{} // Enforce IgnoringPairsKey must implement MatchableKey
+
+// Subscription returns the underlying subscription
+func (k IgnoringPairsKey) GetSubscription() *Subscription {
+	return k.Subscription
+}
+
+// Match implements MatchableKey
+func (k IgnoringPairsKey) Match(eachKey MatchableKey) bool {
+	eachSub := eachKey.GetSubscription()
+	switch {
+	case eachSub.Channel != k.Channel,
+		eachSub.Asset != k.Asset,
 		eachSub.Levels != k.Levels,
 		eachSub.Interval != k.Interval:
 		return false
