@@ -52,9 +52,9 @@ func TestSetState(t *testing.T) {
 func TestEnsureKeyed(t *testing.T) {
 	t.Parallel()
 	s := &Subscription{}
-	k1, ok := s.EnsureKeyed().(*Subscription)
-	if assert.True(t, ok, "EnsureKeyed should return a *Subscription") {
-		assert.Same(t, s, k1, "Key should point to the same struct")
+	k1, ok := s.EnsureKeyed().(MatchableKey)
+	if assert.True(t, ok, "EnsureKeyed should return a MatchableKey") {
+		assert.Same(t, s, k1.GetSubscription(), "Key should point to the same struct")
 	}
 	type platypus string
 	s = &Subscription{
