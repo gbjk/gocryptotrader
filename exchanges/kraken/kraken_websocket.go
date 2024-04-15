@@ -1118,7 +1118,7 @@ func (k *Kraken) handleSubResps(s *subscription.Subscription, resps [][]byte, op
 		if err != nil {
 			return fmt.Errorf("%w parsing WS pair from message: %s", err, resp)
 		}
-		pair, err := currency.NewPairFromString(pName)
+		pair, err := currency.NewPairDelimiter(pName, "/")
 		if err != nil {
 			return fmt.Errorf("%w parsing WS pair; Channel: %s Pair: %s", err, s.Channel, pName)
 		}
