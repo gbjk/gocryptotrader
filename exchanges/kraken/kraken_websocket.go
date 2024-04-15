@@ -280,7 +280,7 @@ func (k *Kraken) wsProcessSystemStatus(respRaw []byte) error {
 		return fmt.Errorf("%s parsing system status: %s", err, respRaw)
 	}
 	if systemStatus.Status != "online" {
-		k.Websocket.DataHandler <- fmt.Errorf("System Status '%v'", systemStatus.Status)
+		k.Websocket.DataHandler <- fmt.Errorf("system status not online: %v", systemStatus.Status)
 	}
 	if systemStatus.Version > krakenWSSupportedVersion {
 		log.Warnf(log.ExchangeSys, "%v New version of Websocket API released. Was %v Now %v", k.Name, krakenWSSupportedVersion, systemStatus.Version)
@@ -433,7 +433,7 @@ func (k *Kraken) wsProcessOpenOrders(ownOrders interface{}) error {
 		}
 		return nil
 	}
-	return errors.New("Invalid own trades data")
+	return errors.New("invalid own trades data")
 }
 
 // wsProcessTickers converts ticker data and sends it to the datahandler
@@ -483,27 +483,27 @@ func (k *Kraken) wsProcessSpread(response []any, pair currency.Pair) error {
 		return errors.New("received invalid spread data")
 	}
 	if len(data) < 5 {
-		return fmt.Errorf("unexpected wsProcessSpread data length")
+		return errors.New("unexpected wsProcessSpread data length")
 	}
 	bestBid, ok := data[0].(string)
 	if !ok {
-		return fmt.Errorf("wsProcessSpread: unable to type assert bestBid")
+		return errors.New("wsProcessSpread: unable to type assert bestBid")
 	}
 	bestAsk, ok := data[1].(string)
 	if !ok {
-		return fmt.Errorf("wsProcessSpread: unable to type assert bestAsk")
+		return errors.New("wsProcessSpread: unable to type assert bestAsk")
 	}
 	timeData, err := strconv.ParseFloat(data[2].(string), 64)
 	if err != nil {
-		return fmt.Errorf("wsProcessSpread: unable to parse timeData. Error: %s", err)
+		return fmt.Errorf("wsProcessSpread: unable to parse timeData: %w", err)
 	}
 	bidVolume, ok := data[3].(string)
 	if !ok {
-		return fmt.Errorf("wsProcessSpread: unable to type assert bidVolume")
+		return errors.New("wsProcessSpread: unable to type assert bidVolume")
 	}
 	askVolume, ok := data[4].(string)
 	if !ok {
-		return fmt.Errorf("wsProcessSpread: unable to type assert askVolume")
+		return errors.New("wsProcessSpread: unable to type assert askVolume")
 	}
 
 	if k.Verbose {
@@ -623,8 +623,8 @@ func (k *Kraken) wsProcessOrderBook(channelName string, response []any, pair cur
 		if errors.Is(err, errInvalidChecksum) {
 			log.Debugf(log.Global, "Resubscribing to invalid %s orderbook", pair)
 			go func() {
-				if err := k.Websocket.ResubscribeToChannel(s); err != nil && !errors.Is(err, subscription.ErrInStateAlready) {
-					log.Errorf(log.ExchangeSys, "%s resubscription failure for %v: %v", k.Name, pair, err)
+				if e2 := k.Websocket.ResubscribeToChannel(s); e2 != nil && !errors.Is(e2, subscription.ErrInStateAlready) {
+					log.Errorf(log.ExchangeSys, "%s resubscription failure for %v: %v", k.Name, pair, e2)
 				}
 			}()
 		}
@@ -1019,7 +1019,7 @@ func (k *Kraken) Subscribe(in subscription.List) error {
 		if s.State() != subscription.SubscribedState {
 			_ = s.SetState(subscription.InactiveState)
 			if err := k.Websocket.RemoveSubscriptions(s); err != nil {
-				errs = common.AppendError(errs, fmt.Errorf("Error removing failed subscription: %w; Channel: %s Pairs: %s", err, s.Channel, s.Pairs.Join()))
+				errs = common.AppendError(errs, fmt.Errorf("error removing failed subscription: %w; Channel: %s Pairs: %s", err, s.Channel, s.Pairs.Join()))
 			}
 		}
 	}
@@ -1235,14 +1235,15 @@ func (k *Kraken) wsProcessSubStatus(resp []byte) {
 	if status == krakenWsSubscribed {
 		err = s.SetState(subscription.SubscribedState)
 	} else if s.State() != subscription.ResubscribingState { // Do not remove a resubscribing sub which just unsubbed
-		err = s.SetState(subscription.UnsubscribedState)
 		err = k.Websocket.RemoveSubscriptions(s)
+		if e2 := s.SetState(subscription.UnsubscribedState); e2 != nil {
+			err = common.AppendError(err, e2)
+		}
 	}
 
 	if err != nil {
 		log.Errorf(log.ExchangeSys, "%s %s Channel: %s Pairs: %s", k.Name, err, s.Channel, s.Pairs.Join())
 	}
-	return
 }
 
 // apiChannelName converts a global channel name to kraken bespoke names
