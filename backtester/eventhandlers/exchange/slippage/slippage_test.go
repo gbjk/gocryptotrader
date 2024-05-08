@@ -24,6 +24,8 @@ func TestCalculateSlippageByOrderbook(t *testing.T) {
 	t.Parallel()
 	b := bitstamp.Bitstamp{}
 	b.SetDefaults()
+	err := b.CurrencyPairs.SetAssetEnabled(asset.Spot, true)
+	require.NoError(t, err, "SetAssetEnabled must not error")
 
 	cp := currency.NewPair(currency.BTC, currency.USD)
 	ob, err := b.FetchOrderbook(context.Background(), cp, asset.Spot)

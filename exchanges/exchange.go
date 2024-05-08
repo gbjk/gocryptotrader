@@ -975,7 +975,7 @@ func (b *Base) FormatWithdrawPermissions() string {
 
 // SupportsAsset whether or not the supplied asset is supported by the exchange
 func (b *Base) SupportsAsset(a asset.Item) bool {
-	return b.CurrencyPairs.IsAssetEnabled(a) == nil
+	return b.CurrencyPairs.IsAssetSupported(a)
 }
 
 // PrintEnabledPairs prints the exchanges enabled asset pairs
@@ -1084,7 +1084,6 @@ func (b *Base) SetGlobalPairsManager(request, config *currency.PairFormat, asset
 			return fmt.Errorf("%s cannot set pairs manager, asset is empty string", b.Name)
 		}
 		b.CurrencyPairs.Pairs[assets[i]] = new(currency.PairStore)
-		b.CurrencyPairs.Pairs[assets[i]].AssetEnabled = convert.BoolPtr(true)
 		b.CurrencyPairs.Pairs[assets[i]].ConfigFormat = config
 		b.CurrencyPairs.Pairs[assets[i]].RequestFormat = request
 	}
