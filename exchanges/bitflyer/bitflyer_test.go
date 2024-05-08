@@ -455,8 +455,6 @@ func TestUpdateTradablePairs(t *testing.T) {
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
 	testexch.UpdatePairsOnce(t, b)
-	err := b.CurrencyPairs.SetAssetEnabled(asset.Futures, true)
-	require.NoError(t, err, "SetAssetEnabled must not error")
 	for _, a := range b.GetAssetTypes(false) {
 		pairs, err := b.CurrencyPairs.GetPairs(a, false)
 		require.NoError(t, err, "cannot get pairs for %s", a)
