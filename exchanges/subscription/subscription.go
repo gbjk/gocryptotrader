@@ -1,11 +1,14 @@
 package subscription
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 	"sync"
+	"text/template"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -71,6 +74,34 @@ func (s *Subscription) String() string {
 		return k.String()
 	}
 	return fmt.Sprintf("%v: %s", key, ExactKey{s}.String())
+}
+
+// QualifiedChannels returns subscriptions with Channel expanded with any placeholders replaced with subscription fields and parameters
+// Format of the Channel should be text/template compatible
+// If the channel contains $pair then the template will be ranged over the Pairs with each pair set to $pair
+func (s *Subscription) QualifiedChannels() (List, error) {
+	subs := List{}
+	tpl := s.Channel
+	if strings.Contains(s.Channel, "$pair") {
+		tpl = "{{range $pair := .Pairs }}" + s.Channel + "\n{{end}}"
+	} else {
+		...
+	}
+	t, err := template.New("channel").Parse(tpl)
+	if err != nil {
+		return nil, err
+	}
+	buf := &bytes.Buffer{}
+	if err := t.Execute(buf, s); err != nil {
+		return nil, err
+	}
+	for _, c := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
+		fmt.Println("Got", c)
+		n := s.Clone()
+		n.Channel = c
+		subs = append(subs, n)
+	}
+	return subs, nil
 }
 
 // State returns the subscription state

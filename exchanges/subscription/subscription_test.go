@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -59,6 +60,20 @@ func TestString(t *testing.T) {
 	assert.Equal(t, "candles spot BTC/USDT", s.String(), "String with a MatchableKey")
 	s.Key = 42
 	assert.Equal(t, "42: candles spot BTC/USDT", s.String(), "String with a MatchableKey")
+}
+
+// TestQualifiedChannels exercises QualifiedChannels
+func TestQualifiedChannels(t *testing.T) {
+	t.Parallel()
+	s := &Subscription{
+		Channel: "candles.{{$pair}}.{{.Interval}}",
+		Pairs:   currency.Pairs{btcusdtPair, ethusdcPair.Format(currency.PairFormat{Delimiter: "/"})},
+	}
+	got, err := s.QualifiedChannels()
+	require.NoError(t, err, "QualifiedChannels must not error")
+	exp := []string{"candles.BTCUSDT", "candles.eth/usdc"}
+
+	assert.Len(t, got, 2, "Should get back 2 subscriptions")
 }
 
 // TestEnsureKeyed exercises the key getter and ensures it sets a self-pointer key for non

@@ -28,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -147,6 +148,18 @@ func (d *Deribit) SetDefaults() {
 				),
 				GlobalResultLimit: 500,
 			},
+		},
+		Subscriptions: subscription.List{
+			{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.All},
+			/*
+				{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.All, Interval: kline.OneDay},
+				{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.HundredMilliseconds, Levels: 10, Params: map[string]any{"group": "none"}},
+				{Enabled: true, Channel: subscription.AllTradesChannel, Asset: asset.All},
+				TODO: What subs do we actually want
+				rawUsersOrdersKindCurrencyChannel,
+				rawUsersOrdersWithKindCurrencyAndIntervalChannel,
+				userTradesByKindCurrencyAndIntervalChannel,
+			*/
 		},
 	}
 	d.Requester, err = request.New(d.Name,
