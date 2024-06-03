@@ -82,24 +82,29 @@ func (s *Subscription) String() string {
 func (s *Subscription) QualifiedChannels() (List, error) {
 	subs := List{}
 	tpl := s.Channel
-	if strings.Contains(s.Channel, "$pair") {
-		tpl = "{{range $pair := .Pairs }}" + s.Channel + "\n{{end}}"
-	} else {
-		...
+	hasPair := strings.Contains(s.Channel, "$pair")
+	hasAsset := strings.Contains(s.Channel, "$asset")
+	if hasPair{
+		tpl = "{{range $pair := .Pairs }}" + tpl + "\n{{end}}"
 	}
-	t, err := template.New("channel").Parse(tpl)
-	if err != nil {
-		return nil, err
-	}
-	buf := &bytes.Buffer{}
-	if err := t.Execute(buf, s); err != nil {
-		return nil, err
-	}
-	for _, c := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-		fmt.Println("Got", c)
-		n := s.Clone()
-		n.Channel = c
-		subs = append(subs, n)
+		tpl = "{{with $s := . }}" + tpl + "{{end}}"
+		t, err := template.New("channel").Parse(tpl)
+		if err != nil {
+			return nil, err
+		}
+		buf := &bytes.Buffer{}
+		if err := t.Execute(buf, s); err != nil {
+			return nil, err
+		}
+
+	// If we have asset in the template then we want to create A+ subs and set Asset
+	// If we have pair in the template then we want to create P+ subs and set Pairs
+	for i, c := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
+			n := s.Clone()
+			n.Channel = c
+			n.Pairs = currency.Pairs{s.Pairs[i]}
+			subs = append(subs, n)
+		}
 	}
 	return subs, nil
 }

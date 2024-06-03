@@ -2,6 +2,7 @@ package subscription
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -66,14 +67,17 @@ func TestString(t *testing.T) {
 func TestQualifiedChannels(t *testing.T) {
 	t.Parallel()
 	s := &Subscription{
-		Channel: "candles.{{$pair}}.{{.Interval}}",
-		Pairs:   currency.Pairs{btcusdtPair, ethusdcPair.Format(currency.PairFormat{Delimiter: "/"})},
+		Channel:  "candles.{{$pair}}.{{$s.Interval.Short}}",
+		Pairs:    currency.Pairs{btcusdtPair, ethusdcPair},
+		Interval: kline.FifteenMin,
 	}
 	got, err := s.QualifiedChannels()
 	require.NoError(t, err, "QualifiedChannels must not error")
-	exp := []string{"candles.BTCUSDT", "candles.eth/usdc"}
-
-	assert.Len(t, got, 2, "Should get back 2 subscriptions")
+	exp := List{
+		{Channel: "candles.BTCUSDT.15m", Pairs: currency.Pairs{btcusdtPair}, Interval: kline.FifteenMin},
+		{Channel: "candles.ETHUSDC.15m", Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin},
+	}
+	equalLists(t, exp, got)
 }
 
 // TestEnsureKeyed exercises the key getter and ensures it sets a self-pointer key for non
@@ -148,4 +152,24 @@ func TestSetPairs(t *testing.T) {
 	s := &Subscription{}
 	s.SetPairs(currency.Pairs{btcusdtPair})
 	assert.Equal(t, "BTCUSDT", s.Pairs.Join(), "SetPairs should set a key correctly")
+}
+
+// equalLists is a utility function to compare subscription lists and show a pretty failure message
+// It overcomes the verbose depth of assert.ElementsMatch spewConfig
+// Duplicate of internal/testing/subscriptions:Equal
+func equalLists(tb testing.TB, a, b List) {
+	tb.Helper()
+	s, err := NewStoreFromList(a)
+	require.NoError(tb, err, "NewStoreFromList must not error")
+	added, missing := s.Diff(b)
+	if len(added) > 0 || len(missing) > 0 {
+		fail := "Differences:"
+		if len(added) > 0 {
+			fail = fail + "\n + " + strings.Join(added.Strings(), "\n + ")
+		}
+		if len(missing) > 0 {
+			fail = fail + "\n - " + strings.Join(missing.Strings(), "\n - ")
+		}
+		assert.Fail(tb, fail, "Subscriptions should be equal")
+	}
 }
