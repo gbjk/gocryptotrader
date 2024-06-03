@@ -38,11 +38,12 @@ const (
 
 // Public errors
 var (
-	ErrNotFound       = errors.New("subscription not found")
-	ErrNotSinglePair  = errors.New("only single pair subscriptions expected")
-	ErrInStateAlready = errors.New("subscription already in state")
-	ErrInvalidState   = errors.New("invalid subscription state")
-	ErrDuplicate      = errors.New("duplicate subscription")
+	ErrNotFound                = errors.New("subscription not found")
+	ErrNotSinglePair           = errors.New("only single pair subscriptions expected")
+	ErrInStateAlready          = errors.New("subscription already in state")
+	ErrInvalidState            = errors.New("invalid subscription state")
+	ErrDuplicate               = errors.New("duplicate subscription")
+	ErrAssetTemplateWithoutAll = errors.New("sub.Asset must be set to All if $asset is used in Channel template")
 )
 
 // State tracks the status of a subscription channel
@@ -77,18 +78,62 @@ func (s *Subscription) String() string {
 }
 
 // QualifiedChannels returns subscriptions with Channel expanded with any placeholders replaced with subscription fields and parameters
-// Format of the Channel should be text/template compatible
+// Format of the Channel should be text/template compatible.
+// $asset and $pair will be expanded as plain substitutions, meaning they do not need to be wrapped in {{ }} and if they are they should be quoted
+// This allows for custom functions like {{ assetName "$asset" }}
 // If the channel contains $pair then the template will be ranged over the Pairs with each pair set to $pair
-func (s *Subscription) QualifiedChannels() (List, error) {
-	subs := List{}
-	tpl := s.Channel
-	hasPair := strings.Contains(s.Channel, "$pair")
-	hasAsset := strings.Contains(s.Channel, "$asset")
-	if hasPair{
-		tpl = "{{range $pair := .Pairs }}" + tpl + "\n{{end}}"
+func (l List) QualifiedChannels(e iExchange, funcs template.FuncMap) (List, error) {
+	ap, err := l.AssetPairs(e)
+	if err != nil {
+		return nil, err
 	}
-		tpl = "{{with $s := . }}" + tpl + "{{end}}"
-		t, err := template.New("channel").Parse(tpl)
+
+	// Break out Assets
+	l2 := List{}
+	for _, s := range l {
+		if strings.Contains(s.Channel, "$asset") {
+			if s.Asset != asset.All {
+				return nil, ErrAssetTemplateWithoutAll
+			}
+			for a := range ap {
+				tpl := strings.ReplaceAll(s.Channel, "$asset", a.String())
+				c := s.Clone()
+				c.Asset = a
+				c.Channel = tpl
+				l2 = append(l2, c)
+			}
+		} else {
+			l2 = append(l2, s)
+		}
+	}
+
+	// Break out Pairs
+	l3 := List{}
+	for _, s := range l2 {
+		if strings.Contains(s.Channel, "$pair") {
+			for a, pairs := range ap {
+				if s.Asset != a && s.Asset != asset.All {
+					continue
+				}
+				for _, p := range pairs {
+					c := s.Clone()
+					c.Pairs = currency.Pairs{p}
+					c.Channel = strings.ReplaceAll(s.Channel, "$pair", p.String())
+					l3 = append(l3, c)
+				}
+			}
+		} else {
+			l3 = append(l3, s)
+		}
+	}
+
+	for _, s := range l3 {
+		tpl := "{{with $s := . }}" + s.Channel + "{{end}}"
+		t := template.New("channel")
+		if funcs != nil {
+			t = t.Funcs(funcs)
+		}
+		t, err = t.Parse(tpl)
 		if err != nil {
 			return nil, err
 		}
@@ -96,17 +141,9 @@ func (s *Subscription) QualifiedChannels() (List, error) {
 		if err := t.Execute(buf, s); err != nil {
 			return nil, err
 		}
-
-	// If we have asset in the template then we want to create A+ subs and set Asset
-	// If we have pair in the template then we want to create P+ subs and set Pairs
-	for i, c := range strings.Split(strings.TrimSpace(buf.String()), "\n") {
-			n := s.Clone()
-			n.Channel = c
-			n.Pairs = currency.Pairs{s.Pairs[i]}
-			subs = append(subs, n)
-		}
+		s.Channel = buf.String()
 	}
-	return subs, nil
+	return l3, nil
 }
 
 // State returns the subscription state

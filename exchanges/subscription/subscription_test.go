@@ -66,18 +66,22 @@ func TestString(t *testing.T) {
 // TestQualifiedChannels exercises QualifiedChannels
 func TestQualifiedChannels(t *testing.T) {
 	t.Parallel()
-	s := &Subscription{
-		Channel:  "candles.{{$pair}}.{{$s.Interval.Short}}",
-		Pairs:    currency.Pairs{btcusdtPair, ethusdcPair},
-		Interval: kline.FifteenMin,
+	l := &Subscription.List{
+		{
+			Channel:  "candles.{{$pair}}.{{$s.Interval.Short}}",
+			Pairs:    currency.Pairs{btcusdtPair, ethusdcPair},
+			Interval: kline.FifteenMin,
+		},
 	}
-	got, err := s.QualifiedChannels()
+	got, err := s.QualifiedChannels(e)
 	require.NoError(t, err, "QualifiedChannels must not error")
 	exp := List{
 		{Channel: "candles.BTCUSDT.15m", Pairs: currency.Pairs{btcusdtPair}, Interval: kline.FifteenMin},
 		{Channel: "candles.ETHUSDC.15m", Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin},
 	}
 	equalLists(t, exp, got)
+
+	// Test funcmap
 }
 
 // TestEnsureKeyed exercises the key getter and ensures it sets a self-pointer key for non
