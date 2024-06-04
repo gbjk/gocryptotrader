@@ -1,14 +1,11 @@
 package subscription
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"maps"
 	"slices"
-	"strings"
 	"sync"
-	"text/template"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -75,75 +72,6 @@ func (s *Subscription) String() string {
 		return k.String()
 	}
 	return fmt.Sprintf("%v: %s", key, ExactKey{s}.String())
-}
-
-// QualifiedChannels returns subscriptions with Channel expanded with any placeholders replaced with subscription fields and parameters
-// Format of the Channel should be text/template compatible.
-// $asset and $pair will be expanded as plain substitutions, meaning they do not need to be wrapped in {{ }} and if they are they should be quoted
-// This allows for custom functions like {{ assetName "$asset" }}
-// If the channel contains $pair then the template will be ranged over the Pairs with each pair set to $pair
-func (l List) QualifiedChannels(e iExchange, funcs template.FuncMap) (List, error) {
-	ap, err := l.AssetPairs(e)
-	if err != nil {
-		return nil, err
-	}
-
-	// Break out Assets
-	l2 := List{}
-	for _, s := range l {
-		if strings.Contains(s.Channel, "$asset") {
-			if s.Asset != asset.All {
-				return nil, ErrAssetTemplateWithoutAll
-			}
-			for a := range ap {
-				tpl := strings.ReplaceAll(s.Channel, "$asset", a.String())
-				c := s.Clone()
-				c.Asset = a
-				c.Channel = tpl
-				l2 = append(l2, c)
-			}
-		} else {
-			l2 = append(l2, s)
-		}
-	}
-
-	// Break out Pairs
-	l3 := List{}
-	for _, s := range l2 {
-		if strings.Contains(s.Channel, "$pair") {
-			for a, pairs := range ap {
-				if s.Asset != a && s.Asset != asset.All {
-					continue
-				}
-				for _, p := range pairs {
-					c := s.Clone()
-					c.Pairs = currency.Pairs{p}
-					c.Channel = strings.ReplaceAll(s.Channel, "$pair", p.String())
-					l3 = append(l3, c)
-				}
-			}
-		} else {
-			l3 = append(l3, s)
-		}
-	}
-
-	for _, s := range l3 {
-		tpl := "{{with $s := . }}" + s.Channel + "{{end}}"
-		t := template.New("channel")
-		if funcs != nil {
-			t = t.Funcs(funcs)
-		}
-		t, err = t.Parse(tpl)
-		if err != nil {
-			return nil, err
-		}
-		buf := &bytes.Buffer{}
-		if err := t.Execute(buf, s); err != nil {
-			return nil, err
-		}
-		s.Channel = buf.String()
-	}
-	return l3, nil
 }
 
 // State returns the subscription state

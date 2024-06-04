@@ -4,8 +4,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
 // TestListStrings exercises List.Strings()
@@ -46,4 +48,42 @@ func TestListGroupPairs(t *testing.T) {
 	assert.Len(t, n, 2, "New list should be grouped")
 	exp := []string{"ticker spot ETH/USDC,BTC/USDT", "orderbook spot ETH/USDC,BTC/USDT"}
 	assert.ElementsMatch(t, exp, n.Strings(), "String must return correct sorted list")
+}
+
+type mockEx struct{}
+
+func (m *mockEx) GetAssetTypes(e bool) asset.Items { return asset.Items{asset.Spot, asset.Futures} }
+
+func (m *mockEx) GetEnabledPairs(a asset.Item) (currency.Pairs, error) {
+	return currency.Pairs{btcusdtPair, ethusdcPair}, nil
+}
+
+func (m *mockEx) GetPairFormat(a asset.Item, r bool) (currency.PairFormat, error) {
+	return currency.PairFormat{Uppercase: true}, nil
+}
+
+// TestQualifiedChannels exercises QualifiedChannels
+func TestQualifiedChannels(t *testing.T) {
+	t.Parallel()
+	l := &List{
+		{Channel: "plain.$pair.{{$s.Interval.Short}}",
+			Asset:    asset.Spot,
+			Pairs:    currency.Pairs{btcusdtPair, ethusdcPair},
+			Interval: kline.FifteenMin},
+		{Channel: "plain-pipeline.{{`$pair`}}.{{$s.Interval.Short}}",
+			Asset:    asset.Spot,
+			Pairs:    currency.Pairs{btcusdtPair, ethusdcPair},
+			Interval: kline.FifteenMin},
+	}
+	got, err := l.QualifiedChannels(&mockEx{}, nil)
+	require.NoError(t, err, "QualifiedChannels must not error")
+	exp := List{
+		{Channel: "plain.BTCUSDT.15m", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Interval: kline.FifteenMin},
+		{Channel: "plain.ETHUSDC.15m", Asset: asset.Spot, Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin},
+		{Channel: "plain-pipeline.BTCUSDT.15m", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Interval: kline.FifteenMin},
+		{Channel: "plain-pipeline.ETHUSDC.15m", Asset: asset.Spot, Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin},
+	}
+	equalLists(t, exp, got)
+
+	// Test funcmap
 }

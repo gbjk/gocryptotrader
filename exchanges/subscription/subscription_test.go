@@ -63,27 +63,6 @@ func TestString(t *testing.T) {
 	assert.Equal(t, "42: candles spot BTC/USDT", s.String(), "String with a MatchableKey")
 }
 
-// TestQualifiedChannels exercises QualifiedChannels
-func TestQualifiedChannels(t *testing.T) {
-	t.Parallel()
-	l := &Subscription.List{
-		{
-			Channel:  "candles.{{$pair}}.{{$s.Interval.Short}}",
-			Pairs:    currency.Pairs{btcusdtPair, ethusdcPair},
-			Interval: kline.FifteenMin,
-		},
-	}
-	got, err := s.QualifiedChannels(e)
-	require.NoError(t, err, "QualifiedChannels must not error")
-	exp := List{
-		{Channel: "candles.BTCUSDT.15m", Pairs: currency.Pairs{btcusdtPair}, Interval: kline.FifteenMin},
-		{Channel: "candles.ETHUSDC.15m", Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin},
-	}
-	equalLists(t, exp, got)
-
-	// Test funcmap
-}
-
 // TestEnsureKeyed exercises the key getter and ensures it sets a self-pointer key for non
 func TestEnsureKeyed(t *testing.T) {
 	t.Parallel()
