@@ -86,9 +86,12 @@ func (l List) AssetPairs(e iExchange) (assetPairs, error) { //nolint:revive // u
 
 // QualifiedChannels returns subscriptions with Channel expanded with any placeholders replaced with subscription fields and parameters
 // Format of the Channel should be text/template compatible.
-// $asset and $pair will be expanded as plain substitutions, meaning they do not need to be wrapped in {{ }} and if they are they should be quoted
+// Template Expressions: $s is the subscription; e.g. {{$s.Interval}} {{$s.Params.freq}}
+// Simple text substiutions:  $asset or $pair
+// expanded as plain substitutions, meaning they do not need to be wrapped in {{ }} and if they are they should be quoted
 // This allows for custom functions like {{ assetName "$asset" }}
-// If the channel contains $pair then the template will be ranged over the Pairs with each pair set to $pair
+// If the channel contains a simple text substitution then the template will be ranged and
+// the appropriate sub field will be set. i.e. candle.$pair will lead to N+ subs with s.Pairs being set to each pair
 func (l List) QualifiedChannels(e iExchange) (List, error) {
 	ap, err := l.AssetPairs(e)
 	if err != nil {

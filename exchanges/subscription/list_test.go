@@ -90,9 +90,12 @@ func TestQualifiedChannels(t *testing.T) {
 			Asset:    asset.Spot,
 			Pairs:    currency.Pairs{btcusdtPair, ethusdcPair},
 			Interval: kline.FifteenMin},
-		{Channel: "plain.{{assetName `$asset`}}.$pair.{{$s.Interval.Short}}",
-			Asset:    asset.All,
-			Pairs:    currency.Pairs{btcusdtPair, ethusdcPair},
+		{Channel: "plain.{{assetName `$asset`}}.$pair.{{$s.Params.color}}.{{$s.Interval.Short}}",
+			Asset: asset.All,
+			Pairs: currency.Pairs{btcusdtPair, ethusdcPair},
+			Params: map[string]any{
+				"color": "green",
+			},
 			Interval: kline.FifteenMin},
 	}
 	got, err := l.QualifiedChannels(&mockEx{})
