@@ -65,11 +65,7 @@ func (m *mockEx) GetPairFormat(a asset.Item, r bool) (currency.PairFormat, error
 
 func (m *mockEx) GetSubscriptionTemplateFuncs() template.FuncMap {
 	return template.FuncMap{
-		"assetName": func(s string) string {
-			a, err := asset.New(s)
-			if err != nil {
-				return "unknown"
-			}
+		"assetName": func(a asset.Item) string {
 			if a == asset.Futures {
 				return "future"
 			}
@@ -82,15 +78,15 @@ func (m *mockEx) GetSubscriptionTemplateFuncs() template.FuncMap {
 func TestQualifiedChannels(t *testing.T) {
 	t.Parallel()
 	l := &List{
-		{Channel: "plain.$pair.{{$s.Interval.Short}}",
+		{Channel: "asset.{{$asset}}.{{$s.Interval.Short}}",
+			Asset:    asset.All,
+			Pairs:    currency.Pairs{btcusdtPair, ethusdcPair},
+			Interval: kline.FifteenMin},
+		{Channel: "pair.{{$pair}}.{{$s.Interval.Short}}",
 			Asset:    asset.Spot,
 			Pairs:    currency.Pairs{btcusdtPair, ethusdcPair},
 			Interval: kline.FifteenMin},
-		{Channel: "plain-pipeline.{{`$pair`}}.{{$s.Interval.Short}}",
-			Asset:    asset.Spot,
-			Pairs:    currency.Pairs{btcusdtPair, ethusdcPair},
-			Interval: kline.FifteenMin},
-		{Channel: "candles.{{assetName `$asset`}}.$pair.{{if eq `$pair` `BTCUSDT`}}{{$s.Params.color}}{{else}}red{{end}}.{{$s.Interval.Short}}",
+		{Channel: "candles.{{assetName $asset}}.{{$pair.Swap.String}}.{{if eq $pair.String `BTCUSDT`}}{{$s.Params.color}}{{else}}red{{end}}.{{$s.Interval.Short}}",
 			Asset: asset.All,
 			Pairs: currency.Pairs{btcusdtPair, ethusdcPair},
 			Params: map[string]any{
@@ -98,17 +94,17 @@ func TestQualifiedChannels(t *testing.T) {
 			},
 			Interval: kline.FifteenMin},
 	}
-	got, err := l.QualifiedChannels(&mockEx{})
+	got, err := l.QualifiedChannels2(&mockEx{})
 	require.NoError(t, err, "QualifiedChannels must not error")
 	exp := List{
-		{Channel: "plain.BTCUSDT.15m", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Interval: kline.FifteenMin},
-		{Channel: "plain.ETHUSDC.15m", Asset: asset.Spot, Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin},
-		{Channel: "plain-pipeline.BTCUSDT.15m", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Interval: kline.FifteenMin},
-		{Channel: "plain-pipeline.ETHUSDC.15m", Asset: asset.Spot, Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin},
-		{Channel: "candles.spot.BTCUSDT.green.15m", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Interval: kline.FifteenMin},
-		{Channel: "candles.spot.ETHUSDC.red.15m", Asset: asset.Spot, Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin},
-		{Channel: "candles.future.BTCUSDT.green.15m", Asset: asset.Futures, Pairs: currency.Pairs{btcusdtPair}, Interval: kline.FifteenMin},
-		{Channel: "candles.future.ETHUSDC.red.15m", Asset: asset.Futures, Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin},
+		{Channel: "asset.spot.15m", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}, Interval: kline.FifteenMin},
+		{Channel: "asset.futures.15m", Asset: asset.Futures, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}, Interval: kline.FifteenMin},
+		{Channel: "pair.BTCUSDT.15m", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Interval: kline.FifteenMin},
+		{Channel: "pair.ETHUSDC.15m", Asset: asset.Spot, Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin},
+		{Channel: "candles.spot.USDTBTC.green.15m", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Interval: kline.FifteenMin},
+		{Channel: "candles.spot.USDCETH.red.15m", Asset: asset.Spot, Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin},
+		{Channel: "candles.future.USDTBTC.green.15m", Asset: asset.Futures, Pairs: currency.Pairs{btcusdtPair}, Interval: kline.FifteenMin},
+		{Channel: "candles.future.USDCETH.red.15m", Asset: asset.Futures, Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin},
 	}
 	equalLists(t, exp, got)
 

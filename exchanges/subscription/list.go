@@ -2,6 +2,7 @@ package subscription
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -9,6 +10,12 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+)
+
+var (
+	errRecordSeparator         = errors.New("subscription template must not contain the RecordSeparator character")
+	errInvalidAssetExpandPairs = errors.New("subscription template containing $pair with must contain either specific Asset or $asset with asset.All")
+	errTemplateLines           = errors.New("subscription template did not generate the expected number of lines")
 )
 
 // List is a container of subscription pointers
@@ -138,14 +145,13 @@ func (l List) QualifiedChannels(e iExchange) (List, error) {
 	}
 
 	for _, s := range l3 {
-		tpl := "{{with $s := . }}" + s.Channel + "{{end}}"
 		t := template.New("channel")
 		if funcs := e.GetSubscriptionTemplateFuncs(); funcs != nil {
 			t = t.Funcs(funcs)
 		}
-		t, err = t.Parse(tpl)
+		t, err = t.Parse(s.Channel)
 		if err != nil {
-			return nil, fmt.Errorf("%w parsing %s", err, tpl)
+			return nil, fmt.Errorf("%w parsing %s", err, s.Channel)
 		}
 		buf := &bytes.Buffer{}
 		if err := t.Execute(buf, s); err != nil {
@@ -155,4 +161,106 @@ func (l List) QualifiedChannels(e iExchange) (List, error) {
 	}
 
 	return l3, nil
+}
+
+type tplCtx struct {
+	Sub        *Subscription
+	AssetPairs assetPairs
+	Assets     asset.Items
+}
+
+// Reading the lines:
+// If we contain an asset, then we group the results bo
+func (l List) QualifiedChannels2(e iExchange) (List, error) {
+	ap, err := l.AssetPairs(e)
+	if err != nil {
+		return nil, err
+	}
+
+	assets := make([]asset.Item, 0, len(ap))
+	for k := range ap {
+		assets = append(assets, k)
+	}
+
+	baseTpl := template.New("channel")
+	if funcs := e.GetSubscriptionTemplateFuncs(); funcs != nil {
+		baseTpl = baseTpl.Funcs(funcs)
+	}
+
+	subs := List{}
+
+	rs := "\x1E"
+	for _, s := range l {
+		if strings.Contains(s.Channel, rs) {
+			return nil, errRecordSeparator
+		}
+
+		subCtx := &tplCtx{
+			Sub:        s,
+			AssetPairs: ap,
+		}
+
+		tpl := s.Channel + rs
+
+		xpandPairs := strings.Contains(s.Channel, "$pair")
+		if xpandPairs {
+			tpl = "{{range $pair := index $ctx.AssetPairs $asset}}" + tpl + "{{end}}"
+		}
+
+		if xpandAssets := strings.Contains(s.Channel, "$asset"); xpandAssets {
+			if s.Asset != asset.All {
+				return nil, ErrAssetTemplateWithoutAll
+			}
+			subCtx.Assets = assets
+			tpl = "{{range $asset := $ctx.Assets}}" + tpl + "{{end}}"
+		} else {
+			if xpandPairs && (s.Asset == asset.All || s.Asset == asset.Empty) {
+				// We don't currenply support expanding Pairs across All or Empty assets, but we could; waiting for a use-case
+				return nil, errInvalidAssetExpandPairs
+			}
+			subCtx.Assets = asset.Items{s.Asset}
+			tpl = "{{with $asset := $ctx.Sub.Asset}}" + tpl + "{{end}}"
+		}
+
+		tpl = "{{with $ctx := .}}{{with $s := $ctx.Sub}}" + tpl + "{{end}}{{end}}"
+
+		t, err := baseTpl.Parse(tpl)
+		if err != nil {
+			return nil, fmt.Errorf("%w parsing %s", err, tpl)
+		}
+
+		buf := &bytes.Buffer{}
+		if err := t.Execute(buf, subCtx); err != nil {
+			return nil, err
+		}
+
+		channels := strings.Split(strings.TrimSuffix(buf.String(), rs), rs)
+
+		i := 0
+		line := func(a asset.Item, p currency.Pairs) {
+			if i < len(channels) {
+				c := s.Clone()
+				c.Asset = a
+				c.Pairs = p
+				c.Channel = channels[i]
+				subs = append(subs, c)
+			}
+			i++ // Trigger errTemplateLines if we go over len(channels)
+		}
+
+		for _, a := range subCtx.Assets {
+			if xpandPairs {
+				for _, p := range ap[a] {
+					line(a, currency.Pairs{p})
+				}
+			} else {
+				line(a, ap[a])
+			}
+		}
+		if i != len(channels) {
+			return nil, fmt.Errorf("%w: Got %d Expected %d", errTemplateLines, len(channels), i)
+		}
+	}
+
+	return subs, nil
 }
