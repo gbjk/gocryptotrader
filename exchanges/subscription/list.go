@@ -43,6 +43,7 @@ type iExchange interface {
 	GetAssetTypes(enabled bool) asset.Items
 	GetEnabledPairs(asset.Item) (currency.Pairs, error)
 	GetPairFormat(asset.Item, bool) (currency.PairFormat, error)
+	GetSubscriptionTemplateFuncs() template.FuncMap
 }
 
 func fillAssetPairs(ap assetPairs, a asset.Item, e iExchange) error {
@@ -88,7 +89,7 @@ func (l List) AssetPairs(e iExchange) (assetPairs, error) { //nolint:revive // u
 // $asset and $pair will be expanded as plain substitutions, meaning they do not need to be wrapped in {{ }} and if they are they should be quoted
 // This allows for custom functions like {{ assetName "$asset" }}
 // If the channel contains $pair then the template will be ranged over the Pairs with each pair set to $pair
-func (l List) QualifiedChannels(e iExchange, funcs template.FuncMap) (List, error) {
+func (l List) QualifiedChannels(e iExchange) (List, error) {
 	ap, err := l.AssetPairs(e)
 	if err != nil {
 		return nil, err
@@ -136,7 +137,7 @@ func (l List) QualifiedChannels(e iExchange, funcs template.FuncMap) (List, erro
 	for _, s := range l3 {
 		tpl := "{{with $s := . }}" + s.Channel + "{{end}}"
 		t := template.New("channel")
-		if funcs != nil {
+		if funcs := e.GetSubscriptionTemplateFuncs(); funcs != nil {
 			t = t.Funcs(funcs)
 		}
 		t, err = t.Parse(tpl)

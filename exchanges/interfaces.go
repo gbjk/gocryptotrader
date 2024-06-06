@@ -2,6 +2,7 @@ package exchange
 
 import (
 	"context"
+	"text/template"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common/key"
@@ -73,6 +74,7 @@ type IBotExchange interface {
 	SubscribeToWebsocketChannels(channels subscription.List) error
 	UnsubscribeToWebsocketChannels(channels subscription.List) error
 	GetSubscriptions() (subscription.List, error)
+	GetSubscriptionTemplateFuncs() template.FuncMap
 	FlushWebsocketChannels() error
 	AuthenticateWebsocket(ctx context.Context) error
 	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order.MinMaxLevel, error)

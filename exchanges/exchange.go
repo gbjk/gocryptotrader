@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"text/template"
 	"time"
 	"unicode"
 
@@ -1148,6 +1149,11 @@ func (b *Base) GetSubscriptions() (subscription.List, error) {
 		return nil, common.ErrFunctionNotSupported
 	}
 	return b.Websocket.GetSubscriptions(), nil
+}
+
+// GetSubscriptionTemplateFuncs returns a list of functions available to customise the subscription channel formatting
+func (b *Base) GetSubscriptionTemplateFuncs() template.FuncMap {
+	return nil
 }
 
 // AuthenticateWebsocket sends an authentication message to the websocket

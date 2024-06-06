@@ -2,6 +2,7 @@ package subscription
 
 import (
 	"testing"
+	"text/template"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -62,6 +63,21 @@ func (m *mockEx) GetPairFormat(a asset.Item, r bool) (currency.PairFormat, error
 	return currency.PairFormat{Uppercase: true}, nil
 }
 
+func (m *mockEx) GetSubscriptionTemplateFuncs() template.FuncMap {
+	return template.FuncMap{
+		"assetName": func(s string) string {
+			a, err := asset.New(s)
+			if err != nil {
+				return "unknown"
+			}
+			if a == asset.Futures {
+				return "future"
+			}
+			return a.String()
+		},
+	}
+}
+
 // TestQualifiedChannels exercises QualifiedChannels
 func TestQualifiedChannels(t *testing.T) {
 	t.Parallel()
@@ -74,14 +90,22 @@ func TestQualifiedChannels(t *testing.T) {
 			Asset:    asset.Spot,
 			Pairs:    currency.Pairs{btcusdtPair, ethusdcPair},
 			Interval: kline.FifteenMin},
+		{Channel: "plain.{{assetName `$asset`}}.$pair.{{$s.Interval.Short}}",
+			Asset:    asset.All,
+			Pairs:    currency.Pairs{btcusdtPair, ethusdcPair},
+			Interval: kline.FifteenMin},
 	}
-	got, err := l.QualifiedChannels(&mockEx{}, nil)
+	got, err := l.QualifiedChannels(&mockEx{})
 	require.NoError(t, err, "QualifiedChannels must not error")
 	exp := List{
 		{Channel: "plain.BTCUSDT.15m", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Interval: kline.FifteenMin},
 		{Channel: "plain.ETHUSDC.15m", Asset: asset.Spot, Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin},
 		{Channel: "plain-pipeline.BTCUSDT.15m", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Interval: kline.FifteenMin},
 		{Channel: "plain-pipeline.ETHUSDC.15m", Asset: asset.Spot, Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin},
+		{Channel: "plain.spot.BTCUSDT.15m", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Interval: kline.FifteenMin},
+		{Channel: "plain.spot.ETHUSDC.15m", Asset: asset.Spot, Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin},
+		{Channel: "plain.future.BTCUSDT.15m", Asset: asset.Futures, Pairs: currency.Pairs{btcusdtPair}, Interval: kline.FifteenMin},
+		{Channel: "plain.future.ETHUSDC.15m", Asset: asset.Futures, Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin},
 	}
 	equalLists(t, exp, got)
 
