@@ -90,7 +90,7 @@ func TestQualifiedChannels(t *testing.T) {
 			Asset:    asset.Spot,
 			Pairs:    currency.Pairs{btcusdtPair, ethusdcPair},
 			Interval: kline.FifteenMin},
-		{Channel: "plain.{{assetName `$asset`}}.$pair.{{$s.Params.color}}.{{$s.Interval.Short}}",
+		{Channel: "candles.{{assetName `$asset`}}.$pair.{{if eq `$pair` `BTCUSDT`}}{{$s.Params.color}}{{else}}red{{end}}.{{$s.Interval.Short}}",
 			Asset: asset.All,
 			Pairs: currency.Pairs{btcusdtPair, ethusdcPair},
 			Params: map[string]any{
@@ -105,10 +105,10 @@ func TestQualifiedChannels(t *testing.T) {
 		{Channel: "plain.ETHUSDC.15m", Asset: asset.Spot, Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin},
 		{Channel: "plain-pipeline.BTCUSDT.15m", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Interval: kline.FifteenMin},
 		{Channel: "plain-pipeline.ETHUSDC.15m", Asset: asset.Spot, Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin},
-		{Channel: "plain.spot.BTCUSDT.15m", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Interval: kline.FifteenMin},
-		{Channel: "plain.spot.ETHUSDC.15m", Asset: asset.Spot, Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin},
-		{Channel: "plain.future.BTCUSDT.15m", Asset: asset.Futures, Pairs: currency.Pairs{btcusdtPair}, Interval: kline.FifteenMin},
-		{Channel: "plain.future.ETHUSDC.15m", Asset: asset.Futures, Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin},
+		{Channel: "candles.spot.BTCUSDT.green.15m", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair}, Interval: kline.FifteenMin},
+		{Channel: "candles.spot.ETHUSDC.red.15m", Asset: asset.Spot, Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin},
+		{Channel: "candles.future.BTCUSDT.green.15m", Asset: asset.Futures, Pairs: currency.Pairs{btcusdtPair}, Interval: kline.FifteenMin},
+		{Channel: "candles.future.ETHUSDC.red.15m", Asset: asset.Futures, Pairs: currency.Pairs{ethusdcPair}, Interval: kline.FifteenMin},
 	}
 	equalLists(t, exp, got)
 
