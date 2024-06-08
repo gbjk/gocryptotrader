@@ -969,7 +969,7 @@ func (d *Deribit) manageSub(op string, subs subscription.List) ([]WsSubscription
 }
 
 // Subscribe sends a websocket message to receive data from the channel
-func (d *Deribit) Subscribe(channelsToSubscribe subscription.List) error {
+func (d *Deribit) Subscribe(subs subscription.List) error {
 	return d.handleSubscription("subscribe", subs)
 }
 
@@ -980,7 +980,7 @@ func (d *Deribit) Unsubscribe(subs subscription.List) error {
 
 func (d *Deribit) handleSubscription(op string, subs subscription.List) error {
 	for x := range subs {
-		payloads, err := d.generatePayloadFromSubscriptionInfos(operation, channels)
+		payloads, err := d.manageSub(op, subs)
 		if err != nil {
 			return err
 		}
