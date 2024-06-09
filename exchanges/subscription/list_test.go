@@ -94,7 +94,7 @@ func TestQualifiedChannels(t *testing.T) {
 			},
 			Interval: kline.FifteenMin},
 	}
-	got, err := l.QualifiedChannels2(&mockEx{})
+	got, err := l.QualifiedChannels(&mockEx{})
 	require.NoError(t, err, "QualifiedChannels must not error")
 	exp := List{
 		{Channel: "asset.spot.15m", Asset: asset.Spot, Pairs: currency.Pairs{btcusdtPair, ethusdcPair}, Interval: kline.FifteenMin},

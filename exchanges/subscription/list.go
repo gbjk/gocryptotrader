@@ -91,87 +91,31 @@ func (l List) AssetPairs(e iExchange) (assetPairs, error) { //nolint:revive // u
 	return ap, nil
 }
 
-// QualifiedChannels returns subscriptions with Channel expanded with any placeholders replaced with subscription fields and parameters
-// Format of the Channel should be text/template compatible.
-// Template Expressions: $s is the subscription; e.g. {{$s.Interval}} {{$s.Params.freq}}
-// Simple text substiutions:  $asset or $pair
-// expanded as plain substitutions, meaning they do not need to be wrapped in {{ }} and if they are they should be quoted
-// This allows for custom functions like {{ assetName "$asset" }}
-// If the channel contains a simple text substitution then the template will be ranged and
-// the appropriate sub field will be set. i.e. candle.$pair will lead to N+ subs with s.Pairs being set to each pair
-func (l List) QualifiedChannels(e iExchange) (List, error) {
-	ap, err := l.AssetPairs(e)
-	if err != nil {
-		return nil, err
-	}
-
-	// Break out Assets
-	l2 := List{}
-	for _, s := range l {
-		if strings.Contains(s.Channel, "$asset") {
-			if s.Asset != asset.All {
-				return nil, ErrAssetTemplateWithoutAll
-			}
-			for a := range ap {
-				tpl := strings.ReplaceAll(s.Channel, "$asset", a.String())
-				c := s.Clone()
-				c.Asset = a
-				c.Channel = tpl
-				l2 = append(l2, c)
-			}
-		} else {
-			l2 = append(l2, s)
-		}
-	}
-
-	// Break out Pairs
-	l3 := List{}
-	for _, s := range l2 {
-		if strings.Contains(s.Channel, "$pair") {
-			for a, pairs := range ap {
-				if s.Asset != a && s.Asset != asset.All {
-					continue
-				}
-				for _, p := range pairs {
-					c := s.Clone()
-					c.Pairs = currency.Pairs{p}
-					c.Channel = strings.ReplaceAll(s.Channel, "$pair", p.String())
-					l3 = append(l3, c)
-				}
-			}
-		} else {
-			l3 = append(l3, s)
-		}
-	}
-
-	for _, s := range l3 {
-		t := template.New("channel")
-		if funcs := e.GetSubscriptionTemplateFuncs(); funcs != nil {
-			t = t.Funcs(funcs)
-		}
-		t, err = t.Parse(s.Channel)
-		if err != nil {
-			return nil, fmt.Errorf("%w parsing %s", err, s.Channel)
-		}
-		buf := &bytes.Buffer{}
-		if err := t.Execute(buf, s); err != nil {
-			return nil, err
-		}
-		s.Channel = buf.String()
-	}
-
-	return l3, nil
-}
-
 type tplCtx struct {
 	Sub        *Subscription
 	AssetPairs assetPairs
 	Assets     asset.Items
 }
 
-// Reading the lines:
-// If we contain an asset, then we group the results bo
-func (l List) QualifiedChannels2(e iExchange) (List, error) {
+// QualifiedChannels returns subscriptions with Channel expanded with any placeholders replaced with subscription fields and parameters
+// Format of the Channel should be text/template compatible.
+// Template Variables:
+// * $s is the subscription; e.g. {{$s.Interval}} {{$s.Params.freq}}
+// * $asset will fan out the enabled assets
+//   sub.Asset must be All; Otherwise just hardcode the asset the subscription is for
+// * $pair will fan out the pairs for the assets, formatted for request
+//   Must be used in cojunction with $asset when Asset is All, otherwise we don't know what pairs to use
+//   May not not be used when Asset is Empty
+// Calls e.GetSubscriptionTemplateFuncs for a template.FuncMap for flexibility in pipelines, e.g. {{ assetName "$asset" }}
+// Filters out Authenticated subscriptions if CanUseAuthenticatedEndpoints is false
+func (l List) QualifiedChannels(e iExchange) (List, error) {
+
+	if !d.Websocket.CanUseAuthenticatedEndpoints() {
+		l = slices.DeleteFunc(l, func(s *Subscription) bool {
+			return s.Authenticated
+		})
+	}
+
 	ap, err := l.AssetPairs(e)
 	if err != nil {
 		return nil, err
@@ -215,7 +159,7 @@ func (l List) QualifiedChannels2(e iExchange) (List, error) {
 			tpl = "{{range $asset := $ctx.Assets}}" + tpl + "{{end}}"
 		} else {
 			if xpandPairs && (s.Asset == asset.All || s.Asset == asset.Empty) {
-				// We don't currenply support expanding Pairs across All or Empty assets, but we could; waiting for a use-case
+				// We don't currenply support expanding Pairs without expanding Assets for All or Empty assets, but we could; waiting for a use-case
 				return nil, errInvalidAssetExpandPairs
 			}
 			subCtx.Assets = asset.Items{s.Asset}

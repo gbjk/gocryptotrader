@@ -737,7 +737,6 @@ func (d *Deribit) processOrderbook(respRaw []byte, channels []string) error {
 // generateSubscriptions returns a list of configured subscriptions
 func (d *Deribit) generateSubscriptions() (subscription.List, error) {
 	subs := subscription.List{}
-	authed := d.Websocket.CanUseAuthenticatedEndpoints()
 	var errs error
 	assetPairs, err := d.Features.Subscriptions.AssetPairs(d)
 	if err != nil {
