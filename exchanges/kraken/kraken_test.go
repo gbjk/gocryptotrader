@@ -929,7 +929,7 @@ func TestWithdrawCancel(t *testing.T) {
 // No objection to this becoming a fixture test, so long as it integrates through Un/Subscribe roundtrip
 func TestWsSubscribe(t *testing.T) {
 	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
-	require.NoError(t, testexch.TestInstance(k), "TestInstance must not error")
+	require.NoError(t, testexch.Setup(k), "TestInstance must not error")
 	testexch.SetupWs(t, k)
 
 	err := k.Subscribe(subscription.List{{Channel: subscription.TickerChannel, Pairs: currency.Pairs{xbtusdPair}}})
@@ -1017,7 +1017,7 @@ func TestWsOrderbookSub(t *testing.T) {
 	t.Parallel()
 
 	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
-	require.NoError(t, testexch.TestInstance(k), "TestInstance must not error")
+	require.NoError(t, testexch.Setup(k), "TestInstance must not error")
 	testexch.SetupWs(t, k)
 
 	err := k.Subscribe(subscription.List{{
@@ -1047,7 +1047,7 @@ func TestWsCandlesSub(t *testing.T) {
 	t.Parallel()
 
 	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
-	require.NoError(t, testexch.TestInstance(k), "TestInstance must not error")
+	require.NoError(t, testexch.Setup(k), "TestInstance must not error")
 	testexch.SetupWs(t, k)
 
 	err := k.Subscribe(subscription.List{{
@@ -1079,7 +1079,7 @@ func TestWsOwnTradesSub(t *testing.T) {
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
 
 	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
-	require.NoError(t, testexch.TestInstance(k), "TestInstance must not error")
+	require.NoError(t, testexch.Setup(k), "TestInstance must not error")
 	testexch.SetupWs(t, k)
 
 	err := k.Subscribe(subscription.List{{Channel: subscription.MyTradesChannel, Authenticated: true}})
@@ -1113,14 +1113,14 @@ func TestGenerateSubscriptions(t *testing.T) {
 		s.Pairs = pairs
 		expected = append(expected, s)
 	}
-	testsubs.Equal(t, expected, subs)
+	testsubs.EqualLists(t, expected, subs)
 }
 
 func TestGetWSToken(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
 	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
-	require.NoError(t, testexch.TestInstance(k), "TestInstance must not error")
+	require.NoError(t, testexch.Setup(k), "TestInstance must not error")
 	testexch.SetupWs(t, k)
 
 	resp, err := k.GetWebsocketToken(context.Background())
@@ -1170,9 +1170,8 @@ func TestWsCancelAllOrders(t *testing.T) {
 
 func TestWsHandleData(t *testing.T) {
 	t.Parallel()
-	base := k
 	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
-	require.NoError(t, testexch.TestInstance(k), "TestInstance must not error")
+	require.NoError(t, testexch.Setup(k), "TestInstance must not error")
 	for _, l := range []int{10, 100} {
 		err := k.Websocket.AddSuccessfulSubscriptions(&subscription.Subscription{
 			Channel: subscription.OrderbookChannel,
@@ -1182,7 +1181,7 @@ func TestWsHandleData(t *testing.T) {
 		})
 		require.NoError(t, err, "AddSuccessfulSubscriptions must not error")
 	}
-	sharedtestvalues.TestFixtureToDataHandler(t, base, k, "testdata/wsHandleData.json", k.wsHandleData)
+	testexch.FixtureToDataHandler(t, "testdata/wsHandleData.json", k.wsHandleData)
 }
 
 func TestWsOpenOrders(t *testing.T) {
@@ -1420,7 +1419,7 @@ var websocketGSTEUROrderbookUpdates = []string{
 func TestWsOrderbookMax10Depth(t *testing.T) {
 	t.Parallel()
 	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
-	require.NoError(t, testexch.TestInstance(k), "TestInstance must not error")
+	require.NoError(t, testexch.Setup(k), "TestInstance must not error")
 	pairs := currency.Pairs{
 		currency.NewPairWithDelimiter("XDG", "USD", "/"),
 		currency.NewPairWithDelimiter("LUNA", "EUR", "/"),
