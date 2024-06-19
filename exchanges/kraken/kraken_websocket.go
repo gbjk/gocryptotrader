@@ -1,12 +1,12 @@
 package kraken
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/crc32"
+	"html/template"
 	"net/http"
 	"strconv"
 	"strings"
@@ -958,30 +958,17 @@ func (k *Kraken) wsProcessCandles(channelName string, response []any, pair curre
 	return nil
 }
 
-// generateSubscriptions sets up the configured subscriptions for the websocket
-// Note: We don't use one sub with sub.Pairs = EnabledPairs because kraken will fan the subscriptions out in responses,
-// and because resubscribe is very messy indeed when our subs don't match their respsonses
-// and finally because FlushChannels and GetChannelDiff would incorrectly resub existing subs if we don't Generate the same as we've stored
-func (k *Kraken) generateSubscriptions() (subscription.List, error) {
-	subscriptions := subscription.List{}
-	pairs, err := k.GetEnabledPairs(asset.Spot)
-	if err != nil {
-		return nil, err
-	}
-	authed := k.Websocket.CanUseAuthenticatedEndpoints()
-	for _, baseSub := range k.Features.Subscriptions {
-		if !authed && baseSub.Authenticated {
-			continue
-		}
-		for _, p := range pairs {
-			s := baseSub.Clone()
-			s.Asset = asset.Spot
-			s.AddPairs(p)
-			subscriptions = append(subscriptions, s)
-		}
-	}
+/*
+generateSubscriptions sets up the configured subscriptions for the websocket
+We don't use one sub with many pairs because:
+  - Kraken will fan out in responses anyay
+  - resubscribe is messy when our subs don't match their respsonses
+  - FlushChannels and GetChannelDiff would incorrectly resub existing subs if we don't generate the same as we've stored
 
-	return subscriptions, nil
+We use $pair in a comment in the Templates to fan out without using it in QualifiedChannel
+*/
+func (k *Kraken) generateSubscriptions() (subscription.List, error) {
+	return k.Features.Subscriptions.ExpandTemplates(k)
 }
 
 // Subscribe adds a channel subscription to the websocket
@@ -1008,7 +995,8 @@ func (k *Kraken) Subscribe(in subscription.List) error {
 		subs = append(subs, s)
 	}
 
-	groupedSubs := subs.GroupPairs() // Group subscriptions by pairs for request. Kraken will fan out the responses anyway.
+	// Group subscriptions by pairs for request, but expect per-sub responses; See generateSubscriptions() for explanation
+	groupedSubs := subs.GroupPairs()
 
 	errs = common.AppendError(errs,
 		k.ParallelChanOp(groupedSubs, func(s subscription.List) error { return k.manageSubs(krakenWsSubscribe, s) }, 1),
@@ -1045,7 +1033,7 @@ func (k *Kraken) Unsubscribe(keys subscription.List) error {
 		}
 	}
 
-	subs = subs.GroupPairs() // Group subscriptions by pairs for request. Kraken will fan out the responses anyway
+	subs = subs.GroupPairs()
 
 	return common.AppendError(errs,
 		k.ParallelChanOp(subs, func(s subscription.List) error { return k.manageSubs(krakenWsUnsubscribe, s) }, 1),
@@ -1060,16 +1048,12 @@ func (k *Kraken) manageSubs(op string, subs subscription.List) error {
 
 	s := subs[0]
 
-	if err := enforceStandardChannelNames(s); err != nil {
-		return err
-	}
-
 	reqFmt := currency.PairFormat{Uppercase: true, Delimiter: "/"}
 	r := &WebsocketSubRequest{
 		Event:     op,
 		RequestID: k.Websocket.Conn.GenerateMessageID(false),
 		Subscription: WebsocketSubscriptionData{
-			Name:  apiChannelName(s),
+			Name:  s.QualifiedChannel,
 			Depth: s.Levels,
 		},
 		Pairs: s.Pairs.Format(reqFmt).Strings(),
@@ -1245,6 +1229,13 @@ func (k *Kraken) wsProcessSubStatus(resp []byte) {
 	}
 }
 
+// GetSubscriptionTemplateFuncs returns functions available for subscription channel templating
+func (b *Kraken) GetSubscriptionTemplateFuncs() template.FuncMap {
+	return template.FuncMap{
+		"channel": apiChannelName,
+	}
+}
+
 // apiChannelName converts a global channel name to kraken bespoke names
 func apiChannelName(s *subscription.Subscription) string {
 	if n, ok := standardChannelNames[s.Channel]; ok {
@@ -1253,15 +1244,7 @@ func apiChannelName(s *subscription.Subscription) string {
 	return s.Channel
 }
 
-func enforceStandardChannelNames(s *subscription.Subscription) error {
-	name := strings.Split(s.Channel, "-")
-	if n, ok := reverseChannelNames[name[0]]; ok && n != s.Channel {
-		return fmt.Errorf("%w: %s => subscription.%s%sChannel", subscription.ErrPrivateChannelName, s.Channel, bytes.ToUpper([]byte{n[0]}), n[1:])
-	}
-	return nil
-}
-
-// fqChannelNameSub converts an fqChannelName into standard name and subscription params
+// fqChannelNameSub converts an fully qualified channeln ame into standard name and subscription params
 // e.g. book-5 => subscription.OrderbookChannel with Levels: 5
 func fqChannelNameSub(s *subscription.Subscription) error {
 	parts := strings.Split(s.Channel, "-")
