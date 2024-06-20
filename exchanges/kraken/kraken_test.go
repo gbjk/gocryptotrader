@@ -1121,7 +1121,8 @@ func TestGenerateSubscriptions(t *testing.T) {
 		{Channel: subscription.MyTradesChannel, QualifiedChannel: krakenWsOwnTrades},
 	}...)
 	subs, err = k.generateSubscriptions()
-	requiubs.EqualLists(t, exp, subs)
+	require.NoError(t, err, "generateSubscriptions should not error")
+	testsubs.EqualLists(t, exp, subs)
 }
 
 func TestGetWSToken(t *testing.T) {
