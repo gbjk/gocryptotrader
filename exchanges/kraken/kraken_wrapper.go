@@ -170,12 +170,12 @@ func (k *Kraken) SetDefaults() {
 			},
 		},
 		Subscriptions: []*subscription.Subscription{
-			{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Template: "{{channel $s.Channel}}{{/* fan out $pair */}}"},
-			{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel, Template: "{{channel $s.Channel}}{{/* fan out $pair */}}"},
-			{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Template: "{{channel $s.Channel}}{{/* fan out $pair */}}", Interval: kline.OneMin},
-			{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Template: "{{channel $s.Channel}}{{/* fan out $pair */}}", Levels: 1000},
-			{Enabled: true, Asset: asset.Spot, Channel: subscription.MyOrdersChannel, Template: "{{channel $s.Channel}}", Authenticated: true},
-			{Enabled: true, Asset: asset.Spot, Channel: subscription.MyTradesChannel, Template: "{{channel $s.Channel}}", Authenticated: true},
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel, Template: "{{channel $s}}{{/* fan out $pair */}}"},
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel, Template: "{{channel $s}}{{/* fan out $pair */}}"},
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Template: "{{channel $s}}{{/* fan out $pair */}}", Interval: kline.OneMin},
+			{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Template: "{{channel $s}}{{/* fan out $pair */}}", Levels: 1000},
+			{Enabled: true, Channel: subscription.MyOrdersChannel, Template: "{{channel $s}}", Authenticated: true},
+			{Enabled: true, Channel: subscription.MyTradesChannel, Template: "{{channel $s}}", Authenticated: true},
 		},
 	}
 
