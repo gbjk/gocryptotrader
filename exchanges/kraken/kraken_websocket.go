@@ -978,16 +978,8 @@ func (k *Kraken) Subscribe(in subscription.List) error {
 	// Collect valid subs to subscribe to; Note that we won't RemoveSub on any that err on SetState or AddSub
 	subs := subscription.List{}
 	for _, s := range in {
-		if s.Asset == asset.Empty {
-			s.Asset = asset.Spot
-		}
 		if s.State() != subscription.ResubscribingState {
-			err := s.SetState(subscription.SubscribingState)
-			if err == nil {
-				err = k.Websocket.AddSubscriptions(s)
-			}
-			if err != nil {
-				_ = s.SetState(subscription.InactiveState)
+			if err := k.Websocket.AddSubscriptions(s); err != nil {
 				errs = common.AppendError(errs, fmt.Errorf("%w; Channel: %s Pairs: %s", err, s.Channel, s.Pairs.Join()))
 				continue
 			}
