@@ -975,6 +975,11 @@ func (k *Kraken) generateSubscriptions() (subscription.List, error) {
 func (k *Kraken) Subscribe(in subscription.List) error {
 	var errs error
 
+	// Expand incoming subscriptions in case of manual subscriptions
+	if in, errs = k.Features.Subscriptions.ExpandTemplates(k); errs != nil {
+		return errs
+	}
+
 	// Collect valid subs to subscribe to; Note that we won't RemoveSub on any that err on SetState or AddSub
 	subs := subscription.List{}
 	for _, s := range in {
