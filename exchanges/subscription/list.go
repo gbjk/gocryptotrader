@@ -137,6 +137,7 @@ Template Variables:
     Must be used in cojunction with $asset when Asset is All, otherwise we don't know what pairs to use
     May not be used when Asset is Empty
 
+If $s.Asset is not Empty then $s.Pairs will be all enabled pairs for that asset, even if $pair is not in the template
 Template Variables may be put in template comments to force a fan out without using them in the QualifiedChannel
 Calls e.GetSubscriptionTemplateFuncs for a template.FuncMap for flexibility in pipelines, e.g. {{ assetName "$asset" }}
 Filters out Authenticated subscriptions if CanUseAuthenticatedEndpoints is false
