@@ -141,8 +141,14 @@ If $s.Asset is not Empty then $s.Pairs will be all enabled pairs for that asset,
 Template Variables may be put in template comments to force a fan out without using them in the QualifiedChannel
 Calls e.GetSubscriptionTemplateFuncs for a template.FuncMap for flexibility in pipelines, e.g. {{ assetName "$asset" }}
 Filters out Authenticated subscriptions if CanUseAuthenticatedEndpoints is false
+Passes $s through unprocessed if QualifiedChannel is already populated
 */
 func (l List) ExpandTemplates(e iExchange) (List, error) {
+	if !slices.ContainsFunc(l, func(s *Subscription) bool { return s.QualifiedChannel == "" }) {
+		// Empty list, or already processed
+		return slices.Clone(l), nil
+	}
+
 	if !e.CanUseAuthenticatedWebsocketEndpoints() {
 		n := List{}
 		for _, s := range l {
@@ -171,6 +177,11 @@ func (l List) ExpandTemplates(e iExchange) (List, error) {
 	subs := List{}
 
 	for _, s := range l {
+		if s.QualifiedChannel != "" {
+			subs = append(subs, s)
+			continue
+		}
+
 		if strings.Contains(s.Template, recordSeparator) {
 			return nil, errRecordSeparator
 		}
