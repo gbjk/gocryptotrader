@@ -1097,28 +1097,37 @@ func TestWsOwnTradesSub(t *testing.T) {
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
-	subs, err := k.generateSubscriptions()
-	require.NoError(t, err, "generateSubscriptions should not error")
 	pairs, err := k.GetEnabledPairs(asset.Spot)
 	require.NoError(t, err, "GetEnabledPairs must not error")
-	pairs = pairs.Format(currency.PairFormat{Uppercase: true, Delimiter: "/"})
 	require.False(t, k.Websocket.CanUseAuthenticatedEndpoints(), "Websocket must not be authenticated by default")
-	expected := subscription.List{}
-	for _, exp := range k.Features.Subscriptions {
-		if exp.Authenticated {
-			continue
-		}
-		s := exp.Clone()
+	exp := subscription.List{
+		{Channel: subscription.TickerChannel},
+		{Channel: subscription.AllTradesChannel},
+		{Channel: subscription.CandlesChannel, Interval: kline.OneMin},
+		{Channel: subscription.OrderbookChannel, Levels: 1000},
+	}
+	for _, s := range exp {
+		s.QualifiedChannel = apiChannelName(s)
 		s.Asset = asset.Spot
 		s.Pairs = pairs
-		expected = append(expected, s)
 	}
-	testsubs.EqualLists(t, expected, subs)
+	subs, err := k.generateSubscriptions()
+	require.NoError(t, err, "generateSubscriptions should not error")
+	testsubs.EqualLists(t, exp, subs)
+
+	k.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	exp = append(exp, subscription.List{
+		{Channel: subscription.MyOrdersChannel, QualifiedChannel: krakenWsOpenOrders},
+		{Channel: subscription.MyTradesChannel, QualifiedChannel: krakenWsOwnTrades},
+	}...)
+	subs, err = k.generateSubscriptions()
+	requiubs.EqualLists(t, exp, subs)
 }
 
 func TestGetWSToken(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, k)
+
 	k := new(Kraken) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(k), "TestInstance must not error")
 	testexch.SetupWs(t, k)
