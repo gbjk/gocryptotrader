@@ -210,12 +210,13 @@ func (p Pairs) Remove(pair Pair) (Pairs, error) {
 	return nil, fmt.Errorf("%s %w", pair, ErrPairNotFound)
 }
 
-// Add adds a specified pair to the list of pairs if it doesn't exist
-func (p Pairs) Add(pair Pair) Pairs {
-	if p.Contains(pair, true) {
-		return p
+// Add adds a specified pairs to the list of pairs if it doesn't exist
+func (p Pairs) Add(pairs ...Pair) Pairs {
+	for _, a := range pairs {
+		if !p.Contains(a, true) {
+			p = append(p, a)
+		}
 	}
-	p = append(p, pair)
 	return p
 }
 

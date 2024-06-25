@@ -3,6 +3,7 @@ package currency
 import (
 	"encoding/json"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -262,24 +263,15 @@ func TestRemove(t *testing.T) {
 
 func TestAdd(t *testing.T) {
 	t.Parallel()
-	var pairs = Pairs{
-		NewPair(BTC, USD),
-		NewPair(LTC, USD),
-		NewPair(LTC, USDT),
-	}
-
-	// Test adding a new pair to the list of pairs
+	var pairs = Pairs{NewPair(BTC, USD), NewPair(LTC, USD), NewPair(LTC, USDT)}
 	p := NewPair(BTC, USDT)
+	p2 := NewPair(ETH, USD)
+	pairs = pairs.Add(p, p2)
+	require.Len(t, pairs, 5, "Add must add to Pairs")
+	require.True(t, slices.Contains(pairs, p), "Add must add to Pairs")
+	require.True(t, slices.Contains(pairs, p2), "Add must add to Pairs")
 	pairs = pairs.Add(p)
-	if !pairs.Contains(p, true) || len(pairs) != 4 {
-		t.Error("TestAdd unexpected result")
-	}
-
-	// Now test adding a pair which already exists
-	pairs = pairs.Add(p)
-	if len(pairs) != 4 {
-		t.Error("TestAdd unexpected result")
-	}
+	require.Len(t, pairs, 5, "Pairs must not add a duplicate pair")
 }
 
 func TestContains(t *testing.T) {
