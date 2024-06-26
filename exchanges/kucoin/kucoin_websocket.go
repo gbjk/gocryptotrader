@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"text/template"
 	"time"
 
 	"github.com/buger/jsonparser"
@@ -1044,27 +1045,23 @@ func getChannelsAssetType(channelName string) asset.Item {
 
 // generateSubscriptions returns a list of subscriptions from the configured subscriptions feature
 func (ku *Kucoin) generateSubscriptions() (subscription.List, error) {
-	assetPairs := map[asset.Item]currency.Pairs{}
-	for _, a := range ku.GetAssetTypes(false) {
-		if p, err := ku.GetEnabledPairs(a); err == nil {
-			assetPairs[a] = p
-		} else {
-			assetPairs[a] = currency.Pairs{} // err is probably that Asset isn't enabled, but we don't care about errors of any type
-		}
-	}
-	authed := ku.Websocket.CanUseAuthenticatedEndpoints()
-	subscriptions := subscription.List{}
-	for _, s := range ku.Features.Subscriptions {
-		if !authed && s.Authenticated {
-			continue
-		}
-		subs, err := ku.expandSubscription(s, assetPairs)
+	return ku.Features.Subscriptions.ExpandTemplates(ku)
+}
+
+var subTemplates map[string]*template.Template
+
+// GetSubscriptionTemplate returns a subscription channel template
+func (ku *Kucoin) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+	if subTemplates == nil {
+		master, err := template.New("master.tmpl").
+			Funcs(template.FuncMap{}).
+			Parse(subMasterTplText)
 		if err != nil {
 			return nil, err
 		}
-		subscriptions = append(subscriptions, subs...)
+		_ = master
 	}
-	return subscriptions, nil
+	return nil, nil
 }
 
 // expandSubscription takes a subscription and expands it across the relevant assets and pairs passed in
@@ -1086,17 +1083,22 @@ func (ku *Kucoin) expandSubscription(baseSub *subscription.Subscription, assetPa
 	switch {
 	case s.Channel == marginLoanChannel:
 		for _, c := range assetPairs[asset.Margin].GetCurrencies() {
-			i := s.Clone()
-			i.Channel = fmt.Sprintf(s.Channel, c)
-			subscriptions = append(subscriptions, i)
+			s := s.Clone()
+			s.Channel = fmt.Sprintf(s.Channel, c)
+			subscriptions = append(subscriptions, s)
 		}
 	case s.Channel == marketCandlesChannel:
 		interval, err := ku.intervalToString(s.Interval)
 		if err != nil {
 			return nil, err
 		}
-		subs := spotOrMarginPairSubs(assetPairs, s, false, interval)
-		subscriptions = append(subscriptions, subs...)
+
+		for _, p := range assetPairs[asset.Spot].Add(assetPairs[asset.Margin]...) {
+			s := s.Clone()
+			s.Asset = asset.Spot
+			s.Channel = fmt.Sprintf(s.Channel, p, interval)
+			subscriptions = append(subscriptions, s)
+		}
 	case s.Channel == marginFundingbookChangeChannel:
 		s.Channel = fmt.Sprintf(s.Channel, assetPairs[asset.Margin].GetCurrencies().Join())
 		subscriptions = append(subscriptions, s)
@@ -1118,8 +1120,8 @@ func (ku *Kucoin) expandSubscription(baseSub *subscription.Subscription, assetPa
 		}
 	case isSymbolChannel(s.Channel):
 		// Subscriptions which can use a single comma-separated sub per asset
-		subs := spotOrMarginPairSubs(assetPairs, s, true)
-		subscriptions = append(subscriptions, subs...)
+		s.Channel = fmt.Sprintf(s.Channel, assetPairs[asset.Spot].Join())
+		subscriptions = append(subscriptions, s)
 	default:
 		subscriptions = append(subscriptions, s)
 	}
@@ -1143,29 +1145,7 @@ func channelName(name string) string {
 // spotOrMarginPairSubs accepts a map of pairs and a template subscription and returns a list of subscriptions for Spot and Margin pairs
 // If there's a Spot subscription, it won't be added again as a Margin subscription
 // If joined param is true then one subscription per asset type with the currencies comma delimited
-func spotOrMarginPairSubs(assetPairs map[asset.Item]currency.Pairs, b *subscription.Subscription, join bool, fmtArgs ...any) subscription.List {
-	subs := subscription.List{}
-	add := func(a asset.Item, pairs currency.Pairs) {
-		if len(pairs) == 0 {
-			return
-		}
-		if join {
-			f := append([]any{pairs.Join()}, fmtArgs...)
-			s := b.Clone()
-			s.Asset = a
-			s.Channel = fmt.Sprintf(b.Channel, f...)
-			subs = append(subs, s)
-		} else {
-			for i := range pairs {
-				f := append([]any{pairs[i].String()}, fmtArgs...)
-				s := b.Clone()
-				s.Asset = a
-				s.Channel = fmt.Sprintf(b.Channel, f...)
-				subs = append(subs, s)
-			}
-		}
-	}
-
+func spotOrMarginPairs(s *subscription.Subscription, assetPairs map[asset.Item]currency.Pairs) strings {
 	add(asset.Spot, assetPairs[asset.Spot])
 
 	marginPairs := currency.Pairs{}
@@ -1777,3 +1757,10 @@ func (ku *Kucoin) CalculateAssets(topic string, cp currency.Pair) ([]asset.Item,
 		return resp, nil
 	}
 }
+
+const subTplText = `
+{{ with $ctx := . }}{{ with $s := $ctx.Sub }}
+{{- if eq $s.Channel "ticker"         -}} /market/ticker:{{ spotOrMarginPairs $s $ctx.AssetPairs }}
+{{ end }}
+{{end}}{{end}}
+`
