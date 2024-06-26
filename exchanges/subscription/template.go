@@ -84,7 +84,7 @@ func (l List) ExpandTemplates(e iExchange) (List, error) {
 			return nil, err
 		}
 		if t == nil {
-			return nil, errInvalidTempalte
+			return nil, errInvalidTemplate
 		}
 
 		buf := &bytes.Buffer{}
