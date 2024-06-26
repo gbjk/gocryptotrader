@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -1054,8 +1055,10 @@ var subTemplates map[string]*template.Template
 func (ku *Kucoin) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	if subTemplates == nil {
 		master, err := template.New("master.tmpl").
-			Funcs(template.FuncMap{}).
-			Parse(subMasterTplText)
+			Funcs(template.FuncMap{
+				"spotOrMarginPairs": spotOrMarginPairs,
+			}).
+			Parse(subTplText)
 		if err != nil {
 			return nil, err
 		}
@@ -1145,18 +1148,14 @@ func channelName(name string) string {
 // spotOrMarginPairSubs accepts a map of pairs and a template subscription and returns a list of subscriptions for Spot and Margin pairs
 // If there's a Spot subscription, it won't be added again as a Margin subscription
 // If joined param is true then one subscription per asset type with the currencies comma delimited
-func spotOrMarginPairs(s *subscription.Subscription, assetPairs map[asset.Item]currency.Pairs) strings {
-	add(asset.Spot, assetPairs[asset.Spot])
-
-	marginPairs := currency.Pairs{}
-	for _, p := range assetPairs[asset.Margin] {
-		if !assetPairs[asset.Spot].Contains(p, false) {
-			marginPairs = marginPairs.Add(p)
-		}
-	}
-	add(asset.Margin, marginPairs)
-
-	return subs
+func spotOrMarginPairs(s *subscription.Subscription, assetPairs map[asset.Item]currency.Pairs) string {
+	spew.Dump(assetPairs)
+	spew.Dump(s)
+	pairs := currency.Pairs{}
+	pairs = pairs.Add(assetPairs[asset.Spot]...)
+	pairs = pairs.Add(assetPairs[asset.Margin]...)
+	spew.Dump(pairs)
+	return pairs.Join()
 }
 
 // spotOrMarginCurrencySubs accepts a map of pairs and a template subscription and returns a list of subscriptions for every currency in Spot and Margin pairs
@@ -1758,9 +1757,12 @@ func (ku *Kucoin) CalculateAssets(topic string, cp currency.Pair) ([]asset.Item,
 	}
 }
 
-const subTplText = `
+const subTplText = `foo`
+
+/*
 {{ with $ctx := . }}{{ with $s := $ctx.Sub }}
 {{- if eq $s.Channel "ticker"         -}} /market/ticker:{{ spotOrMarginPairs $s $ctx.AssetPairs }}
 {{ end }}
 {{end}}{{end}}
 `
+*/
