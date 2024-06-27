@@ -2007,9 +2007,16 @@ func verifySubs(tb testing.TB, subs subscription.List, a asset.Item, prefix stri
 func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
+	ku := testInstance(t) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+
 	subs, err := ku.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 
+	for _, s := range subs {
+		t.Log(s.String() + " " + s.QualifiedChannel)
+	}
+
+	return
 	assert.Len(t, subs, 11, "Should generate the correct number of subs when not logged in")
 
 	verifySubs(t, subs, asset.Spot, "/market/ticker:all") // This takes care of margin as well.

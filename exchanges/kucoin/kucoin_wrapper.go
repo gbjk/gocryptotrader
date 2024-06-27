@@ -143,18 +143,16 @@ func (ku *Kucoin) SetDefaults() {
 		},
 		Subscriptions: subscription.List{
 			// Where we can we use generic names
-			{Enabled: true, Channel: subscription.TickerChannel},                                         // marketTickerChannel
-			{Enabled: true, Channel: subscription.AllTradesChannel},                                      // marketMatchChannel
-			{Enabled: true, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds}, // marketOrderbookLevel2Channels
-			{Enabled: true, Channel: futuresTickerV2Channel},
-			{Enabled: true, Channel: futuresOrderbookLevel2Depth50Channel},
-			{Enabled: true, Channel: marginFundingbookChangeChannel, Authenticated: true},
+			{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},                                         // marketTickerChannel
+			{Enabled: true, Asset: asset.All, Channel: subscription.AllTradesChannel},                                      // marketMatchChannel
+			{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds}, // marketOrderbookLevel2Channels
+			{Enabled: true, Asset: asset.Futures, Channel: futuresTradeOrderChannel, Authenticated: true},
+			{Enabled: true, Asset: asset.Futures, Channel: futuresStopOrdersLifecycleEventChannel, Authenticated: true},
+			{Enabled: true, Asset: asset.Futures, Channel: futuresAccountBalanceEventChannel, Authenticated: true},
+			{Enabled: true, Asset: asset.Margin, Channel: marginFundingbookChangeChannel, Authenticated: true},
+			{Enabled: true, Asset: asset.Margin, Channel: marginPositionChannel, Authenticated: true},
+			{Enabled: true, Asset: asset.Margin, Channel: marginLoanChannel, Authenticated: true},
 			{Enabled: true, Channel: accountBalanceChannel, Authenticated: true},
-			{Enabled: true, Channel: marginPositionChannel, Authenticated: true},
-			{Enabled: true, Channel: marginLoanChannel, Authenticated: true},
-			{Enabled: true, Channel: futuresTradeOrderChannel, Authenticated: true},
-			{Enabled: true, Channel: futuresStopOrdersLifecycleEventChannel, Authenticated: true},
-			{Enabled: true, Channel: futuresAccountBalanceEventChannel, Authenticated: true},
 		},
 	}
 	ku.Requester, err = request.New(ku.Name,

@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -38,7 +37,7 @@ const (
 
 	// spot channels
 	marketAllTickersChannel         = "/market/ticker:all"
-	marketTickerChannel             = "/market/ticker:%s"            // /market/ticker:{symbol},{symbol}...
+	marketTickerChannel             = "/market/ticker"               // /market/ticker:{symbol},{symbol}...
 	marketSymbolSnapshotChannel     = "/market/snapshot:%s"          // /market/snapshot:{symbol}
 	marketSnapshotChannel           = "/market/snapshot:%v"          // /market/snapshot:{market} <--- market represents a currency
 	marketOrderbookLevel2Channels   = "/market/level2:%s"            // /market/level2:{pair},{pair}...
@@ -58,8 +57,7 @@ const (
 	spotMarketAdvancedChannel = "/spotMarket/advancedOrders"
 
 	// futures channels
-	futuresTickerV2Channel                       = "/contractMarket/tickerV2:%s"      // /contractMarket/tickerV2:{symbol}
-	futuresTickerChannel                         = "/contractMarket/ticker:%s"        // /contractMarket/ticker:{symbol}
+	futuresTickerChannel                         = "/contractMarket/tickerV2:%s"      // /contractMarket/tickerV2:{symbol}
 	futuresOrderbookLevel2Channel                = "/contractMarket/level2:%s"        // /contractMarket/level2:{symbol}
 	futuresExecutionDataChannel                  = "/contractMarket/execution:%s"     // /contractMarket/execution:{symbol}
 	futuresOrderbookLevel2Depth5Channel          = "/contractMarket/level2Depth5:%s"  // /contractMarket/level2Depth5:{symbol}
@@ -77,7 +75,7 @@ const (
 )
 
 var subscriptionNames = map[string]string{
-	subscription.TickerChannel:    marketAllTickersChannel,         // This allows more subscriptions on the orderbook channel for this specific connection.
+	subscription.TickerChannel:    marketTickerChannel,
 	subscription.OrderbookChannel: marketOrderbookLevel2to5Channel, // This does not require a REST request to get the orderbook.
 	subscription.CandlesChannel:   marketCandlesChannel,
 	subscription.AllTradesChannel: marketMatchChannel,
@@ -209,8 +207,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 	}
 	topicInfo := strings.Split(resp.Topic, ":")
 	switch {
-	case strings.HasPrefix(marketAllTickersChannel, topicInfo[0]),
-		strings.HasPrefix(marketTickerChannel, topicInfo[0]):
+	case strings.HasPrefix(marketTickerChannel, topicInfo[0]):
 		var instruments string
 		if topicInfo[1] == "all" {
 			instruments = resp.Subject
@@ -260,8 +257,7 @@ func (ku *Kucoin) wsHandleData(respData []byte) error {
 		return ku.processMarginLendingTradeOrderEvent(resp.Data)
 	case strings.HasPrefix(spotMarketAdvancedChannel, topicInfo[0]):
 		return ku.processStopOrderEvent(resp.Data)
-	case strings.HasPrefix(futuresTickerV2Channel, topicInfo[0]),
-		strings.HasPrefix(futuresTickerChannel, topicInfo[0]):
+	case strings.HasPrefix(futuresTickerChannel, topicInfo[0]):
 		return ku.processFuturesTickerV2(resp.Data)
 	case strings.HasPrefix(futuresOrderbookLevel2Channel, topicInfo[0]):
 		if !fetchedFuturesSnapshotOrderbook[topicInfo[1]] {
@@ -1028,7 +1024,7 @@ func (ku *Kucoin) manageSubscriptions(subs subscription.List, operation string) 
 // getChannelsAssetType returns the asset type to which the subscription channel belongs to or asset.Empty
 func getChannelsAssetType(channelName string) asset.Item {
 	switch channelName {
-	case futuresTickerV2Channel, futuresTickerChannel, futuresOrderbookLevel2Channel, futuresExecutionDataChannel, futuresOrderbookLevel2Depth5Channel, futuresOrderbookLevel2Depth50Channel, futuresContractMarketDataChannel, futuresSystemAnnouncementChannel, futuresTrasactionStatisticsTimerEventChannel, futuresTradeOrdersBySymbolChannel, futuresTradeOrderChannel, futuresStopOrdersLifecycleEventChannel, futuresAccountBalanceEventChannel, futuresPositionChangeEventChannel:
+	case futuresTickerChannel, futuresOrderbookLevel2Channel, futuresExecutionDataChannel, futuresOrderbookLevel2Depth5Channel, futuresOrderbookLevel2Depth50Channel, futuresContractMarketDataChannel, futuresSystemAnnouncementChannel, futuresTrasactionStatisticsTimerEventChannel, futuresTradeOrdersBySymbolChannel, futuresTradeOrderChannel, futuresStopOrdersLifecycleEventChannel, futuresAccountBalanceEventChannel, futuresPositionChangeEventChannel:
 		return asset.Futures
 	case marketTickerChannel, marketAllTickersChannel,
 		marketSnapshotChannel, marketSymbolSnapshotChannel,
@@ -1049,22 +1045,20 @@ func (ku *Kucoin) generateSubscriptions() (subscription.List, error) {
 	return ku.Features.Subscriptions.ExpandTemplates(ku)
 }
 
-var subTemplates map[string]*template.Template
+var subTemplate *template.Template
 
 // GetSubscriptionTemplate returns a subscription channel template
 func (ku *Kucoin) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
-	if subTemplates == nil {
-		master, err := template.New("master.tmpl").
+	var err error
+	if subTemplate == nil {
+		subTemplate, err = template.New("master.tmpl").
 			Funcs(template.FuncMap{
-				"spotOrMarginPairs": spotOrMarginPairs,
+				"assetPairs":  assetPairs,
+				"channelName": channelName,
 			}).
 			Parse(subTplText)
-		if err != nil {
-			return nil, err
-		}
-		_ = master
 	}
-	return nil, nil
+	return subTemplate, err
 }
 
 // expandSubscription takes a subscription and expands it across the relevant assets and pairs passed in
@@ -1074,7 +1068,7 @@ func (ku *Kucoin) expandSubscription(baseSub *subscription.Subscription, assetPa
 		return nil, common.ErrNilPointer
 	}
 	s := baseSub.Clone()
-	s.Channel = channelName(s.Channel)
+	s.Channel = channelNameDeleteMe(s.Channel)
 	if !s.Asset.IsValid() {
 		s.Asset = getChannelsAssetType(s.Channel)
 	}
@@ -1138,24 +1132,20 @@ func isSymbolChannel(c string) bool {
 
 // channelName converts global channel Names used in config of channel input into kucoin channel names
 // returns the name unchanged if no match is found
-func channelName(name string) string {
+func channelNameDeleteMe(name string) string {
 	if s, ok := subscriptionNames[name]; ok {
 		return s
 	}
 	return name
 }
 
-// spotOrMarginPairSubs accepts a map of pairs and a template subscription and returns a list of subscriptions for Spot and Margin pairs
-// If there's a Spot subscription, it won't be added again as a Margin subscription
-// If joined param is true then one subscription per asset type with the currencies comma delimited
-func spotOrMarginPairs(s *subscription.Subscription, assetPairs map[asset.Item]currency.Pairs) string {
-	spew.Dump(assetPairs)
-	spew.Dump(s)
-	pairs := currency.Pairs{}
-	pairs = pairs.Add(assetPairs[asset.Spot]...)
-	pairs = pairs.Add(assetPairs[asset.Margin]...)
-	spew.Dump(pairs)
-	return pairs.Join()
+// assetPairs returns pairs for an asset. For margin it returns only the pairs not enabled for spot
+func assetPairs(ap map[asset.Item]currency.Pairs, a asset.Item) currency.Pairs {
+	pairs := ap[a]
+	if a == asset.Margin {
+		pairs, _ = pairs.Remove(ap[asset.Spot]...)
+	}
+	return pairs
 }
 
 // spotOrMarginCurrencySubs accepts a map of pairs and a template subscription and returns a list of subscriptions for every currency in Spot and Margin pairs
@@ -1757,12 +1747,25 @@ func (ku *Kucoin) CalculateAssets(topic string, cp currency.Pair) ([]asset.Item,
 	}
 }
 
-const subTplText = `foo`
+// channelName returns the correct channel name for the asset
+func channelName(s *subscription.Subscription, a asset.Item) string {
+	switch s.Channel {
+	case subscription.TickerChannel:
+		if a == asset.Futures {
+			return futuresTickerChannel
+		}
+		return marketTickerChannel
+	default:
+		return s.Channel
+	}
+}
 
-/*
-{{ with $ctx := . }}{{ with $s := $ctx.Sub }}
-{{- if eq $s.Channel "ticker"         -}} /market/ticker:{{ spotOrMarginPairs $s $ctx.AssetPairs }}
+const subTplText = `
+{{- if eq $.S.Channel "ticker"         -}}
+  {{ range $asset, $pairs := $.AssetPairs }}
+    {{ channelName $.S $asset -}} : {{- (assetPairs $.AssetPairs $asset).Join }}
+	{{ $.AssetSeparator }}
+  {{ end }}
+{{- else -}} nope
 {{ end }}
-{{end}}{{end}}
 `
-*/
