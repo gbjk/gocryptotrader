@@ -1977,8 +1977,8 @@ func verifySubs(tb testing.TB, subs subscription.List, a asset.Item, prefix stri
 	tb.Helper()
 	var sub *subscription.Subscription
 	for i, s := range subs {
-		if s.Asset == a && strings.HasPrefix(s.Channel, prefix) {
-			if len(expected) == 1 && !strings.Contains(s.Channel, expected[0]) {
+		if s.Asset == a && strings.HasPrefix(s.QualifiedChannel, prefix) {
+			if len(expected) == 1 && !strings.Contains(s.QualifiedChannel, expected[0]) {
 				continue
 			}
 			if sub != nil {
@@ -1989,7 +1989,7 @@ func verifySubs(tb testing.TB, subs subscription.List, a asset.Item, prefix stri
 		}
 	}
 	if assert.NotNil(tb, sub, "Should find a sub for asset %s with prefix %s for %s", a.String(), prefix, strings.Join(expected, ", ")) {
-		suffix := strings.TrimPrefix(sub.Channel, prefix)
+		suffix := strings.TrimPrefix(sub.QualifiedChannel, prefix)
 		if len(expected) == 0 {
 			assert.Empty(tb, suffix, "Sub for asset %s with prefix %s should have no symbol suffix", a.String(), prefix)
 		} else {
@@ -2016,10 +2016,12 @@ func TestGenerateSubscriptions(t *testing.T) {
 		t.Log(s.String() + " " + s.QualifiedChannel)
 	}
 
-	return
 	assert.Len(t, subs, 11, "Should generate the correct number of subs when not logged in")
 
-	verifySubs(t, subs, asset.Spot, "/market/ticker:all") // This takes care of margin as well.
+	verifySubs(t, subs, asset.Spot, "/market/ticker:", "BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC")
+	verifySubs(t, subs, asset.Margin, "/market/ticker:", "SOL-USDC", "TRX-BTC")
+
+	return
 
 	verifySubs(t, subs, asset.Spot, "/market/match:", "BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC")
 	verifySubs(t, subs, asset.Margin, "/market/match:", "SOL-USDC", "TRX-BTC")
