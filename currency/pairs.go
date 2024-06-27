@@ -199,15 +199,19 @@ func (p Pairs) GetPairsByCurrencies(currencies Currencies) Pairs {
 	return pairs
 }
 
-// Remove removes the specified pair from the list of pairs if it exists
-func (p Pairs) Remove(pair Pair) (Pairs, error) {
-	pairs := slices.Clone(p)
-	for x := range p {
-		if p[x].Equal(pair) {
-			return append(pairs[:x], pairs[x+1:]...), nil
+// TODO: Remove error handling
+// Remove removes the specified pairs from the list of pairs if it exists
+func (p Pairs) Remove(rem ...Pair) (Pairs, error) {
+	var n Pairs
+	for _, pN := range p {
+		if !slices.Contains(rem, pN) {
+			n = append(n, pN)
 		}
 	}
-	return nil, fmt.Errorf("%s %w", pair, ErrPairNotFound)
+	if len(p) == len(n) {
+		return nil, fmt.Errorf("%w %s", ErrPairNotFound, rem)
+	}
+	return n, nil
 }
 
 // Add adds a specified pairs to the list of pairs if it doesn't exist
