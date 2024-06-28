@@ -192,6 +192,8 @@ func (ku *Kucoin) Setup(exch *config.Exchange) error {
 		return err
 	}
 
+	ku.checkSubscriptions()
+
 	wsRunningEndpoint, err := ku.API.Endpoints.GetURL(exchange.WebsocketSpot)
 	if err != nil {
 		return err
@@ -2023,4 +2025,19 @@ func (ku *Kucoin) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curren
 	default:
 		return "", fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
+}
+
+// checkSubscriptions looks for any backwards incompatibilities with subscriptions, notably missing assets
+func (ku *Kucoin) checkSubscriptions() {
+	for _, s := range ku.Features.Subscriptions
+			{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},                                         // marketTickerChannel
+			{Enabled: true, Asset: asset.All, Channel: subscription.AllTradesChannel},                                      // marketMatchChannel
+			{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds}, // marketOrderbookLevel2Channels
+			{Enabled: true, Asset: asset.Futures, Channel: futuresTradeOrderChannel, Authenticated: true},
+			{Enabled: true, Asset: asset.Futures, Channel: futuresStopOrdersLifecycleEventChannel, Authenticated: true},
+			{Enabled: true, Asset: asset.Futures, Channel: futuresAccountBalanceEventChannel, Authenticated: true},
+			{Enabled: true, Asset: asset.Margin, Channel: marginFundingbookChangeChannel, Authenticated: true},
+			{Enabled: true, Asset: asset.Margin, Channel: marginPositionChannel, Authenticated: true},
+			{Enabled: true, Asset: asset.Margin, Channel: marginLoanChannel, Authenticated: true},
+			{Enabled: true, Channel: accountBalanceChannel, Authenticated: true},
 }

@@ -57,7 +57,7 @@ const (
 	spotMarketAdvancedChannel = "/spotMarket/advancedOrders"
 
 	// futures channels
-	futuresTickerChannel                         = "/contractMarket/tickerV2:%s"      // /contractMarket/tickerV2:{symbol}
+	futuresTickerChannel                         = "/contractMarket/tickerV2"         // /contractMarket/tickerV2:{symbol}
 	futuresOrderbookLevel2Channel                = "/contractMarket/level2:%s"        // /contractMarket/level2:{symbol}
 	futuresExecutionDataChannel                  = "/contractMarket/execution:%s"     // /contractMarket/execution:{symbol}
 	futuresOrderbookLevel2Depth5Channel          = "/contractMarket/level2Depth5:%s"  // /contractMarket/level2Depth5:{symbol}
