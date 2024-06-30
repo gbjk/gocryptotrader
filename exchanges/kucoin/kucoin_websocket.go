@@ -1001,6 +1001,13 @@ func (ku *Kucoin) manageSubscriptions(subs subscription.List, operation string) 
 			switch {
 			case err != nil:
 				errs = common.AppendError(errs, err)
+			case rType == "error":
+				code, _ := jsonparser.GetUnsafeString(respRaw, "code")
+				msg, msgErr := jsonparser.GetUnsafeString(respRaw, "data")
+				if msgErr != nil {
+					msg = "unknown error"
+				}
+				errs = common.AppendError(errs, fmt.Errorf("%s (%s)", msg, code))
 			case rType != "ack":
 				errs = common.AppendError(errs, fmt.Errorf("%w: %s from %s", errInvalidMsgType, rType, respRaw))
 			default:
