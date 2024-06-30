@@ -990,7 +990,7 @@ func (ku *Kucoin) manageSubscriptions(subs subscription.List, operation string) 
 		req := WsSubscriptionInput{
 			ID:             msgID,
 			Type:           operation,
-			Topic:          s.Channel,
+			Topic:          s.QualifiedChannel,
 			PrivateChannel: s.Authenticated,
 			Response:       true,
 		}
@@ -1060,8 +1060,10 @@ func (ku *Kucoin) GetSubscriptionTemplate(_ *subscription.Subscription) (*templa
 	if subTemplate == nil {
 		subTemplate, err = template.New("master.tmpl").
 			Funcs(template.FuncMap{
-				"assetPairs":  assetPairs,
 				"channelName": channelName,
+				"assetPairs":  assetPairs,
+				"batch":       common.Batch[currency.Pairs],
+				"batchSize":   func() int { return 100 }, // Max subscription pairs
 			}).
 			Parse(subTplText)
 	}
@@ -1148,10 +1150,10 @@ func channelNameDeleteMe(name string) string {
 
 // assetPairs returns pairs for an asset. For margin it returns only the pairs not enabled for spot
 func assetPairs(ap map[asset.Item]currency.Pairs, a asset.Item) currency.Pairs {
-	pairs := ap[a]
 	if a == asset.Margin {
-		pairs, _ = pairs.Remove(ap[asset.Spot]...)
+		ap[a], _ = ap[a].Remove(ap[asset.Spot]...)
 	}
+	pairs := ap[a]
 	return pairs
 }
 
@@ -1770,8 +1772,12 @@ func channelName(s *subscription.Subscription, a asset.Item) string {
 const subTplText = `
 {{- if eq $.S.Channel "ticker"         -}}
   {{ range $asset, $pairs := $.AssetPairs }}
-    {{ channelName $.S $asset -}} : {{- (assetPairs $.AssetPairs $asset).Join }}
-	{{ $.AssetSeparator }}
+	{{ range $batch := batch (assetPairs $.AssetPairs $asset) batchSize }}
+      {{ channelName $.S $asset -}} : {{- $batch.Join }}
+	  {{- $.PairSeparator }}
+	{{- end }}
+	{{- $.BatchSize }}{{ batchSize }}
+	{{- $.AssetSeparator }}
   {{ end }}
 {{- else -}} nope
 {{ end }}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -2029,15 +2030,25 @@ func (ku *Kucoin) GetCurrencyTradeURL(_ context.Context, a asset.Item, cp curren
 
 // checkSubscriptions looks for any backwards incompatibilities with subscriptions, notably missing assets
 func (ku *Kucoin) checkSubscriptions() {
-	for _, s := range ku.Features.Subscriptions
-			{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},                                         // marketTickerChannel
-			{Enabled: true, Asset: asset.All, Channel: subscription.AllTradesChannel},                                      // marketMatchChannel
-			{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds}, // marketOrderbookLevel2Channels
-			{Enabled: true, Asset: asset.Futures, Channel: futuresTradeOrderChannel, Authenticated: true},
-			{Enabled: true, Asset: asset.Futures, Channel: futuresStopOrdersLifecycleEventChannel, Authenticated: true},
-			{Enabled: true, Asset: asset.Futures, Channel: futuresAccountBalanceEventChannel, Authenticated: true},
-			{Enabled: true, Asset: asset.Margin, Channel: marginFundingbookChangeChannel, Authenticated: true},
-			{Enabled: true, Asset: asset.Margin, Channel: marginPositionChannel, Authenticated: true},
-			{Enabled: true, Asset: asset.Margin, Channel: marginLoanChannel, Authenticated: true},
-			{Enabled: true, Channel: accountBalanceChannel, Authenticated: true},
+	for _, s := range ku.Features.Subscriptions {
+		if s.Asset != asset.Empty {
+			continue
+		}
+		switch s.Channel {
+		case subscription.TickerChannel, subscription.AllTradesChannel, subscription.OrderbookChannel:
+			s.Asset = asset.All
+		case futuresTradeOrderChannel, futuresStopOrdersLifecycleEventChannel, futuresAccountBalanceEventChannel:
+			s.Asset = asset.Futures
+		case marginFundingbookChangeChannel, marginPositionChannel, marginLoanChannel:
+			s.Asset = asset.Margin
+		}
+	}
+	ku.Features.Subscriptions = slices.DeleteFunc(ku.Features.Subscriptions, func(s *subscription.Subscription) bool {
+		switch s.Channel {
+		case "/contractMarket/level2Depth50:%s", "/contractMarket/tickerV2:%s":
+			return true
+		}
+		return false
+	})
+	ku.Config.Features.Subscriptions = ku.Features.Subscriptions
 }
