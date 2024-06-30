@@ -4,22 +4,26 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
+	"strconv"
 	"strings"
 
-	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 const (
 	groupSeparator  = "\x1D"
 	recordSeparator = "\x1E"
+	unitSeparator   = "\x1F"
 )
 
 var (
 	errInvalidAssetExpandPairs = errors.New("subscription template containing PairSeparator with must contain either specific Asset or AssetSeparator")
 	errAssetRecords            = errors.New("subscription template did not generate the expected number of asset records")
 	errPairRecords             = errors.New("subscription template did not generate the expected number of pair records")
+	errBatchSize               = errors.New("Invalid BatchSize")
 	errAssetTemplateWithoutAll = errors.New("sub.Asset must be set to All if AssetSeparator is used in Channel template")
 	errNoTemplateContent       = errors.New("subscription template did not generate content")
 	errInvalidTemplate         = errors.New("GetSubscriptionTemplate did not return a template")
@@ -30,6 +34,7 @@ type tplCtx struct {
 	AssetPairs     assetPairs
 	PairSeparator  string
 	AssetSeparator string
+	BatchSize      string
 }
 
 // ExpandTemplates returns a list of Subscriptions with Template expanded
@@ -73,9 +78,10 @@ func (l List) ExpandTemplates(e iExchange) (List, error) {
 
 		subCtx := &tplCtx{
 			S:              s,
-			AssetPairs:     ap,
+			AssetPairs:     maps.Clone(ap),
 			PairSeparator:  recordSeparator,
 			AssetSeparator: groupSeparator,
+			BatchSize:      unitSeparator,
 		}
 
 		t, err := e.GetSubscriptionTemplate(s)
@@ -108,7 +114,7 @@ func (l List) ExpandTemplates(e iExchange) (List, error) {
 			subAssets = []asset.Item{s.Asset}
 		}
 
-		out = strings.TrimRight(out, " \n\r\t"+subCtx.PairSeparator+subCtx.AssetSeparator)
+		out = strings.TrimRight(out, " \n\r\t"+subCtx.AssetSeparator+subCtx.PairSeparator)
 
 		assetRecords := strings.Split(out, subCtx.AssetSeparator)
 		if len(assetRecords) != len(subAssets) {
@@ -117,17 +123,28 @@ func (l List) ExpandTemplates(e iExchange) (List, error) {
 
 		for i, assetChannels := range assetRecords {
 			a := subAssets[i]
-			assetChannels = strings.TrimRight(assetChannels, " \n\r\t"+recordSeparator)
-			pairLines := strings.Split(assetChannels, subCtx.PairSeparator)
-			pairs, ok := ap[a]
-			if xpandPairs {
-				if !ok {
-					return nil, fmt.Errorf("%w: %s", asset.ErrInvalidAsset, a)
+			assetChannels = strings.TrimRight(assetChannels, " \n\r\t"+subCtx.PairSeparator)
+			pairs := subCtx.AssetPairs[a]
+
+			batchSize := len(pairs) // Default to all pairs in one batch
+			if b := strings.Split(assetChannels, unitSeparator); len(b) > 2 {
+				return nil, fmt.Errorf("%w: %w", errPairRecords, errBatchSize)
+			} else if len(b) == 2 { // If there's a batch size indicator we batch by that
+				assetChannels = strings.TrimRight(b[0], " \n\r\t"+subCtx.PairSeparator)
+				if batchSize, err = strconv.Atoi(b[1]); err != nil {
+					return nil, fmt.Errorf("%w: %w", errPairRecords, errBatchSize, common.GetTypeAssertError("int", b[1], "batchSize"))
 				}
-				if len(pairLines) != len(pairs) {
-					return nil, fmt.Errorf("%w: Got %d; Expected %d", errPairRecords, len(pairLines), len(pairs))
-				}
+			} else if xpandPairs { // expanding pairs but not batching so batch size is 1
+				batchSize = 1
 			}
+
+			batches := common.Batch(pairs, batchSize)
+
+			pairLines := strings.Split(assetChannels, subCtx.PairSeparator)
+			if len(pairLines) != len(batches) {
+				return nil, fmt.Errorf("%w: Got %d; Expected %d", errPairRecords, len(pairLines), len(batches))
+			}
+
 			for j, channel := range pairLines {
 				c := s.Clone()
 				c.Asset = a
@@ -136,11 +153,7 @@ func (l List) ExpandTemplates(e iExchange) (List, error) {
 					return nil, fmt.Errorf("%w: %s", errNoTemplateContent, s)
 				}
 				c.QualifiedChannel = strings.TrimSpace(channel)
-				if xpandPairs {
-					c.Pairs = currency.Pairs{pairs[j]}
-				} else {
-					c.Pairs = pairs
-				}
+				c.Pairs = batches[j]
 				subs = append(subs, c)
 			}
 		}
