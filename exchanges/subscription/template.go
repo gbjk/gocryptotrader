@@ -108,7 +108,7 @@ func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.It
 		return nil, err
 	}
 
-	out := buf.String()
+	out := strings.TrimSpace(buf.String())
 
 	xpandPairs := strings.Contains(out, subCtx.PairSeparator)
 	if xpandAssets := strings.Contains(out, subCtx.AssetSeparator); xpandAssets {
@@ -124,7 +124,8 @@ func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.It
 		assets = []asset.Item{s.Asset}
 	}
 
-	out = strings.TrimRight(out, " \n\r\t"+subCtx.AssetSeparator+subCtx.PairSeparator)
+	// Remove a single trailing AssetSeparator; don't use a cutset to avoid removing 2 or more
+	out = strings.TrimSpace(strings.TrimSuffix(out, subCtx.AssetSeparator))
 
 	assetRecords := strings.Split(out, subCtx.AssetSeparator)
 	if len(assetRecords) != len(assets) {
@@ -134,20 +135,22 @@ func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.It
 	subs := List{}
 	for i, assetChannels := range assetRecords {
 		a := assets[i]
-		assetChannels = strings.TrimRight(assetChannels, " \n\r\t"+subCtx.PairSeparator)
 		pairs := subCtx.AssetPairs[a]
 
 		batchSize := len(pairs) // Default to all pairs in one batch
 		if b := strings.Split(assetChannels, unitSeparator); len(b) > 2 {
 			return nil, fmt.Errorf("%w for %s: %w", errPairRecords, a, errBatchSize)
 		} else if len(b) == 2 { // If there's a batch size indicator we batch by that
-			assetChannels = strings.TrimRight(b[0], " \n\r\t"+subCtx.PairSeparator)
+			assetChannels = b[0]
 			if batchSize, err = strconv.Atoi(b[1]); err != nil {
 				return nil, fmt.Errorf("%s: %w", s, common.GetTypeAssertError("int", b[1], "batchSize"))
 			}
 		} else if xpandPairs { // expanding pairs but not batching so batch size is 1
 			batchSize = 1
 		}
+
+		// Remove a single trailing PairSeparator; don't use a cutset to avoid removing 2 or more
+		assetChannels = strings.TrimSpace(strings.TrimSuffix(assetChannels, strings.TrimSpace(subCtx.PairSeparator)))
 
 		if assetChannels == "" {
 			continue
@@ -166,7 +169,7 @@ func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.It
 			if channel == "" {
 				return nil, fmt.Errorf("%w for %s: %s", errNoTemplateContent, a, s)
 			}
-			c.QualifiedChannel = strings.TrimSpace(channel)
+			c.QualifiedChannel = channel
 			c.Pairs = batches[j]
 			subs = append(subs, c)
 		}
