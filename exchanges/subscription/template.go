@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -68,94 +69,106 @@ func (l List) ExpandTemplates(e iExchange) (List, error) {
 		assets = append(assets, k)
 	}
 	slices.Sort(assets) // text/template ranges maps in sorted order
+
 	subs := List{}
-
 	for _, s := range l {
-		if s.QualifiedChannel != "" {
-			subs = append(subs, s)
-			continue
-		}
-
-		subCtx := &tplCtx{
-			S:              s,
-			AssetPairs:     maps.Clone(ap),
-			PairSeparator:  recordSeparator,
-			AssetSeparator: groupSeparator,
-			BatchSize:      unitSeparator,
-		}
-
-		t, err := e.GetSubscriptionTemplate(s)
-		if err != nil {
-			return nil, err
-		}
-		if t == nil {
-			return nil, errInvalidTemplate
-		}
-
-		buf := &bytes.Buffer{}
-		if err := t.Execute(buf, subCtx); err != nil {
-			return nil, err
-		}
-
-		out := buf.String()
-
-		subAssets := assets
-		xpandPairs := strings.Contains(out, subCtx.PairSeparator)
-		if xpandAssets := strings.Contains(out, subCtx.AssetSeparator); xpandAssets {
-			if s.Asset != asset.All {
-				return nil, errAssetTemplateWithoutAll
-			}
+		expanded, err2 := expandTemplate(e, s, maps.Clone(ap), assets)
+		if err2 != nil {
+			err = common.AppendError(err, fmt.Errorf("%s: %w", s, err2))
 		} else {
-			if xpandPairs && (s.Asset == asset.All || s.Asset == asset.Empty) {
-				// We don't currently support expanding Pairs without expanding Assets for All or Empty assets, but we could; waiting for a use-case
-				return nil, errInvalidAssetExpandPairs
+			subs = append(subs, expanded...)
+		}
+	}
+
+	return subs, err
+}
+
+func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.Items) (List, error) {
+	if s.QualifiedChannel != "" {
+		return List{s}, nil
+	}
+
+	t, err := e.GetSubscriptionTemplate(s)
+	if err != nil {
+		return nil, err
+	}
+	if t == nil {
+		return nil, errInvalidTemplate
+	}
+
+	subCtx := &tplCtx{
+		S:              s,
+		AssetPairs:     maps.Clone(ap),
+		PairSeparator:  recordSeparator,
+		AssetSeparator: groupSeparator,
+		BatchSize:      unitSeparator,
+	}
+
+	buf := &bytes.Buffer{}
+	if err := t.Execute(buf, subCtx); err != nil {
+		return nil, err
+	}
+
+	out := buf.String()
+
+	xpandPairs := strings.Contains(out, subCtx.PairSeparator)
+	if xpandAssets := strings.Contains(out, subCtx.AssetSeparator); xpandAssets {
+		if s.Asset != asset.All {
+			return nil, errAssetTemplateWithoutAll
+		}
+	} else {
+		if xpandPairs && (s.Asset == asset.All || s.Asset == asset.Empty) {
+			// We don't currently support expanding Pairs without expanding Assets for All or Empty assets, but we could; waiting for a use-case
+			return nil, errInvalidAssetExpandPairs
+		}
+		// No expansion so update expected Assets for consistent behaviour below
+		assets = []asset.Item{s.Asset}
+	}
+
+	out = strings.TrimRight(out, " \n\r\t"+subCtx.AssetSeparator+subCtx.PairSeparator)
+
+	assetRecords := strings.Split(out, subCtx.AssetSeparator)
+	if len(assetRecords) != len(assets) {
+		return nil, fmt.Errorf("%w: Got %d; Expected %d", errAssetRecords, len(assetRecords), len(assets))
+	}
+
+	subs := List{}
+	for i, assetChannels := range assetRecords {
+		a := assets[i]
+		assetChannels = strings.TrimRight(assetChannels, " \n\r\t"+subCtx.PairSeparator)
+		pairs := subCtx.AssetPairs[a]
+
+		batchSize := len(pairs) // Default to all pairs in one batch
+		if b := strings.Split(assetChannels, unitSeparator); len(b) > 2 {
+			return nil, fmt.Errorf("%w for %s: %w", errPairRecords, a, errBatchSize)
+		} else if len(b) == 2 { // If there's a batch size indicator we batch by that
+			assetChannels = strings.TrimRight(b[0], " \n\r\t"+subCtx.PairSeparator)
+			if batchSize, err = strconv.Atoi(b[1]); err != nil {
+				return nil, fmt.Errorf("%s: %w", s, common.GetTypeAssertError("int", b[1], "batchSize"))
 			}
-			// No expansion so update expected Assets for consistent behaviour below
-			subAssets = []asset.Item{s.Asset}
+		} else if xpandPairs { // expanding pairs but not batching so batch size is 1
+			batchSize = 1
 		}
 
-		out = strings.TrimRight(out, " \n\r\t"+subCtx.AssetSeparator+subCtx.PairSeparator)
+		batches := common.Batch(pairs, batchSize)
 
-		assetRecords := strings.Split(out, subCtx.AssetSeparator)
-		if len(assetRecords) != len(subAssets) {
-			return nil, fmt.Errorf("%w: Got %d; Expected %d", errAssetRecords, len(assetRecords), len(subAssets))
+		pairLines := strings.Split(assetChannels, subCtx.PairSeparator)
+		if len(pairLines) != len(batches) {
+			spew.Dump(pairLines)
+			spew.Dump(batches)
+			return nil, fmt.Errorf("%w for %s: Got %d; Expected %d", errPairRecords, a, len(pairLines), len(batches))
 		}
 
-		for i, assetChannels := range assetRecords {
-			a := subAssets[i]
-			assetChannels = strings.TrimRight(assetChannels, " \n\r\t"+subCtx.PairSeparator)
-			pairs := subCtx.AssetPairs[a]
-
-			batchSize := len(pairs) // Default to all pairs in one batch
-			if b := strings.Split(assetChannels, unitSeparator); len(b) > 2 {
-				return nil, fmt.Errorf("%w: %w", errPairRecords, errBatchSize)
-			} else if len(b) == 2 { // If there's a batch size indicator we batch by that
-				assetChannels = strings.TrimRight(b[0], " \n\r\t"+subCtx.PairSeparator)
-				if batchSize, err = strconv.Atoi(b[1]); err != nil {
-					return nil, fmt.Errorf("%w: %w", errPairRecords, errBatchSize, common.GetTypeAssertError("int", b[1], "batchSize"))
-				}
-			} else if xpandPairs { // expanding pairs but not batching so batch size is 1
-				batchSize = 1
+		for j, channel := range pairLines {
+			c := s.Clone()
+			c.Asset = a
+			channel = strings.TrimSpace(channel)
+			if channel == "" {
+				return nil, fmt.Errorf("%w for %s: %s", errNoTemplateContent, a, s)
 			}
-
-			batches := common.Batch(pairs, batchSize)
-
-			pairLines := strings.Split(assetChannels, subCtx.PairSeparator)
-			if len(pairLines) != len(batches) {
-				return nil, fmt.Errorf("%w: Got %d; Expected %d", errPairRecords, len(pairLines), len(batches))
-			}
-
-			for j, channel := range pairLines {
-				c := s.Clone()
-				c.Asset = a
-				channel = strings.TrimSpace(channel)
-				if channel == "" {
-					return nil, fmt.Errorf("%w: %s", errNoTemplateContent, s)
-				}
-				c.QualifiedChannel = strings.TrimSpace(channel)
-				c.Pairs = batches[j]
-				subs = append(subs, c)
-			}
+			c.QualifiedChannel = strings.TrimSpace(channel)
+			c.Pairs = batches[j]
+			subs = append(subs, c)
 		}
 	}
 
