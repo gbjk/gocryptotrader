@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -150,12 +149,13 @@ func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.It
 			batchSize = 1
 		}
 
-		batches := common.Batch(pairs, batchSize)
+		if assetChannels == "" {
+			continue
+		}
 
+		batches := common.Batch(pairs, batchSize)
 		pairLines := strings.Split(assetChannels, subCtx.PairSeparator)
 		if len(pairLines) != len(batches) {
-			spew.Dump(pairLines)
-			spew.Dump(batches)
 			return nil, fmt.Errorf("%w for %s: Got %d; Expected %d", errPairRecords, a, len(pairLines), len(batches))
 		}
 
