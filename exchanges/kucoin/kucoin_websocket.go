@@ -1062,8 +1062,6 @@ func (ku *Kucoin) GetSubscriptionTemplate(_ *subscription.Subscription) (*templa
 			Funcs(template.FuncMap{
 				"channelName": channelName,
 				"assetPairs":  assetPairs,
-				"batch":       common.Batch[currency.Pairs],
-				"batchSize":   func() int { return 100 }, // Max subscription pairs
 			}).
 			Parse(subTplText)
 	}
@@ -1770,15 +1768,18 @@ func channelName(s *subscription.Subscription, a asset.Item) string {
 }
 
 const subTplText = `
-{{- if eq $.S.Channel "ticker"         -}}
+{{- if eq $.S.Channel "ticker" }}
   {{ range $asset, $pairs := $.AssetPairs }}
-	{{ range $batch := batch (assetPairs $.AssetPairs $asset) batchSize }}
-      {{ channelName $.S $asset -}} : {{- $batch.Join }}
-	  {{- $.PairSeparator }}
-	{{- end }}
-	{{- $.BatchSize }}{{ batchSize }}
-	{{- $.AssetSeparator }}
+	{{- with $ap := (assetPairs $.AssetPairs $asset) -}}
+      {{ channelName $.S $asset -}} : 
+	  {{- if gt (len $ap) 10 -}}
+	    all
+	  {{- else -}}
+		{{ $ap.Join }}
+	  {{ end }}
+    {{ end }}
+    {{ $.AssetSeparator }}
   {{ end }}
-{{- else -}} nope
+{{- else -}}
 {{ end }}
 `
