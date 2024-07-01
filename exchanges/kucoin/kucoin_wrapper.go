@@ -143,7 +143,6 @@ func (ku *Kucoin) SetDefaults() {
 			},
 		},
 		Subscriptions: subscription.List{
-			// Where we can we use generic names
 			{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},                                         // marketTickerChannel
 			{Enabled: true, Asset: asset.All, Channel: subscription.AllTradesChannel},                                      // marketMatchChannel
 			{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds}, // marketOrderbookLevel2Channels

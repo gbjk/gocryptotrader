@@ -957,34 +957,8 @@ func (ku *Kucoin) Unsubscribe(subscriptions subscription.List) error {
 	return ku.manageSubscriptions(subscriptions, "unsubscribe")
 }
 
-// expandManualSubscription takes a subscription list and expand all the subscriptions across the relevant assets and pairs
-func (ku *Kucoin) expandManualSubscriptions(in subscription.List) (subscription.List, error) {
-	subs := make(subscription.List, 0, len(in))
-	for _, s := range in {
-		if isSymbolChannel(s.Channel) {
-			if len(s.Pairs) == 0 {
-				return nil, errSubscriptionPairRequired
-			}
-			a := s.Asset
-			if !a.IsValid() {
-				a = getChannelsAssetType(s.Channel)
-			}
-			assetPairs := map[asset.Item]currency.Pairs{a: s.Pairs}
-			n, err := ku.expandSubscription(s, assetPairs)
-			if err != nil {
-				return nil, err
-			}
-			subs = append(subs, n...)
-		} else {
-			subs = append(subs, s)
-		}
-	}
-	return subs, nil
-}
-
 func (ku *Kucoin) manageSubscriptions(subs subscription.List, operation string) error {
 	var errs error
-	subs, errs = ku.expandManualSubscriptions(subs)
 	for _, s := range subs {
 		msgID := strconv.FormatInt(ku.Websocket.Conn.GenerateMessageID(false), 10)
 		req := WsSubscriptionInput{
@@ -1033,8 +1007,7 @@ func getChannelsAssetType(channelName string) asset.Item {
 	switch channelName {
 	case futuresTickerChannel, futuresOrderbookLevel2Channel, futuresExecutionDataChannel, futuresOrderbookLevel2Depth5Channel, futuresOrderbookLevel2Depth50Channel, futuresContractMarketDataChannel, futuresSystemAnnouncementChannel, futuresTrasactionStatisticsTimerEventChannel, futuresTradeOrdersBySymbolChannel, futuresTradeOrderChannel, futuresStopOrdersLifecycleEventChannel, futuresAccountBalanceEventChannel, futuresPositionChangeEventChannel:
 		return asset.Futures
-	case marketTickerChannel, marketAllTickersChannel,
-		marketSnapshotChannel, marketSymbolSnapshotChannel,
+	case marketTickerChannel, marketSnapshotChannel, marketSymbolSnapshotChannel,
 		marketOrderbookLevel2Channels, marketOrderbookLevel2to5Channel,
 		marketOrderbokLevel2To50Channel, marketCandlesChannel,
 		marketMatchChannel, indexPriceIndicatorChannel, markPriceIndicatorChannel,
@@ -1066,84 +1039,6 @@ func (ku *Kucoin) GetSubscriptionTemplate(_ *subscription.Subscription) (*templa
 			Parse(subTplText)
 	}
 	return subTemplate, err
-}
-
-// expandSubscription takes a subscription and expands it across the relevant assets and pairs passed in
-func (ku *Kucoin) expandSubscription(baseSub *subscription.Subscription, assetPairs map[asset.Item]currency.Pairs) (subscription.List, error) {
-	var subscriptions = subscription.List{}
-	if baseSub == nil {
-		return nil, common.ErrNilPointer
-	}
-	s := baseSub.Clone()
-	s.Channel = channelNameDeleteMe(s.Channel)
-	if !s.Asset.IsValid() {
-		s.Asset = getChannelsAssetType(s.Channel)
-	}
-
-	if len(assetPairs[s.Asset]) == 0 {
-		return nil, nil
-	}
-
-	switch {
-	case s.Channel == marginLoanChannel:
-		for _, c := range assetPairs[asset.Margin].GetCurrencies() {
-			s := s.Clone()
-			s.Channel = fmt.Sprintf(s.Channel, c)
-			subscriptions = append(subscriptions, s)
-		}
-	case s.Channel == marketCandlesChannel:
-		interval, err := ku.intervalToString(s.Interval)
-		if err != nil {
-			return nil, err
-		}
-
-		for _, p := range assetPairs[asset.Spot].Add(assetPairs[asset.Margin]...) {
-			s := s.Clone()
-			s.Asset = asset.Spot
-			s.Channel = fmt.Sprintf(s.Channel, p, interval)
-			subscriptions = append(subscriptions, s)
-		}
-	case s.Channel == marginFundingbookChangeChannel:
-		s.Channel = fmt.Sprintf(s.Channel, assetPairs[asset.Margin].GetCurrencies().Join())
-		subscriptions = append(subscriptions, s)
-	case s.Channel == marketSnapshotChannel:
-		subs, err := spotOrMarginCurrencySubs(assetPairs, s)
-		if err != nil {
-			return nil, err
-		}
-		subscriptions = append(subscriptions, subs...)
-	case getChannelsAssetType(s.Channel) == asset.Futures && isSymbolChannel(s.Channel):
-		for _, p := range assetPairs[asset.Futures] {
-			c, err := ku.FormatExchangeCurrency(p, asset.Futures)
-			if err != nil {
-				continue
-			}
-			i := s.Clone()
-			i.Channel = fmt.Sprintf(s.Channel, c)
-			subscriptions = append(subscriptions, i)
-		}
-	case isSymbolChannel(s.Channel):
-		// Subscriptions which can use a single comma-separated sub per asset
-		s.Channel = fmt.Sprintf(s.Channel, assetPairs[asset.Spot].Join())
-		subscriptions = append(subscriptions, s)
-	default:
-		subscriptions = append(subscriptions, s)
-	}
-	return subscriptions, nil
-}
-
-// isSymbolChannel returns true it this channel path ends in a formatting %s to accept a Symbol
-func isSymbolChannel(c string) bool {
-	return strings.HasSuffix(c, "%s") || strings.HasSuffix(c, "%v")
-}
-
-// channelName converts global channel Names used in config of channel input into kucoin channel names
-// returns the name unchanged if no match is found
-func channelNameDeleteMe(name string) string {
-	if s, ok := subscriptionNames[name]; ok {
-		return s
-	}
-	return name
 }
 
 // assetPairs returns pairs for an asset. For margin it returns only the pairs not enabled for spot
@@ -1781,5 +1676,6 @@ const subTplText = `
     {{ $.AssetSeparator }}
   {{ end }}
 {{- else -}}
+	verifySubs(t, subs, asset.Spot, "/market/match:", "BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC")
 {{ end }}
 `

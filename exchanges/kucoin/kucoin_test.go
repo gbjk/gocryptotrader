@@ -2020,11 +2020,12 @@ func TestGenerateSubscriptions(t *testing.T) {
 
 	verifySubs(t, subs, asset.Spot, "/market/ticker:", "BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC")
 	verifySubs(t, subs, asset.Margin, "/market/ticker:", "SOL-USDC", "TRX-BTC")
-
-	return
+	verifySubs(t, subs, asset.Futures, "/contractMarket/tickerV2:", "ETHUSDCM,XBTUSDCM,SOLUSDTM")
 
 	verifySubs(t, subs, asset.Spot, "/market/match:", "BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC")
 	verifySubs(t, subs, asset.Margin, "/market/match:", "SOL-USDC", "TRX-BTC")
+
+	return
 
 	verifySubs(t, subs, asset.Spot, "/spotMarket/level2Depth5:", "BTC-USDT", "ETH-USDT", "LTC-USDT", "ETH-BTC")
 	verifySubs(t, subs, asset.Margin, "/spotMarket/level2Depth5:", "SOL-USDC", "TRX-BTC")
