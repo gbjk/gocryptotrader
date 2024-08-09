@@ -1694,7 +1694,7 @@ func (k *Kraken) GetLatestFundingRates(ctx context.Context, r *fundingrate.Lates
 		if ok, err := k.CurrencyPairs.IsPairAvailable(r.Pair, r.Asset); err != nil {
 			return nil, err
 		} else if !ok {
-			return nil, currency.ErrPairNotContainedInAvailablePairs
+			return nil, currency.ErrPairNotAvailable
 		}
 	}
 

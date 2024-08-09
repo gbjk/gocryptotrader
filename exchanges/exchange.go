@@ -743,13 +743,11 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 	// asset.
 
 	enabledPairs, err := b.CurrencyPairs.GetPairs(a, true)
-	if err != nil &&
-		!errors.Is(err, currency.ErrPairNotContainedInAvailablePairs) &&
-		!errors.Is(err, currency.ErrPairDuplication) {
+	if err != nil {
 		return err
 	}
 
-	if err == nil && !enabledPairs.HasFormatDifference(pFmt) {
+	if !enabledPairs.HasFormatDifference(pFmt) {
 		return nil
 	}
 

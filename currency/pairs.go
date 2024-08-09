@@ -122,10 +122,6 @@ func (p Pairs) Contains(check Pair, exact bool) bool {
 
 // ContainsAll checks to see if all pairs supplied are contained within the original pairs list
 func (p Pairs) ContainsAll(check Pairs, exact bool) error {
-	if len(check) == 0 {
-		return ErrCurrencyPairsEmpty
-	}
-
 	comparative := slices.Clone(p)
 list:
 	for x := range check {
@@ -144,7 +140,7 @@ list:
 			return fmt.Errorf("%s %w", check[x], ErrPairDuplication)
 		}
 
-		return fmt.Errorf("%s %w", check[x], ErrPairNotContainedInAvailablePairs)
+		return fmt.Errorf("%s %w", check[x], ErrPairNotFound)
 	}
 	return nil
 }

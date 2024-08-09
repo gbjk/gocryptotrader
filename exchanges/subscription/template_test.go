@@ -89,7 +89,8 @@ func TestExpandTemplates(t *testing.T) {
 	assert.ErrorIs(t, err, errInvalidTemplate, "Should get correct error on nil template")
 
 	_, err = List{{Channel: "single-channel", Asset: asset.Spot, Pairs: currency.Pairs{currency.NewPairWithDelimiter("NOPE", "POPE", "🐰")}}}.ExpandTemplates(e)
-	assert.ErrorIs(t, err, currency.ErrPairNotContainedInAvailablePairs, "Should error correctly when pair not available")
+	assert.ErrorIs(t, err, currency.ErrPairNotEnabled, "Should error correctly when pair not enabled")
+	assert.ErrorIs(t, err, currency.ErrPairNotFound, "Should error correctly when pair not enabled")
 
 	e.tpl = "errors.tmpl"
 

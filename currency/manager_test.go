@@ -225,40 +225,21 @@ func TestGetPairs(t *testing.T) {
 
 	p.Pairs = nil
 	pairs, err := p.GetPairs(asset.Spot, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if pairs != nil {
-		t.Fatal("pairs shouldn't be populated")
-	}
+	require.NoError(t, err)
+	require.Empty(t, pairs)
 
 	p = initTest(t)
 	pairs, err = p.GetPairs(asset.Spot, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if pairs == nil {
-		t.Fatal("pairs should be populated")
-	}
+	require.NoError(t, err)
+	require.NotNil(t, pairs)
 
 	pairs, err = p.GetPairs(asset.Empty, true)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
+	require.Empty(t, pairs)
 
-	if pairs != nil {
-		t.Fatal("pairs shouldn't be populated")
-	}
-
-	superfluous := NewPair(DASH, USDT)
-	newPairs := p.Pairs[asset.Spot].Enabled.Add(superfluous)
-	p.Pairs[asset.Spot].Enabled = newPairs
-
-	_, err = p.GetPairs(asset.Spot, true)
-	if err == nil {
-		t.Fatal("error cannot be nil")
-	}
+	pairs, err = p.GetPairs(asset.Margin, true)
+	require.NoError(t, err, "GetPairs must not error on valid but missing asset type")
+	require.Empty(t, pairs, "GetPairs must return an empty pointer on valid but missing asset type")
 }
 
 func TestStoreFormat(t *testing.T) {

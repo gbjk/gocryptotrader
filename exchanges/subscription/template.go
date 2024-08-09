@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -121,7 +122,7 @@ func expandTemplate(e iExchange, s *Subscription, ap assetPairs, assets asset.It
 	if len(s.Pairs) != 0 {
 		for a, pairs := range subCtx.AssetPairs {
 			if err := pairs.ContainsAll(s.Pairs, true); err != nil { //nolint:govet // Shadow, or gocritic will complain sloppyReassign
-				return nil, err
+				return nil, fmt.Errorf("%w: %w", currency.ErrPairNotEnabled, err)
 			}
 			subCtx.AssetPairs[a] = s.Pairs
 		}

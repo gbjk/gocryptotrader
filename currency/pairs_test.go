@@ -272,40 +272,13 @@ func TestContainsAll(t *testing.T) {
 		NewPair(USD, ZRX),
 	}
 
-	err := pairs.ContainsAll(nil, true)
-	if !errors.Is(err, ErrCurrencyPairsEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairsEmpty)
-	}
-
-	err = pairs.ContainsAll(Pairs{NewPair(BTC, USD)}, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	err = pairs.ContainsAll(Pairs{NewPair(USD, BTC)}, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	err = pairs.ContainsAll(Pairs{NewPair(XRP, BTC)}, false)
-	if !errors.Is(err, ErrPairNotContainedInAvailablePairs) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairNotContainedInAvailablePairs)
-	}
-
-	err = pairs.ContainsAll(Pairs{NewPair(XRP, BTC)}, true)
-	if !errors.Is(err, ErrPairNotContainedInAvailablePairs) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairNotContainedInAvailablePairs)
-	}
-
-	err = pairs.ContainsAll(pairs, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	err = pairs.ContainsAll(pairs, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
+	assert.ErrorIs(t, pairs.ContainsAll(nil, true), ErrCurrencyPairsEmpty)
+	assert.NoError(t, pairs.ContainsAll(Pairs{NewPair(BTC, USD)}, true))
+	assert.NoError(t, pairs.ContainsAll(Pairs{NewPair(USD, BTC)}, false))
+	assert.ErrorIs(t, pairs.ContainsAll(Pairs{NewPair(XRP, BTC)}, false), ErrPairNotFound)
+	assert.ErrorIs(t, pairs.ContainsAll(Pairs{NewPair(XRP, BTC)}, true), ErrPairNotFound)
+	assert.NoError(t, pairs.ContainsAll(pairs, true))
+	assert.NoError(t, pairs.ContainsAll(pairs, false))
 
 	var duplication = Pairs{
 		NewPair(BTC, USD),
@@ -314,10 +287,7 @@ func TestContainsAll(t *testing.T) {
 		NewPair(USD, ZRX),
 	}
 
-	err = pairs.ContainsAll(duplication, false)
-	if !errors.Is(err, ErrPairDuplication) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairDuplication)
-	}
+	assert.ErrorIs(t, pairs.ContainsAll(duplication, false), ErrPairDuplication)
 }
 
 func TestDeriveFrom(t *testing.T) {
