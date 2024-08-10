@@ -3,6 +3,7 @@ package currency
 import (
 	"encoding/json"
 	"errors"
+	"slices"
 	"strconv"
 	"testing"
 
@@ -565,86 +566,42 @@ func TestCopyPairFormat(t *testing.T) {
 }
 
 func TestFindPairDifferences(t *testing.T) {
-	pairList, err := NewPairsFromStrings([]string{defaultPairWDelimiter, "ETH-USD", "LTC-USD"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	p := Pairs{NewPair(BTC, USD), NewPair(ETH, USD), NewPair(LTC, USD)}
 
-	dash, err := NewPairsFromStrings([]string{"DASH-USD"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	diff, err := p.FindDifferences(Pairs{NewPair(DASH, USD)})
+	require.NoError(t, err)
+	assert.Len(t, diff.New, 1)
+	assert.Len(t, diff.Remove, 3)
 
-	// Test new pair update
-	diff, err := pairList.FindDifferences(dash, PairFormat{Delimiter: DashDelimiter, Uppercase: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(diff.New) != 1 && len(diff.Remove) != 3 && diff.FormatDifference {
-		t.Error("TestFindPairDifferences: Unexpected values")
-	}
+	diff, err = p.FindDifferences(Pairs{})
+	require.NoError(t, err)
+	assert.Empty(t, diff.New)
+	assert.Len(t, diff.Remove, 3)
 
-	diff, err = pairList.FindDifferences(Pairs{}, EMPTYFORMAT)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(diff.New) != 0 && len(diff.Remove) != 3 && !diff.FormatDifference {
-		t.Error("TestFindPairDifferences: Unexpected values")
-	}
+	diff, err = Pairs{}.FindDifferences(p)
+	require.NoError(t, err)
+	assert.Len(t, diff.New, 3)
+	assert.Empty(t, diff.Remove)
 
-	diff, err = Pairs{}.FindDifferences(pairList, EMPTYFORMAT)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(diff.New) != 3 && len(diff.Remove) != 0 && diff.FormatDifference {
-		t.Error("TestFindPairDifferences: Unexpected values")
-	}
+	diff, err = p.FindDifferences(p)
+	require.NoError(t, err)
+	assert.Empty(t, diff.New)
+	assert.Empty(t, diff.Remove)
 
-	// Test that the supplied pair lists are the same, so
-	// no newPairs or removedPairs
-	diff, err = pairList.FindDifferences(pairList, PairFormat{Delimiter: DashDelimiter, Uppercase: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(diff.New) != 0 && len(diff.Remove) != 0 && !diff.FormatDifference {
-		t.Error("TestFindPairDifferences: Unexpected values")
-	}
+	_, err = p.FindDifferences(Pairs{EMPTYPAIR})
+	assert.ErrorIs(t, err, ErrCurrencyPairEmpty)
 
-	_, err = pairList.FindDifferences(Pairs{EMPTYPAIR}, EMPTYFORMAT)
-	if !errors.Is(err, ErrCurrencyPairEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairEmpty)
-	}
+	_, err = Pairs{EMPTYPAIR}.FindDifferences(p)
+	assert.ErrorIs(t, err, ErrCurrencyPairEmpty)
 
-	_, err = Pairs{EMPTYPAIR}.FindDifferences(pairList, EMPTYFORMAT)
-	if !errors.Is(err, ErrCurrencyPairEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairEmpty)
-	}
+	p2 := append(slices.Clone(p), p[0])
+	_, err = p.FindDifferences(p2)
+	assert.ErrorIs(t, err, ErrDuplicatePairs)
 
-	// Test duplication
-	duplication, err := NewPairsFromStrings([]string{defaultPairWDelimiter, "ETH-USD", "LTC-USD", "ETH-USD"})
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = pairList.FindDifferences(duplication, EMPTYFORMAT)
-	if !errors.Is(err, ErrDuplicatePairs) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrDuplicatePairs)
-	}
-
-	// This will allow for the removal of the duplicated item to be returned if
-	// contained in the original list.
-	diff, err = duplication.FindDifferences(pairList, EMPTYFORMAT)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if len(diff.Remove) != 1 {
-		t.Fatal("expected removal value in pair difference struct")
-	}
-
-	if !diff.Remove[0].Equal(pairList[1]) {
-		t.Fatal("unexpected value returned", diff.Remove[0], pairList[1])
-	}
+	diff, err = p2.FindDifferences(p)
+	require.NoError(t, err, "Duplicates must be allowed in the invocant list")
+	require.Len(t, diff.Remove, 1)
+	require.True(t, p[0].Equal(diff.Remove[0]))
 }
 
 func TestPairsToStringArray(t *testing.T) {

@@ -15,9 +15,8 @@ type Pairs []Pair
 // PairDifference defines the difference between a set of pairs including a
 // change in format.
 type PairDifference struct {
-	New              Pairs
-	Remove           Pairs
-	FormatDifference bool
+	New    Pairs
+	Remove Pairs
 }
 
 // OrderParameters is used to determine the order side, liquidity side and the

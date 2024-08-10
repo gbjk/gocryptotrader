@@ -680,12 +680,12 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 		return err
 	}
 
-	diff, err := oldPairs.FindDifferences(incoming, pFmt)
+	diff, err := oldPairs.FindDifferences(incoming)
 	if err != nil {
 		return err
 	}
 
-	if force || len(diff.New) != 0 || len(diff.Remove) != 0 || diff.FormatDifference {
+	if force || len(diff.New) != 0 || len(diff.Remove) != 0 {
 		var updateType string
 		if enabled {
 			updateType = "enabled"
@@ -751,7 +751,7 @@ func (b *Base) UpdatePairs(incoming currency.Pairs, a asset.Item, enabled, force
 		return nil
 	}
 
-	diff, err = enabledPairs.FindDifferences(incoming, pFmt)
+	diff, err = enabledPairs.FindDifferences(incoming)
 	if err != nil {
 		return err
 	}

@@ -239,7 +239,7 @@ func (p Pairs) GetMatch(pair Pair) (Pair, error) {
 }
 
 // FindDifferences returns pairs which are new or have been removed
-func (p Pairs) FindDifferences(incoming Pairs, pairFmt PairFormat) (PairDifference, error) {
+func (p Pairs) FindDifferences(incoming Pairs) (PairDifference, error) {
 	newPairs := make(Pairs, 0, len(incoming))
 	check := make(map[string]bool)
 	for x := range incoming {
@@ -268,9 +268,8 @@ func (p Pairs) FindDifferences(incoming Pairs, pairFmt PairFormat) (PairDifferen
 		check[format] = true
 	}
 	return PairDifference{
-		New:              newPairs,
-		Remove:           removedPairs,
-		FormatDifference: p.HasFormatDifference(pairFmt),
+		New:    newPairs,
+		Remove: removedPairs,
 	}, nil
 }
 
