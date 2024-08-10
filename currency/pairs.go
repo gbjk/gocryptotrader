@@ -7,16 +7,19 @@ import (
 	"math/rand"
 	"slices"
 	"strings"
+
+	"github.com/thrasher-corp/gocryptotrader/common"
+)
+
+// Public errors
+var (
+	ErrDuplicatePairs = errors.New("duplicate currency pair")
 )
 
 var (
 	errSymbolEmpty                = errors.New("symbol is empty")
 	errNoDelimiter                = errors.New("no delimiter was supplied")
 	errPairFormattingInconsistent = errors.New("pair formatting is inconsistent")
-
-	// ErrPairDuplication defines an error when there is multiple of the same
-	// currency pairs found.
-	ErrPairDuplication = errors.New("currency pair duplication")
 )
 
 // NewPairsFromStrings takes in currency pair strings and returns a currency
@@ -122,25 +125,18 @@ func (p Pairs) Contains(check Pair, exact bool) bool {
 
 // ContainsAll checks to see if all pairs supplied are contained within the original pairs list
 func (p Pairs) ContainsAll(check Pairs, exact bool) error {
-	comparative := slices.Clone(p)
+	cmp := slices.Clone(p)
 list:
-	for x := range check {
-		for y := range comparative {
-			if (exact && check[x].Equal(comparative[y])) ||
-				(!exact && check[x].EqualIncludeReciprocal(comparative[y])) {
-				// Reduce list size to decrease array traversal speed on iteration.
-				comparative[y] = comparative[len(comparative)-1]
-				comparative = comparative[:len(comparative)-1]
+	for _, a := range check {
+		for i, b := range cmp {
+			if (exact && a.Equal(b)) || (!exact && a.EqualIncludeReciprocal(b)) {
+				// Move last element to matched to reduce iterations
+				cmp[i], cmp = cmp[len(cmp)-1], cmp[:len(cmp)-1]
 				continue list
 			}
 		}
 
-		// Opted for in error original check for duplication.
-		if p.Contains(check[x], exact) {
-			return fmt.Errorf("%s %w", check[x], ErrPairDuplication)
-		}
-
-		return fmt.Errorf("%s %w", check[x], ErrPairNotFound)
+		return fmt.Errorf("%s %w", a, ErrPairNotFound)
 	}
 	return nil
 }
@@ -154,6 +150,19 @@ func (p Pairs) ContainsCurrency(check Code) bool {
 		}
 	}
 	return false
+}
+
+// DuplicatePairs checks to see if the pairs contains duplicate pairs
+func (p Pairs) DuplicatePairs() (dups Pairs) {
+	p = common.SortStrings(p)
+
+	for i := 0; i < len(p)-1; i++ {
+		if p[i].Equal(p[i+1]) {
+			dups = append(dups, p[i])
+			i++
+		}
+	}
+	return
 }
 
 // RemovePairsByFilter checks to see if a pair contains a specific currency
@@ -239,7 +248,7 @@ func (p Pairs) FindDifferences(incoming Pairs, pairFmt PairFormat) (PairDifferen
 		}
 		format := EMPTYFORMAT.Format(incoming[x])
 		if check[format] {
-			return PairDifference{}, fmt.Errorf("contained in the incoming pairs %w", ErrPairDuplication)
+			return PairDifference{}, fmt.Errorf("contained in the incoming pairs %w", ErrDuplicatePairs)
 		}
 		check[format] = true
 		if !p.Contains(incoming[x], true) {
@@ -413,7 +422,7 @@ func (p Pairs) ValidateAndConform(pFmt PairFormat, bypassFormatting bool) (Pairs
 		}
 		strippedPair := EMPTYFORMAT.Format(p[x])
 		if processedPairs[strippedPair] {
-			return nil, fmt.Errorf("cannot update pairs %w with [%s]", ErrPairDuplication, p[x])
+			return nil, fmt.Errorf("cannot update pairs %w with [%s]", ErrDuplicatePairs, p[x])
 		}
 		// Force application of supplied formatting
 		processedPairs[strippedPair] = true

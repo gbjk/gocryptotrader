@@ -210,6 +210,10 @@ func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) error
 		p.Pairs[a] = pairStore
 	}
 
+	if d := pairs.DuplicatePairs(); len(d) != 0 {
+		return fmt.Errorf("%w: %s", ErrDuplicatePairs, d.Join())
+	}
+
 	if enabled {
 		// All new enabled pairs must be in Available already
 		if err := pairStore.Available.ContainsAll(pairs, true); err != nil {

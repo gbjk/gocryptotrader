@@ -289,86 +289,31 @@ func TestStorePairs(t *testing.T) {
 	p := initTest(t)
 
 	err := p.StorePairs(0, nil, false)
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: %v but expected: %v", err, asset.ErrNotSupported)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
 	p.Pairs = nil
 
-	ethusdPairs, err := NewPairsFromStrings([]string{"ETH-USD"})
-	if err != nil {
-		t.Fatal(err)
-	}
+	ethusd := NewPairWithDelimiter("ETH", "USD", "-")
+	ethkrw := NewPairWithDelimiter("ETH", "KRW", "-")
 
-	err = p.StorePairs(asset.Spot, ethusdPairs, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	err = p.StorePairs(asset.Spot, Pairs{ethusd}, false)
+	require.NoError(t, err)
 
 	pairs, err := p.GetPairs(asset.Spot, false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+	require.NotEmpty(t, pairs)
+	assert.True(t, pairs.Contains(ethusd, true), "StorePairs should store the pairs")
 
-	ethusd, err := NewPairFromString("ETH-USD")
-	if err != nil {
-		t.Fatal(err)
-	}
+	err = p.StorePairs(asset.Futures, Pairs{ethkrw}, false)
+	require.NoError(t, err)
 
-	if !pairs.Contains(ethusd, true) {
-		t.Errorf("TestStorePairs failed, unexpected result")
-	}
-
-	p = initTest(t)
-	err = p.StorePairs(asset.Spot, ethusdPairs, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
-	pairs, err = p.GetPairs(asset.Spot, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if pairs == nil {
-		t.Errorf("pairs should be populated")
-	}
-
-	if !pairs.Contains(ethusd, true) {
-		t.Errorf("TestStorePairs failed, unexpected result")
-	}
-
-	ethkrwPairs, err := NewPairsFromStrings([]string{"ETH-KRW"})
-	if err != nil {
-		t.Error(err)
-	}
-
-	err = p.StorePairs(asset.Futures, ethkrwPairs, true)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
-
-	err = p.StorePairs(asset.Futures, ethkrwPairs, false)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: %v but expected: %v", err, nil)
-	}
+	err = p.StorePairs(asset.Futures, Pairs{ethkrw}, true)
+	require.NoError(t, err)
 
 	pairs, err = p.GetPairs(asset.Futures, true)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if pairs == nil {
-		t.Errorf("pairs futures should be populated")
-	}
-
-	ethkrw, err := NewPairFromString("ETH-KRW")
-	if err != nil {
-		t.Error(err)
-	}
-
-	if !pairs.Contains(ethkrw, true) {
-		t.Errorf("TestStorePairs failed, unexpected result")
-	}
+	require.NoError(t, err)
+	require.NotEmpty(t, pairs)
+	assert.True(t, pairs.Contains(ethkrw, true))
 }
 
 func TestDisablePair(t *testing.T) {

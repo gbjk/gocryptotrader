@@ -270,24 +270,33 @@ func TestContainsAll(t *testing.T) {
 		NewPair(BTC, USD),
 		NewPair(LTC, USD),
 		NewPair(USD, ZRX),
+		NewPair(ETH, USD),
+		NewPair(ETH, BTC),
 	}
 
-	assert.ErrorIs(t, pairs.ContainsAll(nil, true), ErrCurrencyPairsEmpty)
 	assert.NoError(t, pairs.ContainsAll(Pairs{NewPair(BTC, USD)}, true))
 	assert.NoError(t, pairs.ContainsAll(Pairs{NewPair(USD, BTC)}, false))
 	assert.ErrorIs(t, pairs.ContainsAll(Pairs{NewPair(XRP, BTC)}, false), ErrPairNotFound)
 	assert.ErrorIs(t, pairs.ContainsAll(Pairs{NewPair(XRP, BTC)}, true), ErrPairNotFound)
 	assert.NoError(t, pairs.ContainsAll(pairs, true))
 	assert.NoError(t, pairs.ContainsAll(pairs, false))
+}
 
-	var duplication = Pairs{
+func TestDuplicatePairs(t *testing.T) {
+	t.Parallel()
+	var pairs = Pairs{
 		NewPair(BTC, USD),
 		NewPair(LTC, USD),
 		NewPair(USD, ZRX),
-		NewPair(USD, ZRX),
 	}
 
-	assert.ErrorIs(t, pairs.ContainsAll(duplication, false), ErrPairDuplication)
+	assert.Empty(t, pairs.DuplicatePairs())
+	pairs = append(pairs, pairs[0])
+	require.Len(t, pairs.DuplicatePairs(), 1)
+	assert.Equal(t, pairs.DuplicatePairs()[0], pairs[0])
+	pairs[3] = pairs[2]
+	require.Len(t, pairs.DuplicatePairs(), 1)
+	assert.Equal(t, pairs.DuplicatePairs()[0], pairs[2])
 }
 
 func TestDeriveFrom(t *testing.T) {
@@ -632,8 +641,8 @@ func TestValidateAndConform(t *testing.T) {
 	}
 
 	_, err = conformMe.ValidateAndConform(EMPTYFORMAT, false)
-	if !errors.Is(err, ErrPairDuplication) {
-		t.Fatalf("received: '%v' but expected '%v'", err, ErrPairDuplication)
+	if !errors.Is(err, ErrDuplicatePairs) {
+		t.Fatalf("received: '%v' but expected '%v'", err, ErrDuplicatePairs)
 	}
 
 	conformMe = Pairs{

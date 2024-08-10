@@ -1059,7 +1059,7 @@ func TestUpdatePairs(t *testing.T) {
 	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty, "UpdatePairs should error on empty pairs")
 
 	err = UAC.UpdatePairs(currency.Pairs{btcusdPair, btcusdPair}, asset.Spot, false, true)
-	assert.ErrorIs(t, err, currency.ErrPairDuplication, "UpdatePairs should error on Duplicates")
+	assert.ErrorIs(t, err, currency.ErrDuplicatePairs, "UpdatePairs should error on Duplicates")
 
 	err = UAC.UpdatePairs(currency.Pairs{btcusdPair}, asset.Spot, false, true)
 	assert.NoError(t, err, "UpdatePairs should not error")

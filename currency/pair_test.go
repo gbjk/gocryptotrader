@@ -627,8 +627,8 @@ func TestFindPairDifferences(t *testing.T) {
 	}
 
 	_, err = pairList.FindDifferences(duplication, EMPTYFORMAT)
-	if !errors.Is(err, ErrPairDuplication) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrPairDuplication)
+	if !errors.Is(err, ErrDuplicatePairs) {
+		t.Fatalf("received: '%v' but expected: '%v'", err, ErrDuplicatePairs)
 	}
 
 	// This will allow for the removal of the duplicated item to be returned if
