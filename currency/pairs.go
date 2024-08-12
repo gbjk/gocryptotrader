@@ -152,17 +152,9 @@ func (p Pairs) ContainsCurrency(check Code) bool {
 	return false
 }
 
-// DuplicatePairs checks to see if the pairs contains duplicate pairs
-func (p Pairs) DuplicatePairs() (dups Pairs) {
-	p = common.SortStrings(p)
-
-	for i := 0; i < len(p)-1; i++ {
-		if p[i].Equal(p[i+1]) {
-			dups = append(dups, p[i])
-			i++
-		}
-	}
-	return
+// RemoveDuplicates sorts the pairs and removes any duplicates
+func (p Pairs) RemoveDuplicates() Pairs {
+	return slices.CompactFunc(common.SortStrings(p), func(a, b Pair) bool { return a.Equal(b) })
 }
 
 // RemovePairsByFilter checks to see if a pair contains a specific currency

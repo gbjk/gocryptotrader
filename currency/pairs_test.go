@@ -282,21 +282,18 @@ func TestContainsAll(t *testing.T) {
 	assert.NoError(t, pairs.ContainsAll(pairs, false))
 }
 
-func TestDuplicatePairs(t *testing.T) {
+func TestRemoveDuplicates(t *testing.T) {
 	t.Parallel()
-	var pairs = Pairs{
+	var p = Pairs{
 		NewPair(BTC, USD),
-		NewPair(LTC, USD),
 		NewPair(USD, ZRX),
+		NewPair(LTC, USD),
 	}
 
-	assert.Empty(t, pairs.DuplicatePairs())
-	pairs = append(pairs, pairs[0])
-	require.Len(t, pairs.DuplicatePairs(), 1)
-	assert.Equal(t, pairs.DuplicatePairs()[0], pairs[0])
-	pairs[3] = pairs[2]
-	require.Len(t, pairs.DuplicatePairs(), 1)
-	assert.Equal(t, pairs.DuplicatePairs()[0], pairs[2])
+	assert.Len(t, p.RemoveDuplicates(), 3)
+	p = append(p, p[1])
+	require.Len(t, p.RemoveDuplicates(), 3)
+	require.Len(t, p, 4, "Original Pairs should not be changed")
 }
 
 func TestDeriveFrom(t *testing.T) {

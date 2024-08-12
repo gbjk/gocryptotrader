@@ -210,9 +210,7 @@ func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) error
 		p.Pairs[a] = pairStore
 	}
 
-	if d := pairs.DuplicatePairs(); len(d) != 0 {
-		return fmt.Errorf("%w: %s", ErrDuplicatePairs, d.Join())
-	}
+	pairs = pairs.RemoveDuplicates()
 
 	if enabled {
 		pairStore.Enabled = slices.Clone(pairs)
