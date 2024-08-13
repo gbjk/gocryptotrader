@@ -192,6 +192,7 @@ func (p *PairsManager) GetFormat(a asset.Item, request bool) (PairFormat, error)
 
 // StorePairs stores a list of pairs based on the asset type and whether enabled or just available
 // All pairs removed from available are automatically removed from enabled as well
+// Enabled pairs must already be available or an error will be thrown
 func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) error {
 	if !a.IsValid() {
 		return fmt.Errorf("%s %w", a, asset.ErrNotSupported)
@@ -214,6 +215,10 @@ func (p *PairsManager) StorePairs(a asset.Item, pairs Pairs, enabled bool) error
 
 	if enabled {
 		pairStore.Enabled = slices.Clone(pairs)
+		// All new enabled pairs must be in Available already
+		if err := pairStore.Available.ContainsAll(pairs, true); err != nil {
+			return fmt.Errorf("%w: %w for asset %s", ErrPairNotAvailable, err, a)
+		}
 	} else {
 		pairStore.Available = slices.Clone(pairs)
 		p.reindex()
