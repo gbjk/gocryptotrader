@@ -70,7 +70,6 @@ var channelNames = map[string]string{
 	subscription.AllTradesChannel: krakenWsTrade,
 	subscription.MyTradesChannel:  krakenWsOwnTrades,
 	subscription.MyOrdersChannel:  krakenWsOpenOrders,
-	// No equivalents for: AllOrders
 }
 var reverseChannelNames = map[string]string{}
 
