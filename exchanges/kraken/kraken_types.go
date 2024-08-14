@@ -87,7 +87,6 @@ var (
 	assetTranslator assetTranslatorStore
 
 	errNoWebsocketOrderbookData = errors.New("no websocket orderbook data")
-	errNoRequestID              = errors.New("no RequestID in response")
 	errBadChannelSuffix         = errors.New("bad websocket channel suffix")
 )
 
