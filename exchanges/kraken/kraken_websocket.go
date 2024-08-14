@@ -196,7 +196,7 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 		}
 
 		// For all types of channel second to last field is the channel Name
-		channelName, ok := msg[len(msg)-2].(string)
+		cName, ok := msg[len(msg)-2].(string)
 		if !ok {
 			return common.GetTypeAssertError("string", msg[len(msg)-2], "channelName")
 		}
@@ -208,7 +208,7 @@ func (k *Kraken) wsHandleData(respRaw []byte) error {
 				return err
 			}
 		}
-		return k.wsReadDataResponse(channelName, pair, msg)
+		return k.wsReadDataResponse(cName, pair, msg)
 	}
 
 	event, err := jsonparser.GetString(respRaw, "event")
@@ -256,8 +256,8 @@ func (k *Kraken) wsPingHandler(conn stream.Connection) {
 }
 
 // wsReadDataResponse classifies the WS response and sends to appropriate handler
-func (k *Kraken) wsReadDataResponse(channelName string, pair currency.Pair, response []any) error {
-	switch channelName {
+func (k *Kraken) wsReadDataResponse(cName string, pair currency.Pair, response []any) error {
+	switch cName {
 	case krakenWsTicker:
 		return k.wsProcessTickers(response, pair)
 	case krakenWsSpread:
@@ -270,14 +270,14 @@ func (k *Kraken) wsReadDataResponse(channelName string, pair currency.Pair, resp
 		return k.wsProcessOpenOrders(response[0])
 	}
 
-	channelType := strings.TrimRight(channelName, "-0123456789")
+	channelType := strings.TrimRight(cName, "-0123456789")
 	switch channelType {
 	case krakenWsOHLC:
-		return k.wsProcessCandles(channelName, response, pair)
+		return k.wsProcessCandles(cName, response, pair)
 	case krakenWsOrderbook:
-		return k.wsProcessOrderBook(channelName, response, pair)
+		return k.wsProcessOrderBook(cName, response, pair)
 	default:
-		return fmt.Errorf("received unidentified data for subscription %s: %+v", channelName, response)
+		return fmt.Errorf("received unidentified data for subscription %s: %+v", cName, response)
 	}
 }
 
@@ -580,9 +580,9 @@ func (k *Kraken) wsProcessTrades(response []any, pair currency.Pair) error {
 }
 
 // wsProcessOrderBook handles both partial and full orderbook updates
-func (k *Kraken) wsProcessOrderBook(channelName string, response []any, pair currency.Pair) error {
+func (k *Kraken) wsProcessOrderBook(cName string, response []any, pair currency.Pair) error {
 	key := &subscription.Subscription{
-		Channel: channelName,
+		Channel: cName,
 		Asset:   asset.Spot,
 		Pairs:   currency.Pairs{pair},
 	}
@@ -591,7 +591,7 @@ func (k *Kraken) wsProcessOrderBook(channelName string, response []any, pair cur
 	}
 	s := k.Websocket.GetSubscription(key)
 	if s == nil {
-		return fmt.Errorf("%w: %s %s %s", subscription.ErrNotFound, asset.Spot, channelName, pair)
+		return fmt.Errorf("%w: %s %s %s", subscription.ErrNotFound, asset.Spot, cName, pair)
 	}
 	if s.State() == subscription.UnsubscribingState {
 		// We only care if it's currently unsubscribing
@@ -923,7 +923,7 @@ func trim(s string) string {
 }
 
 // wsProcessCandles converts candle data and sends it to the data handler
-func (k *Kraken) wsProcessCandles(channelName string, response []any, pair currency.Pair) error {
+func (k *Kraken) wsProcessCandles(cName string, response []any, pair currency.Pair) error {
 	// 8 string quoted floats followed by 1 integer for trade count
 	dataStr, ok := response[1].([]any)
 	if !ok || len(dataStr) != 9 {
@@ -944,7 +944,7 @@ func (k *Kraken) wsProcessCandles(channelName string, response []any, pair curre
 	}
 
 	// Faster than getting it through the subscription
-	parts := strings.Split(channelName, "-")
+	parts := strings.Split(cName, "-")
 	if len(parts) != 2 {
 		return errBadChannelSuffix
 	}
@@ -1187,7 +1187,7 @@ func (k *Kraken) wsProcessSubStatus(resp []byte) {
 	if err != nil {
 		return
 	}
-	channelName, err := jsonparser.GetUnsafeString(resp, "channelName")
+	cName, err := jsonparser.GetUnsafeString(resp, "channelName")
 	if err != nil {
 		return
 	}
@@ -1200,7 +1200,7 @@ func (k *Kraken) wsProcessSubStatus(resp []byte) {
 	}
 	key := &subscription.Subscription{
 		// We don't use asset because it's either Empty or Spot, but not both
-		Channel: channelName,
+		Channel: cName,
 		Pairs:   currency.Pairs{pair},
 	}
 
