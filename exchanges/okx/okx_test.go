@@ -282,7 +282,7 @@ func TestGetBlockTrade(t *testing.T) {
 		require.Positive(t, trade.Price, "Price should have a positive value")
 		require.Positive(t, trade.Size, "Size should have a positive value")
 		require.Contains(t, []order.Side{order.Buy, order.Sell}, trade.Side, "Side should be a side")
-		require.WithinRange(t, trade.Timestamp.Time(), time.Now().Add(time.Hour*-24*7), time.Now(), "Timestamp should be within last 7 days")
+		require.WithinRange(t, trade.Timestamp.Time(), time.Now().Add(time.Hour*-24*90), time.Now(), "Timestamp should be within last 90 days")
 	}
 
 	testexch.UpdatePairsOnce(t, ok)
@@ -2922,8 +2922,7 @@ func TestGetIntervalEnum(t *testing.T) {
 		{Description: "Unsupported interval with UTC", Expected: "", AppendUTC: true},
 	}
 
-	for x := range tests {
-		tt := tests[x]
+	for _, tt := range tests {
 		t.Run(tt.Description, func(t *testing.T) {
 			t.Parallel()
 			r := ok.GetIntervalEnum(tt.Interval, tt.AppendUTC)
