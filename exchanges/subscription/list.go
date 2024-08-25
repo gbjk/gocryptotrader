@@ -22,6 +22,16 @@ type iExchange interface {
 	CanUseAuthenticatedWebsocketEndpoints() bool
 }
 
+type FilterType uint
+
+const (
+	FilterEnabled FilterType = 1 << iota
+	FilterDisabled
+	FilterPrivate
+	FilterPublic
+	filterMax
+)
+
 // Strings returns a sorted slice of subscriptions
 func (l List) Strings() []string {
 	s := make([]string, len(l))
@@ -55,15 +65,34 @@ func (l List) Clone() List {
 	return n
 }
 
-// Authenticated returns only Authenticated subscriptions
-func (l List) Authenticated() List {
-	a := List{}
-	for _, s := range l {
-		if s.Authenticated {
-			a = append(a, s)
-		}
+func (f FilterType) Filter(s *Subscription) bool {
+	switch f {
+	case FilterEnabled:
+		return s.Enabled
+	case FilterDisabled:
+		return !s.Enabled
+	case FilterPrivate:
+		return s.Authenticated
+	case FilterPublic:
+		return !s.Authenticated
 	}
-	return a
+	return false
+}
+
+// Filter returns a new list filtered by the filter types
+// Accepts multiple filters and only subs which satisfy all filters will be returned
+func (l List) Filter(fs ...FilterType) List {
+	n := make(List, 0, len(l))
+outer:
+	for _, s := range l {
+		for _, f := range fs {
+			if !f.Filter(s) {
+				continue outer
+			}
+		}
+		n = append(n, s)
+	}
+	return slices.Clip(n)
 }
 
 // QualifiedChannels returns a sorted list of all the qualified Channels in the list

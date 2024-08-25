@@ -107,8 +107,27 @@ func TestListClone(t *testing.T) {
 	assert.NotEqual(t, n[0], l[0], "Subscriptions should be cloned")
 }
 
-func TestListAuthenticated(t *testing.T) {
+func TestListFilter(t *testing.T) {
 	t.Parallel()
-	assert.NotEmpty(t, 1, List{{}, {Authenticated: true}}.Authenticated(), "Authenticated should return correct length")
-	assert.Empty(t, List{{}, {}}.Authenticated(), "Authenticated should return empty")
+	l := List{
+		{Channel: "a", Enabled: true, Authenticated: false},
+		{Channel: "b", Enabled: true, Authenticated: true},
+		{Channel: "c", Enabled: false, Authenticated: true},
+		{Channel: "d", Enabled: false, Authenticated: false},
+	}
+	n := l.Filter(FilterEnabled)
+	require.Len(t, n, 2)
+	assert.Equal(t, l[:2], n)
+	n = l.Filter(FilterDisabled)
+	require.Len(t, n, 2)
+	assert.Equal(t, l[2:], n)
+	n = l.Filter(FilterPublic)
+	require.Len(t, n, 2)
+	assert.Equal(t, List{l[0], l[3]}, n)
+	n = l.Filter(FilterPrivate)
+	require.Len(t, n, 2)
+	assert.Equal(t, l[1:3], n)
+	n = l.Filter(FilterPrivate, FilterEnabled)
+	require.Len(t, n, 1)
+	assert.Equal(t, l[1], n[0])
 }
