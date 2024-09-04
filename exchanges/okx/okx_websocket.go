@@ -384,105 +384,60 @@ func (ok *Okx) wsReadData(ws stream.Connection) {
 	}
 }
 
-// Subscribe sends a websocket subscription request to several channels to receive data.
-func (ok *Okx) Subscribe(channelsToSubscribe subscription.List) error {
-	return ok.handleSubscription(operationSubscribe, channelsToSubscribe)
+// Subscribe sends a websocket subscribe request for a list of channels
+func (ok *Okx) Subscribe(subs subscription.List) error {
+	errs := ok.handleSubscription(operationSubscribe, subs.Public(), ok.Websocket.Conn)
+	errs = common.AppendError(errs, ok.handleSubscription(operationSubscribe, subs.Private(), ok.Websocket.AuthConn))
+	return errs
 }
 
-// Unsubscribe sends a websocket unsubscription request to several channels to receive data.
-func (ok *Okx) Unsubscribe(channelsToUnsubscribe subscription.List) error {
-	return ok.handleSubscription(operationUnsubscribe, channelsToUnsubscribe)
+// Unsubscribe sends a websocket unsubscribe request for a list of channels
+func (ok *Okx) Unsubscribe(subs subscription.List) error {
+	errs := ok.handleSubscription(operationUnsubscribe, subs.Public(), ok.Websocket.Conn)
+	errs = common.AppendError(errs, ok.handleSubscription(operationUnsubscribe, subs.Private(), ok.Websocket.AuthConn))
+	return errs
 }
 
-// handleSubscription sends a subscription and unsubscription information thought the websocket endpoint.
-// as of the okx, exchange this endpoint sends subscription and unsubscription messages but with a list of json objects.
-func (ok *Okx) handleSubscription(operation string, subs subscription.List) error {
+// manageSubs subscribe or unsubscribes from subscription channels
+// subscriptions are batched into messages of 4096 bytes
+func (ok *Okx) handleSubscription(operation string, subs subscription.List, conn stream.Connection) error {
+	subs, errs := subs.ExpandTemplates(ok)
 	request := WSSubscriptionInformationList{Operation: operation}
-	authRequests := WSSubscriptionInformationList{Operation: operation}
 	ok.WsRequestSemaphore <- 1
 	defer func() { <-ok.WsRequestSemaphore }()
 	var channels subscription.List
-	var authChannels subscription.List
-	var errs error
 	for i := 0; i < len(subs); i++ {
 		s := subs[i]
-		var arg SubscriptionInfo
-		if err := json.Unmarshal([]byte(s.QualifiedChannel), &arg); err != nil {
+		var r SubscriptionInfo
+		if err := json.Unmarshal([]byte(s.QualifiedChannel), &r); err != nil {
 			errs = common.AppendError(errs, err)
 			continue
 		}
-
-		if s.Authenticated {
-			authChannels = append(authChannels, s)
-			authRequests.Arguments = append(authRequests.Arguments, arg)
-			authChunk, err := json.Marshal(authRequests)
-			if err != nil {
-				return err
-			}
-			if len(authChunk) > maxConnByteLen {
-				authRequests.Arguments = authRequests.Arguments[:len(authRequests.Arguments)-1]
-				i--
-				err = ok.Websocket.AuthConn.SendJSONMessage(authRequests)
-				if err != nil {
-					return err
-				}
+		channels = append(channels, s)
+		request.Arguments = append(request.Arguments, r)
+		chunk, err := json.Marshal(request)
+		if err != nil {
+			errs = common.AppendError(errs, err)
+			continue
+		}
+		switch {
+		case len(chunk) > maxConnByteLen:
+			i--
+			fallthrough
+		case i == len(subs)-1:
+			if err = conn.SendJSONMessage(request); err == nil {
 				if operation == operationUnsubscribe {
 					err = ok.Websocket.RemoveSubscriptions(channels...)
 				} else {
 					err = ok.Websocket.AddSuccessfulSubscriptions(channels...)
 				}
-				if err != nil {
-					return err
-				}
-				authChannels = subscription.List{}
-				authRequests.Arguments = []SubscriptionInfo{}
 			}
-		} else {
-			channels = append(channels, s)
-			request.Arguments = append(request.Arguments, arg)
-			chunk, err := json.Marshal(request)
-			if err != nil {
-				return err
-			}
-			if len(chunk) > maxConnByteLen {
-				i--
-				err = ok.Websocket.Conn.SendJSONMessage(request)
-				if err != nil {
-					return err
-				}
-				if operation == operationUnsubscribe {
-					err = ok.Websocket.RemoveSubscriptions(channels...)
-				} else {
-					err = ok.Websocket.AddSuccessfulSubscriptions(channels...)
-				}
-				if err != nil {
-					return err
-				}
-				channels = subscription.List{}
-				request.Arguments = []SubscriptionInfo{}
-				continue
-			}
+			errs = common.AppendError(errs, err)
+			channels = subscription.List{}
+			request.Arguments = []SubscriptionInfo{}
 		}
 	}
-
-	if len(request.Arguments) > 0 {
-		if err := ok.Websocket.Conn.SendJSONMessage(request); err != nil {
-			return err
-		}
-	}
-
-	if len(authRequests.Arguments) > 0 && ok.Websocket.CanUseAuthenticatedEndpoints() {
-		if err := ok.Websocket.AuthConn.SendJSONMessage(authRequests); err != nil {
-			return err
-		}
-	}
-
-	channels = append(channels, authChannels...)
-	if operation == operationUnsubscribe {
-		return ok.Websocket.RemoveSubscriptions(channels...)
-	}
-
-	return ok.Websocket.AddSuccessfulSubscriptions(channels...)
+	return errs
 }
 
 // WsHandleData will read websocket raw data and pass to appropriate handler
