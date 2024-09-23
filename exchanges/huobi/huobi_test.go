@@ -631,8 +631,14 @@ func TestFQueryTriggerOrderHistory(t *testing.T) {
 
 func TestFetchTradablePairs(t *testing.T) {
 	t.Parallel()
-	_, err := h.FetchTradablePairs(context.Background(), asset.Futures)
-	require.NoError(t, err)
+	for _, a := range h.GetAssetTypes(false) {
+		pairs, err := h.FetchTradablePairs(context.Background(), a)
+		require.NoError(t, err)
+		require.NotEmpty(t, pairs)
+		for _, p := range pairs {
+			t.Log(a, " ", p)
+		}
+	}
 }
 
 func TestUpdateTickerSpot(t *testing.T) {

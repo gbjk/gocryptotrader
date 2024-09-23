@@ -243,78 +243,95 @@ func (h *HUOBI) FetchTradablePairs(ctx context.Context, a asset.Item) (currency.
 	if !h.SupportsAsset(a) {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, a)
 	}
-
+	var errs error
 	var pairs []currency.Pair
-	var pair currency.Pair
 	switch a {
 	case asset.Spot:
 		symbols, err := h.GetSymbols(ctx)
 		if err != nil {
 			return nil, err
 		}
-
 		pairs = make([]currency.Pair, 0, len(symbols))
 		for x := range symbols {
 			if symbols[x].State != "online" {
 				continue
 			}
-
-			pair, err = currency.NewPairFromStrings(symbols[x].BaseCurrency,
-				symbols[x].QuoteCurrency)
+			pair, err := currency.NewPairFromStrings(symbols[x].BaseCurrency, symbols[x].QuoteCurrency)
 			if err != nil {
-				return nil, err
+				errs = common.AppendError(errs, err)
+			} else {
+				pairs = append(pairs, pair)
 			}
-			pairs = append(pairs, pair)
 		}
 	case asset.CoinMarginedFutures:
-		symbols, err := h.GetSwapMarkets(ctx, currency.EMPTYPAIR)
-		if err != nil {
-			return nil, err
-		}
+		swapPairs, err := h.fetchCoinMSwapPairs(ctx)
+		errs = common.AppendError(errs, err)
+		pairs = append(pairs, swapPairs...)
 
-		pairs = make([]currency.Pair, 0, len(symbols))
-		for z := range symbols {
-			if symbols[z].ContractStatus != 1 {
-				continue
-			}
-			pair, err := currency.NewPairFromString(symbols[z].ContractCode)
-			if err != nil {
-				return nil, err
-			}
-			pairs = append(pairs, pair)
-		}
-	case asset.Futures:
-		symbols, err := h.FGetContractInfo(ctx, "", "", currency.EMPTYPAIR)
-		if err != nil {
-			return nil, err
-		}
-		pairs = make([]currency.Pair, 0, len(symbols.Data))
-		expiryCodeDates := map[string]currency.Code{}
-		for _, c := range symbols.Data {
-			if c.ContractStatus != 1 {
-				continue
-			}
-			pair, err := currency.NewPairFromString(c.ContractCode)
-			if err != nil {
-				return nil, err
-			}
-			pairs = append(pairs, pair)
-			if cType, ok := contractExpiryNames[c.ContractType]; ok {
-				if v, ok := expiryCodeDates[cType]; !ok {
-					expiryCodeDates[cType] = currency.NewCode(pair.Quote.String())
-				} else if v.String() != pair.Quote.String() {
-					return nil, fmt.Errorf("%w: %s (%s vs %s)", errInconsistentContractExpiry, cType, v.String(), pair.Quote.String())
-				}
-			}
-		}
-		// We cache contract expiries on the exchange locally right now because there's no exchange base holder for them
-		// It's not as dangerous as it seems, because when contracts change, so would tradeable pairs,
-		// so by caching them in FetchTradablePairs we're not adding any extra-layer of out-of-date data
-		h.futureContractCodesMutex.Lock()
-		h.futureContractCodes = expiryCodeDates
-		h.futureContractCodesMutex.Unlock()
+		contractPairs, err := h.fetchCoinMContractPairs(ctx)
+		errs = common.AppendError(errs, err)
+		pairs = append(pairs, contractPairs...)
 	}
-	return pairs, nil
+	return slices.Clip(pairs), nil
+}
+
+// fetchCoinMContractPairs retrieves Coin-M dated future contract Pairs
+// Side-effect: Caches futuce contract expiry codes (example: CQ => 241227)
+func (h *HUOBI) fetchCoinMContractPairs(ctx context.Context) (currency.Pairs, error) {
+	symbols, errs := h.FGetContractInfo(ctx, "", "", currency.EMPTYPAIR)
+	if errs != nil {
+		return nil, errs
+	}
+	pairs := make([]currency.Pair, 0, len(symbols.Data))
+	expiryCodeDates := map[string]currency.Code{}
+	for _, c := range symbols.Data {
+		if c.ContractStatus != 1 {
+			continue
+		}
+		pair, err := currency.NewPairFromString(c.ContractCode)
+		if err != nil {
+			errs = common.AppendError(errs, err)
+			continue
+		}
+		pairs = append(pairs, pair)
+		if cType, ok := contractExpiryNames[c.ContractType]; ok {
+			if v, ok := expiryCodeDates[cType]; !ok {
+				expiryCodeDates[cType] = currency.NewCode(pair.Quote.String())
+			} else if v.String() != pair.Quote.String() {
+				return nil, fmt.Errorf("%w: %s (%s vs %s)", errInconsistentContractExpiry, cType, v.String(), pair.Quote.String())
+			}
+		}
+	}
+
+	// We cache contract expiries on the exchange locally right now because there's no exchange base holder for them
+	// It's not as dangerous as it seems, because when contracts change, so would tradeable pairs,
+	// so by caching them in FetchTradablePairs we're not adding any extra-layer of out-of-date data
+	h.futureContractCodesMutex.Lock()
+	h.futureContractCodes = expiryCodeDates
+	h.futureContractCodesMutex.Unlock()
+
+	return pairs, errs
+}
+
+// fetchCoinMSwapPairs retrieves Coin-M Swap Pairs (Perpetual Futures)
+func (h *HUOBI) fetchCoinMSwapPairs(ctx context.Context) (currency.Pairs, error) {
+	symbols, errs := h.GetSwapMarkets(ctx, currency.EMPTYPAIR)
+	if errs != nil {
+		return nil, errs
+	}
+	pairs := make([]currency.Pair, 0, len(symbols))
+	for z := range symbols {
+		if symbols[z].ContractStatus != 1 {
+			continue
+		}
+		pair, err := currency.NewPairFromString(symbols[z].ContractCode)
+		if err != nil {
+			errs = common.AppendError(errs, err)
+		} else {
+			pairs = append(pairs, pair)
+		}
+	}
+	return pairs, errs
 }
 
 // UpdateTradablePairs updates the exchanges available pairs and stores
