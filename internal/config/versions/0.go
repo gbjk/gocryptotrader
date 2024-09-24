@@ -7,17 +7,22 @@ import (
 )
 
 // Version0 is a baseline version with no changes, so we can downgrade back to nothing
+// It does not implement any upgrade interfaces
 type Version0 struct {
 }
+
+var _ ConfigVersion = &Version0{}
 
 func init() {
 	RegisterVersion(&Version0{})
 }
 
-func (v *Version0) Upgrade(ctx context.Context, c *config.Config) {
-	return
+// UpgradeConfig is an empty stub for Version0
+func (v *Version0) UpgradeConfig(ctx context.Context, c *config.Config) error {
+	return nil
 }
 
-func (v *Version0) Downgrade(ctx context.Context, c *config.Config) {
-	return
+// DowngradeConfig is an empty stub for Version0
+func (v *Version0) DowngradeConfig(ctx context.Context, c *config.Config) error {
+	return nil
 }

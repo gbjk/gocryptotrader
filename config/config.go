@@ -40,28 +40,36 @@ func (c *Config) GetCurrencyConfig() currency.Config {
 	return c.Currency
 }
 
+// GetExchange returns the exchange Config for a given exchange name
+func (c *Config) GetExchange(name string) *Exchange {
+	for _, e := range c.Exchanges {
+		if e.Name == name {
+			return &e
+		}
+	}
+	return nil
+}
+
 // GetExchangeBankAccounts returns banking details associated with an exchange
 // for depositing funds
 func (c *Config) GetExchangeBankAccounts(exchangeName, id, depositingCurrency string) (*banking.Account, error) {
 	m.Lock()
 	defer m.Unlock()
 
-	for x := range c.Exchanges {
-		if strings.EqualFold(c.Exchanges[x].Name, exchangeName) {
-			for y := range c.Exchanges[x].BankAccounts {
-				if strings.EqualFold(c.Exchanges[x].BankAccounts[y].ID, id) {
-					if common.StringSliceCompareInsensitive(
-						strings.Split(c.Exchanges[x].BankAccounts[y].SupportedCurrencies, ","),
-						depositingCurrency) {
-						return &c.Exchanges[x].BankAccounts[y], nil
-					}
-				}
+	e := c.GetExchange(exchangeName)
+	if e == nil {
+		return nil, fmt.Errorf("exchange %s not found", exchangeName)
+	}
+
+	for y := range e.BankAccounts {
+		if strings.EqualFold(e.BankAccounts[y].ID, id) {
+			if common.StringSliceCompareInsensitive(strings.Split(e.BankAccounts[y].SupportedCurrencies, ","), depositingCurrency) {
+				return &e.BankAccounts[y], nil
 			}
 		}
 	}
-	return nil, fmt.Errorf("exchange %s bank details not found for %s",
-		exchangeName,
-		depositingCurrency)
+
+	return nil, fmt.Errorf("exchange %s bank details not found for %s", exchangeName, depositingCurrency)
 }
 
 // UpdateExchangeBankAccounts updates the configuration for the associated

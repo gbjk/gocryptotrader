@@ -6,19 +6,28 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 )
 
-// Version1 is a baseline version with no changes, so we can downgrade back to nothing
+const exch = "Huobi"
+
+// Version1 is an Exchange config upgrade for Huobi assets
 type Version1 struct {
 }
+
+var _ ExchangeVersion = &Version1{}
 
 func init() {
 	RegisterVersion(&Version1{})
 }
 
-func (v *Version1) Upgrade(ctx context.Context, c *config.Config) {
+// Exchanges returns just Huobi
+
+func (v *Version1) Exchanges() []string { return []string{"Huobi"} }
+
+// UpgradeExchange will move Delivery Future contracts from Future asset into Coin-M asset configuratin
+func (v *Version1) UpgradeExchange(ctx context.Context, e *config.Exchange) error {
 	panic("called")
-	return
+	return nil
 }
 
-func (v *Version1) Downgrade(ctx context.Context, c *config.Config) {
-	return
+func (v *Version1) DowngradeExchange(ctx context.Context, e *config.Exchange) error {
+	return nil
 }
