@@ -22,6 +22,7 @@ type ConfigVersion interface {
 
 // ConfigVersion is a version that affects specific exchange configurations
 type ExchangeVersion interface {
+	// TODO: Document *
 	Exchanges() []string
 	UpgradeExchange(context.Context, *config.Exchange) error
 	DowngradeExchange(context.Context, *config.Exchange) error
@@ -54,9 +55,12 @@ func Manage(ctx context.Context, c *config.Config) error {
 
 		if ePatch, ok := patch.(ExchangeVersion); ok {
 			for _, name := range ePatch.Exchanges() {
-				e := c.GetExchange(name)
-				if err := exchMethod(ePatch, ctx, e); err != nil {
-					return err
+				for _, e := range c.Exchanges {
+					if name == "*" || e.Name == name {
+						if err := exchMethod(ePatch, ctx, &e); err != nil {
+							return err
+						}
+					}
 				}
 			}
 		}
