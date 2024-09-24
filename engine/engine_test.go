@@ -75,7 +75,7 @@ func TestLoadConfigWithSettings(t *testing.T) {
 				flagSet[v] = true
 			}
 			// Run the test
-			got, err := loadConfigWithSettings(tt.settings, flagSet)
+			got, err := loadConfigWithSettings(context.Background(), tt.settings, flagSet)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("loadConfigWithSettings() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -24,6 +24,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
+	cfgVersions "github.com/thrasher-corp/gocryptotrader/internal/config/versions"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/utils"
@@ -61,6 +62,8 @@ var Bot *Engine
 
 // New starts a new engine
 func New() (*Engine, error) {
+	ctx := context.Background()
+
 	newEngineMutex.Lock()
 	defer newEngineMutex.Unlock()
 	var b Engine
@@ -71,7 +74,9 @@ func New() (*Engine, error) {
 		return nil, fmt.Errorf("failed to load config. Err: %s", err)
 	}
 
-	return &b, nil
+	err = cfgVersions.Manage(ctx, b.Config)
+
+	return &b, err
 }
 
 // NewFromSettings starts a new engine based on supplied settings
@@ -82,10 +87,11 @@ func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, erro
 		return nil, errors.New("engine: settings is nil")
 	}
 
+	ctx := context.Background()
 	var b Engine
 	var err error
 
-	b.Config, err = loadConfigWithSettings(settings, flagSet)
+	b.Config, err = loadConfigWithSettings(ctx, settings, flagSet)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config. Err: %w", err)
 	}
@@ -124,7 +130,7 @@ func NewFromSettings(settings *Settings, flagSet map[string]bool) (*Engine, erro
 }
 
 // loadConfigWithSettings creates configuration based on the provided settings
-func loadConfigWithSettings(settings *Settings, flagSet map[string]bool) (*config.Config, error) {
+func loadConfigWithSettings(ctx context.Context, settings *Settings, flagSet map[string]bool) (*config.Config, error) {
 	filePath, err := config.GetAndMigrateDefaultPath(settings.ConfigFile)
 	if err != nil {
 		return nil, err
@@ -144,6 +150,10 @@ func loadConfigWithSettings(settings *Settings, flagSet map[string]bool) (*confi
 		}
 		settings.EnableDryRun = true
 		conf.DataDirectory = settings.DataDir
+	}
+
+	if err = cfgVersions.Manage(ctx, conf); err != nil {
+		return nil, err
 	}
 
 	return conf, conf.CheckConfig()

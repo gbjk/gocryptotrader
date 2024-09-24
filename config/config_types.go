@@ -87,10 +87,10 @@ var (
 )
 
 // Config is the overarching object that holds all the information for
-// prestart management of Portfolio, Communications, Webserver and Enabled
-// Exchanges
+// prestart management of Portfolio, Communications, Webserver and Enabled Exchanges
 type Config struct {
 	Name                 string                    `json:"name"`
+	Version              int                       `json:"version"`
 	DataDirectory        string                    `json:"dataDirectory"`
 	EncryptConfig        int                       `json:"encryptConfig"`
 	GlobalHTTPTimeout    time.Duration             `json:"globalHTTPTimeout"`

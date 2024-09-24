@@ -1746,30 +1746,20 @@ func (c *Config) CheckRemoteControlConfig() {
 
 // CheckConfig checks all config settings
 func (c *Config) CheckConfig() error {
-	err := c.CheckLoggerConfig()
-	if err != nil {
-		log.Errorf(log.ConfigMgr,
-			"Failed to configure logger, some logging features unavailable: %s\n",
-			err)
+	if err := c.CheckLoggerConfig(); err != nil {
+		log.Errorf(log.ConfigMgr, "Failed to configure logger, some logging features unavailable: %s\n", err)
 	}
 
-	err = c.checkDatabaseConfig()
-	if err != nil {
-		log.Errorf(log.DatabaseMgr,
-			"Failed to configure database: %v",
-			err)
+	if err := c.checkDatabaseConfig(); err != nil {
+		log.Errorf(log.DatabaseMgr, "Failed to configure database: %v", err)
 	}
 
-	err = c.CheckExchangeConfigValues()
-	if err != nil {
+	if err := c.CheckExchangeConfigValues(); err != nil {
 		return fmt.Errorf(ErrCheckingConfigValues, err)
 	}
 
-	err = c.checkGCTScriptConfig()
-	if err != nil {
-		log.Errorf(log.ConfigMgr,
-			"Failed to configure gctscript, feature has been disabled: %s\n",
-			err)
+	if err := c.checkGCTScriptConfig(); err != nil {
+		log.Errorf(log.ConfigMgr, "Failed to configure gctscript, feature has been disabled: %s\n", err)
 	}
 
 	c.CheckConnectionMonitorConfig()
@@ -1782,15 +1772,12 @@ func (c *Config) CheckConfig() error {
 	c.CheckRemoteControlConfig()
 	c.CheckSyncManagerConfig()
 
-	err = c.CheckCurrencyConfigValues()
-	if err != nil {
+	if err := c.CheckCurrencyConfigValues(); err != nil {
 		return err
 	}
 
 	if c.GlobalHTTPTimeout <= 0 {
-		log.Warnf(log.ConfigMgr,
-			"Global HTTP Timeout value not set, defaulting to %v.\n",
-			defaultHTTPTimeout)
+		log.Warnf(log.ConfigMgr, "Global HTTP Timeout value not set, defaulting to %v.\n", defaultHTTPTimeout)
 		c.GlobalHTTPTimeout = defaultHTTPTimeout
 	}
 
