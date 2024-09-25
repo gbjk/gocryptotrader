@@ -1471,19 +1471,20 @@ func (c *Config) ReadConfigFromFile(configPath string, dryrun bool) error {
 	if err != nil {
 		return err
 	}
-	confFile, err := os.Open(defaultPath)
+	f, err := os.Open(defaultPath)
 	if err != nil {
 		return err
 	}
-	defer confFile.Close()
-	result, wasEncrypted, err := ReadConfig(confFile, func() ([]byte, error) { return PromptForConfigKey(false) })
-	if err != nil {
-		return fmt.Errorf("error reading config %w", err)
-	}
-	// Override values in the current config
-	*c = *result
+	defer f.Close()
 
-	if dryrun || wasEncrypted || c.EncryptConfig == fileEncryptionDisabled {
+	r, isEncrypted, err := c.decryptConfig(f, func() ([]byte, error) { return PromptForConfigKey(false) })
+
+	decoder := json.NewDecoder(r)
+	if err = decoder.Decode(c); err != nil {
+		return err
+	}
+
+	if dryrun || isEncrypted || c.EncryptConfig == fileEncryptionDisabled {
 		return nil
 	}
 
@@ -1507,35 +1508,29 @@ func (c *Config) ReadConfigFromFile(configPath string, dryrun bool) error {
 	return nil
 }
 
-// ReadConfig verifies and checks for encryption and loads the config from a JSON object.
+type KeyProvider func() ([]byte, error)
+
+// decryptConfig checks if data is encrypted, and if it is decrypts it using the keyProvider
 // Prompts for decryption key, if target data is encrypted.
-// Returns the loaded configuration and whether it was encrypted.
-func ReadConfig(configReader io.Reader, keyProvider func() ([]byte, error)) (*Config, bool, error) {
-	reader := bufio.NewReader(configReader)
-
-	pref, err := reader.Peek(len(EncryptConfirmString))
+// Returns an io.Reader and whether it was encrypted.
+func (c *Config) decryptConfig(r io.ReadSeeker, keyProvider KeyProvider) (io.Reader, bool, error) {
+	prefix, err := bufio.NewReaderSize(r, len(EncryptConfirmString)).Peek(len(EncryptConfirmString))
 	if err != nil {
-		return nil, false, err
+		return r, false, err
 	}
 
-	if !ConfirmECS(pref) {
-		// Read unencrypted configuration
-		decoder := json.NewDecoder(reader)
-		c := &Config{}
-		err = decoder.Decode(c)
-		return c, false, err
+	if !ConfirmECS(prefix) {
+		return r, false, nil
 	}
 
-	conf, err := readEncryptedConfWithKey(reader, keyProvider)
-	return conf, true, err
+	d, err := c.readEncryptedConfWithKey(r, keyProvider)
+
+	return d, true, err
 }
 
-// readEncryptedConf reads encrypted configuration and requests key from provider
-func readEncryptedConfWithKey(reader *bufio.Reader, keyProvider func() ([]byte, error)) (*Config, error) {
-	fileData, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, err
-	}
+// readEncryptedConfWithKey reads encrypted configuration and requests key from provider
+func (c *Config) readEncryptedConfWithKey(r io.ReadSeeker, keyProvider KeyProvider) (io.Reader, error) {
+	defer r.Seek(0, io.SeekStart)
 	for range maxAuthFailures {
 		key, err := keyProvider()
 		if err != nil {
@@ -1543,26 +1538,15 @@ func readEncryptedConfWithKey(reader *bufio.Reader, keyProvider func() ([]byte, 
 			continue
 		}
 
-		var c *Config
-		c, err = readEncryptedConf(bytes.NewReader(fileData), key)
+		d, err := c.decryptConfigData(r, key)
 		if err != nil {
 			log.Errorln(log.ConfigMgr, "Could not decrypt and deserialise data with given key. Invalid password?", err)
+			r.Seek(0, io.SeekStart)
 			continue
 		}
-		return c, nil
+		return bytes.NewReader(d), nil
 	}
 	return nil, errors.New("failed to decrypt config after 3 attempts")
-}
-
-func readEncryptedConf(reader io.Reader, key []byte) (*Config, error) {
-	c := &Config{}
-	data, err := c.decryptConfigData(reader, key)
-	if err != nil {
-		return nil, err
-	}
-
-	err = json.Unmarshal(data, c)
-	return c, err
 }
 
 // SaveConfigToFile saves your configuration to your desired path as a JSON object.

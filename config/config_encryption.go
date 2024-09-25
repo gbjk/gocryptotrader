@@ -167,7 +167,6 @@ func (c *Config) decryptConfigData(configReader io.Reader, key []byte) ([]byte, 
 
 	stream := cipher.NewCFBDecrypter(blockDecrypt, iv)
 	stream.XORKeyStream(configData, configData)
-	result := configData
 
 	sessionDK, storedSalt, err := makeNewSessionDK(origKey)
 	if err != nil {
@@ -175,7 +174,7 @@ func (c *Config) decryptConfigData(configReader io.Reader, key []byte) ([]byte, 
 	}
 	c.sessionDK, c.storedSalt = sessionDK, storedSalt
 
-	return result, nil
+	return configData, nil
 }
 
 // ConfirmSalt checks whether the encrypted data contains a salt
