@@ -1,7 +1,9 @@
 package config
 
 import (
+	"context"
 	"errors"
+	"io"
 	"sync"
 	"time"
 
@@ -372,4 +374,8 @@ type Orderbook struct {
 	// PublishPeriod here is a pointer because we want to distinguish
 	// between zeroed out and missing.
 	PublishPeriod *time.Duration `json:"publishPeriod"`
+}
+
+type versionManager interface {
+	Manage(context.Context, io.Reader, *Config) error
 }

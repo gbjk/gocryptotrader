@@ -3,6 +3,7 @@ package versions
 import (
 	"context"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
@@ -30,9 +31,11 @@ type ExchangeVersion interface {
 
 var versions = []any{}
 
+type VersionManager struct{}
+
 // Manage upgrades or downgrades the config between versions
 // panics in out of bounds situations
-func Manage(ctx context.Context, c *config.Config) error {
+func (m *VersionManager) Manage(ctx context.Context, r io.Reader, c *Config) error {
 	target := latest()
 	current := c.Version
 	for current != target {

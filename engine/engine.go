@@ -60,6 +60,10 @@ type Engine struct {
 // to access its setup services and functions
 var Bot *Engine
 
+func init() {
+	config.VersionManager = &cfgVersions.Manager{}
+}
+
 // New starts a new engine
 func New() (*Engine, error) {
 	ctx := context.Background()
@@ -73,8 +77,6 @@ func New() (*Engine, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load config. Err: %s", err)
 	}
-
-	err = cfgVersions.Manage(ctx, b.Config)
 
 	return &b, err
 }
@@ -150,10 +152,6 @@ func loadConfigWithSettings(ctx context.Context, settings *Settings, flagSet map
 		}
 		settings.EnableDryRun = true
 		conf.DataDirectory = settings.DataDir
-	}
-
-	if err = cfgVersions.Manage(ctx, conf); err != nil {
-		return nil, err
 	}
 
 	return conf, conf.CheckConfig()
