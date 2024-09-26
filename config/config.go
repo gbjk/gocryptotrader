@@ -3,6 +3,7 @@ package config
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,6 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/communications/base"
+	"github.com/thrasher-corp/gocryptotrader/config/versions"
 	"github.com/thrasher-corp/gocryptotrader/connchecker"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/currency/forexprovider"
@@ -33,9 +35,6 @@ var (
 	errExchangeConfigIsNil = errors.New("exchange config is nil")
 	errPairsManagerIsNil   = errors.New("currency pairs manager is nil")
 )
-
-// VersionManager is a hack to avoid import cycles during config version management
-var VersionManager versionManager
 
 // GetCurrencyConfig returns currency configurations
 func (c *Config) GetCurrencyConfig() currency.Config {
@@ -854,163 +853,181 @@ func (c *Config) CheckExchangeConfigValues() error {
 	}
 
 	exchanges := 0
-	for i := range c.Exchanges {
-		if strings.EqualFold(c.Exchanges[i].Name, "GDAX") {
-			c.Exchanges[i].Name = "CoinbasePro"
+	for i, e := range c.Exchanges {
+		if strings.EqualFold(e.Name, "GDAX") {
+			e.Name = "CoinbasePro"
 		}
 
 		// Check to see if the old API storage format is used
-		if c.Exchanges[i].APIKey != nil {
+		if e.APIKey != nil {
 			// It is, migrate settings to new format
-			c.Exchanges[i].API.AuthenticatedSupport = *c.Exchanges[i].AuthenticatedAPISupport
-			if c.Exchanges[i].AuthenticatedWebsocketAPISupport != nil {
-				c.Exchanges[i].API.AuthenticatedWebsocketSupport = *c.Exchanges[i].AuthenticatedWebsocketAPISupport
+			e.API.AuthenticatedSupport = *e.AuthenticatedAPISupport
+			if e.AuthenticatedWebsocketAPISupport != nil {
+				e.API.AuthenticatedWebsocketSupport = *e.AuthenticatedWebsocketAPISupport
 			}
-			c.Exchanges[i].API.Credentials.Key = *c.Exchanges[i].APIKey
-			c.Exchanges[i].API.Credentials.Secret = *c.Exchanges[i].APISecret
+			e.API.Credentials.Key = *e.APIKey
+			e.API.Credentials.Secret = *e.APISecret
 
-			if c.Exchanges[i].APIAuthPEMKey != nil {
-				c.Exchanges[i].API.Credentials.PEMKey = *c.Exchanges[i].APIAuthPEMKey
-			}
-
-			if c.Exchanges[i].APIAuthPEMKeySupport != nil {
-				c.Exchanges[i].API.PEMKeySupport = *c.Exchanges[i].APIAuthPEMKeySupport
+			if e.APIAuthPEMKey != nil {
+				e.API.Credentials.PEMKey = *e.APIAuthPEMKey
 			}
 
-			if c.Exchanges[i].ClientID != nil {
-				c.Exchanges[i].API.Credentials.ClientID = *c.Exchanges[i].ClientID
+			if e.APIAuthPEMKeySupport != nil {
+				e.API.PEMKeySupport = *e.APIAuthPEMKeySupport
+			}
+
+			if e.ClientID != nil {
+				e.API.Credentials.ClientID = *e.ClientID
 			}
 
 			// Flush settings
-			c.Exchanges[i].AuthenticatedAPISupport = nil
-			c.Exchanges[i].AuthenticatedWebsocketAPISupport = nil
-			c.Exchanges[i].APIKey = nil
-			c.Exchanges[i].APISecret = nil
-			c.Exchanges[i].ClientID = nil
-			c.Exchanges[i].APIAuthPEMKeySupport = nil
-			c.Exchanges[i].APIAuthPEMKey = nil
-			c.Exchanges[i].APIURL = nil
-			c.Exchanges[i].APIURLSecondary = nil
-			c.Exchanges[i].WebsocketURL = nil
+			e.AuthenticatedAPISupport = nil
+			e.AuthenticatedWebsocketAPISupport = nil
+			e.APIKey = nil
+			e.APISecret = nil
+			e.ClientID = nil
+			e.APIAuthPEMKeySupport = nil
+			e.APIAuthPEMKey = nil
+			e.APIURL = nil
+			e.APIURLSecondary = nil
+			e.WebsocketURL = nil
 		}
 
-		if c.Exchanges[i].Features == nil {
-			c.Exchanges[i].Features = &FeaturesConfig{}
+		if e.Features == nil {
+			e.Features = &FeaturesConfig{}
 		}
 
-		if c.Exchanges[i].SupportsAutoPairUpdates != nil {
-			c.Exchanges[i].Features.Supports.RESTCapabilities.AutoPairUpdates = *c.Exchanges[i].SupportsAutoPairUpdates
-			c.Exchanges[i].Features.Enabled.AutoPairUpdates = *c.Exchanges[i].SupportsAutoPairUpdates
-			c.Exchanges[i].SupportsAutoPairUpdates = nil
+		if e.SupportsAutoPairUpdates != nil {
+			e.Features.Supports.RESTCapabilities.AutoPairUpdates = *e.SupportsAutoPairUpdates
+			e.Features.Enabled.AutoPairUpdates = *e.SupportsAutoPairUpdates
+			e.SupportsAutoPairUpdates = nil
 		}
 
-		if c.Exchanges[i].Websocket != nil {
-			c.Exchanges[i].Features.Enabled.Websocket = *c.Exchanges[i].Websocket
-			c.Exchanges[i].Websocket = nil
+		if e.Websocket != nil {
+			e.Features.Enabled.Websocket = *e.Websocket
+			e.Websocket = nil
 		}
 
-		if c.Exchanges[i].Enabled {
-			if c.Exchanges[i].Name == "" {
+		if err := e.CurrencyPairs.SetDelimitersFromConfig(); err != nil {
+			return fmt.Errorf("%s: %w", e.Name, err)
+		}
+
+		if assets := e.CurrencyPairs.GetAssetTypes(false); len(assets) == 0 {
+			e.Enabled = false
+			log.Warnf(log.ConfigMgr, "%s no assets found, disabling...", e.Name)
+			return nil
+		} else {
+			if enabled := e.CurrencyPairs.GetAssetTypes(true); len(enabled) == 0 {
+				// turn on an asset if all disabled
+				log.Warnf(log.ConfigMgr, "%s assets disabled, turning on asset %s", e.Name, assets[0])
+				if err := e.CurrencyPairs.SetAssetEnabled(assets[0], true); err != nil {
+					return err
+				}
+			}
+		}
+
+		if e.Enabled {
+			if e.Name == "" {
 				log.Errorf(log.ConfigMgr, ErrExchangeNameEmpty, i)
-				c.Exchanges[i].Enabled = false
+				e.Enabled = false
 				continue
 			}
-			if (c.Exchanges[i].API.AuthenticatedSupport || c.Exchanges[i].API.AuthenticatedWebsocketSupport) &&
-				c.Exchanges[i].API.CredentialsValidator != nil {
+			if (e.API.AuthenticatedSupport || e.API.AuthenticatedWebsocketSupport) &&
+				e.API.CredentialsValidator != nil {
 				var failed bool
-				if c.Exchanges[i].API.CredentialsValidator.RequiresKey &&
-					(c.Exchanges[i].API.Credentials.Key == "" || c.Exchanges[i].API.Credentials.Key == DefaultAPIKey) {
+				if e.API.CredentialsValidator.RequiresKey &&
+					(e.API.Credentials.Key == "" || e.API.Credentials.Key == DefaultAPIKey) {
 					failed = true
 				}
 
-				if c.Exchanges[i].API.CredentialsValidator.RequiresSecret &&
-					(c.Exchanges[i].API.Credentials.Secret == "" || c.Exchanges[i].API.Credentials.Secret == DefaultAPISecret) {
+				if e.API.CredentialsValidator.RequiresSecret &&
+					(e.API.Credentials.Secret == "" || e.API.Credentials.Secret == DefaultAPISecret) {
 					failed = true
 				}
 
-				if c.Exchanges[i].API.CredentialsValidator.RequiresClientID &&
-					(c.Exchanges[i].API.Credentials.ClientID == DefaultAPIClientID || c.Exchanges[i].API.Credentials.ClientID == "") {
+				if e.API.CredentialsValidator.RequiresClientID &&
+					(e.API.Credentials.ClientID == DefaultAPIClientID || e.API.Credentials.ClientID == "") {
 					failed = true
 				}
 
 				if failed {
-					c.Exchanges[i].API.AuthenticatedSupport = false
-					c.Exchanges[i].API.AuthenticatedWebsocketSupport = false
-					log.Warnf(log.ConfigMgr, WarningExchangeAuthAPIDefaultOrEmptyValues, c.Exchanges[i].Name)
+					e.API.AuthenticatedSupport = false
+					e.API.AuthenticatedWebsocketSupport = false
+					log.Warnf(log.ConfigMgr, WarningExchangeAuthAPIDefaultOrEmptyValues, e.Name)
 				}
 			}
-			if !c.Exchanges[i].Features.Supports.RESTCapabilities.AutoPairUpdates &&
-				!c.Exchanges[i].Features.Supports.WebsocketCapabilities.AutoPairUpdates {
-				lastUpdated := convert.UnixTimestampToTime(c.Exchanges[i].CurrencyPairs.LastUpdated)
+			if !e.Features.Supports.RESTCapabilities.AutoPairUpdates &&
+				!e.Features.Supports.WebsocketCapabilities.AutoPairUpdates {
+				lastUpdated := convert.UnixTimestampToTime(e.CurrencyPairs.LastUpdated)
 				lastUpdated = lastUpdated.AddDate(0, 0, pairsLastUpdatedWarningThreshold)
 				if lastUpdated.Unix() <= time.Now().Unix() {
 					log.Warnf(log.ConfigMgr,
 						WarningPairsLastUpdatedThresholdExceeded,
-						c.Exchanges[i].Name,
+						e.Name,
 						pairsLastUpdatedWarningThreshold)
 				}
 			}
-			if c.Exchanges[i].HTTPTimeout <= 0 {
+			if e.HTTPTimeout <= 0 {
 				log.Warnf(log.ConfigMgr,
 					"Exchange %s HTTP Timeout value not set, defaulting to %v.\n",
-					c.Exchanges[i].Name,
+					e.Name,
 					defaultHTTPTimeout)
-				c.Exchanges[i].HTTPTimeout = defaultHTTPTimeout
+				e.HTTPTimeout = defaultHTTPTimeout
 			}
 
-			if c.Exchanges[i].WebsocketResponseCheckTimeout <= 0 {
+			if e.WebsocketResponseCheckTimeout <= 0 {
 				log.Warnf(log.ConfigMgr,
 					"Exchange %s Websocket response check timeout value not set, defaulting to %v.",
-					c.Exchanges[i].Name,
+					e.Name,
 					DefaultWebsocketResponseCheckTimeout)
-				c.Exchanges[i].WebsocketResponseCheckTimeout = DefaultWebsocketResponseCheckTimeout
+				e.WebsocketResponseCheckTimeout = DefaultWebsocketResponseCheckTimeout
 			}
 
-			if c.Exchanges[i].WebsocketResponseMaxLimit <= 0 {
+			if e.WebsocketResponseMaxLimit <= 0 {
 				log.Warnf(log.ConfigMgr,
 					"Exchange %s Websocket response max limit value not set, defaulting to %v.",
-					c.Exchanges[i].Name,
+					e.Name,
 					DefaultWebsocketResponseMaxLimit)
-				c.Exchanges[i].WebsocketResponseMaxLimit = DefaultWebsocketResponseMaxLimit
+				e.WebsocketResponseMaxLimit = DefaultWebsocketResponseMaxLimit
 			}
-			if c.Exchanges[i].WebsocketTrafficTimeout <= 0 {
+			if e.WebsocketTrafficTimeout <= 0 {
 				log.Warnf(log.ConfigMgr,
 					"Exchange %s Websocket response traffic timeout value not set, defaulting to %v.",
-					c.Exchanges[i].Name,
+					e.Name,
 					DefaultWebsocketTrafficTimeout)
-				c.Exchanges[i].WebsocketTrafficTimeout = DefaultWebsocketTrafficTimeout
+				e.WebsocketTrafficTimeout = DefaultWebsocketTrafficTimeout
 			}
-			if c.Exchanges[i].Orderbook.WebsocketBufferLimit <= 0 {
+			if e.Orderbook.WebsocketBufferLimit <= 0 {
 				log.Warnf(log.ConfigMgr,
 					"Exchange %s Websocket orderbook buffer limit value not set, defaulting to %v.",
-					c.Exchanges[i].Name,
+					e.Name,
 					defaultWebsocketOrderbookBufferLimit)
-				c.Exchanges[i].Orderbook.WebsocketBufferLimit = defaultWebsocketOrderbookBufferLimit
+				e.Orderbook.WebsocketBufferLimit = defaultWebsocketOrderbookBufferLimit
 			}
-			if c.Exchanges[i].Orderbook.PublishPeriod == nil || c.Exchanges[i].Orderbook.PublishPeriod.Nanoseconds() < 0 {
+			if e.Orderbook.PublishPeriod == nil || e.Orderbook.PublishPeriod.Nanoseconds() < 0 {
 				log.Warnf(log.ConfigMgr,
 					"Exchange %s Websocket orderbook publish period value not set, defaulting to %v.",
-					c.Exchanges[i].Name,
+					e.Name,
 					DefaultOrderbookPublishPeriod)
 				publishPeriod := DefaultOrderbookPublishPeriod
-				c.Exchanges[i].Orderbook.PublishPeriod = &publishPeriod
+				e.Orderbook.PublishPeriod = &publishPeriod
 			}
-			err := c.CheckPairConsistency(c.Exchanges[i].Name)
+			err := c.CheckPairConsistency(e.Name)
 			if err != nil {
 				log.Errorf(log.ConfigMgr,
 					"Exchange %s: CheckPairConsistency error: %s\n",
-					c.Exchanges[i].Name,
+					e.Name,
 					err)
-				c.Exchanges[i].Enabled = false
+				e.Enabled = false
 				continue
 			}
-			for x := range c.Exchanges[i].BankAccounts {
-				if !c.Exchanges[i].BankAccounts[x].Enabled {
+			for x := range e.BankAccounts {
+				if !e.BankAccounts[x].Enabled {
 					continue
 				}
-				err := c.Exchanges[i].BankAccounts[x].Validate()
+				err := e.BankAccounts[x].Validate()
 				if err != nil {
-					c.Exchanges[i].BankAccounts[x].Enabled = false
+					e.BankAccounts[x].Enabled = false
 					log.Warnln(log.ConfigMgr, err.Error())
 				}
 			}
@@ -1440,7 +1457,7 @@ func migrateConfig(configFile, targetDir string) (string, error) {
 	}
 
 	var target string
-	if ConfirmECS(data) {
+	if bytes.HasPrefix(data, EncryptConfirmPrefix) {
 		target = EncryptedFile
 	} else {
 		target = File
@@ -1467,24 +1484,36 @@ func migrateConfig(configFile, targetDir string) (string, error) {
 // Also - if not in dryrun mode - it checks if the configuration needs to be encrypted
 // and stores the file as encrypted, if necessary (prompting for encryption key)
 func (c *Config) ReadConfigFromFile(configPath string, dryrun bool) error {
+	ctx := context.Background()
+
 	defaultPath, _, err := GetFilePath(configPath)
 	if err != nil {
 		return err
 	}
 	f, err := os.Open(defaultPath)
+	defer f.Close()
 	if err != nil {
 		return err
 	}
-	defer f.Close()
-
-	r, isEncrypted, err := c.decryptConfig(f, func() ([]byte, error) { return PromptForConfigKey(false) })
-
-	decoder := json.NewDecoder(r)
-	if err = decoder.Decode(c); err != nil {
+	j, err := io.ReadAll(f)
+	if err != nil {
 		return err
 	}
 
-	if dryrun || isEncrypted || c.EncryptConfig == fileEncryptionDisabled {
+	var wasEncrypted bool
+	if j, wasEncrypted, err = c.decryptConfig(j, func() ([]byte, error) { return PromptForConfigKey(false) }); err != nil {
+		return err
+	}
+
+	if j, err = versions.Deploy(ctx, j); err != nil {
+		return err
+	}
+
+	if err = json.Unmarshal(j, c); err != nil {
+		return err
+	}
+
+	if dryrun || wasEncrypted || c.EncryptConfig == fileEncryptionDisabled {
 		return nil
 	}
 
@@ -1513,24 +1542,18 @@ type KeyProvider func() ([]byte, error)
 // decryptConfig checks if data is encrypted, and if it is decrypts it using the keyProvider
 // Prompts for decryption key, if target data is encrypted.
 // Returns an io.Reader and whether it was encrypted.
-func (c *Config) decryptConfig(r io.ReadSeeker, keyProvider KeyProvider) (io.Reader, bool, error) {
-	prefix, err := bufio.NewReaderSize(r, len(EncryptConfirmString)).Peek(len(EncryptConfirmString))
-	if err != nil {
-		return r, false, err
+func (c *Config) decryptConfig(j []byte, keyProvider KeyProvider) ([]byte, bool, error) {
+	if !bytes.HasPrefix(j, EncryptConfirmPrefix) {
+		return j, false, nil
 	}
 
-	if !ConfirmECS(prefix) {
-		return r, false, nil
-	}
-
-	d, err := c.readEncryptedConfWithKey(r, keyProvider)
+	d, err := c.readEncryptedConfWithKey(j, keyProvider)
 
 	return d, true, err
 }
 
 // readEncryptedConfWithKey reads encrypted configuration and requests key from provider
-func (c *Config) readEncryptedConfWithKey(r io.ReadSeeker, keyProvider KeyProvider) (io.Reader, error) {
-	defer r.Seek(0, io.SeekStart)
+func (c *Config) readEncryptedConfWithKey(j []byte, keyProvider KeyProvider) ([]byte, error) {
 	for range maxAuthFailures {
 		key, err := keyProvider()
 		if err != nil {
@@ -1538,13 +1561,12 @@ func (c *Config) readEncryptedConfWithKey(r io.ReadSeeker, keyProvider KeyProvid
 			continue
 		}
 
-		d, err := c.decryptConfigData(r, key)
+		d, err := c.decryptConfigData(j, key)
 		if err != nil {
 			log.Errorln(log.ConfigMgr, "Could not decrypt and deserialise data with given key. Invalid password?", err)
-			r.Seek(0, io.SeekStart)
 			continue
 		}
-		return bytes.NewReader(d), nil
+		return d, nil
 	}
 	return nil, errors.New("failed to decrypt config after 3 attempts")
 }

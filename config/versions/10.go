@@ -1,12 +1,7 @@
 package versions
 
-import (
-	"context"
-
-	"github.com/thrasher-corp/gocryptotrader/config"
-)
-
-// Version2 is an Exchange config upgrade for Huobi assets
+/*
+// VersionX is an Exchange config upgrade for Huobi assets
 type Version2 struct {
 }
 
@@ -29,3 +24,4 @@ func (v *Version2) UpgradeExchange(ctx context.Context, e *config.Exchange) erro
 func (v *Version2) DowngradeExchange(ctx context.Context, e *config.Exchange) error {
 	return nil
 }
+*/

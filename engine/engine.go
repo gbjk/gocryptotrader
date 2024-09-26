@@ -24,7 +24,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	gctscript "github.com/thrasher-corp/gocryptotrader/gctscript/vm"
-	cfgVersions "github.com/thrasher-corp/gocryptotrader/internal/config/versions"
 	gctlog "github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/utils"
@@ -60,14 +59,8 @@ type Engine struct {
 // to access its setup services and functions
 var Bot *Engine
 
-func init() {
-	config.VersionManager = &cfgVersions.Manager{}
-}
-
 // New starts a new engine
 func New() (*Engine, error) {
-	ctx := context.Background()
-
 	newEngineMutex.Lock()
 	defer newEngineMutex.Unlock()
 	var b Engine

@@ -1,9 +1,7 @@
 package config
 
 import (
-	"context"
 	"errors"
-	"io"
 	"sync"
 	"time"
 
@@ -199,24 +197,18 @@ type Exchange struct {
 	Orderbook                     Orderbook              `json:"orderbook"`
 
 	// Deprecated settings which will be removed in a future update
-	AvailablePairs                   *currency.Pairs      `json:"availablePairs,omitempty"`
-	EnabledPairs                     *currency.Pairs      `json:"enabledPairs,omitempty"`
-	AssetTypes                       *string              `json:"assetTypes,omitempty"`
-	PairsLastUpdated                 *int64               `json:"pairsLastUpdated,omitempty"`
-	ConfigCurrencyPairFormat         *currency.PairFormat `json:"configCurrencyPairFormat,omitempty"`
-	RequestCurrencyPairFormat        *currency.PairFormat `json:"requestCurrencyPairFormat,omitempty"`
-	AuthenticatedAPISupport          *bool                `json:"authenticatedApiSupport,omitempty"`
-	AuthenticatedWebsocketAPISupport *bool                `json:"authenticatedWebsocketApiSupport,omitempty"`
-	APIKey                           *string              `json:"apiKey,omitempty"`
-	APISecret                        *string              `json:"apiSecret,omitempty"`
-	APIAuthPEMKeySupport             *bool                `json:"apiAuthPemKeySupport,omitempty"`
-	APIAuthPEMKey                    *string              `json:"apiAuthPemKey,omitempty"`
-	APIURL                           *string              `json:"apiUrl,omitempty"`
-	APIURLSecondary                  *string              `json:"apiUrlSecondary,omitempty"`
-	ClientID                         *string              `json:"clientId,omitempty"`
-	SupportsAutoPairUpdates          *bool                `json:"supportsAutoPairUpdates,omitempty"`
-	Websocket                        *bool                `json:"websocket,omitempty"`
-	WebsocketURL                     *string              `json:"websocketUrl,omitempty"`
+	AuthenticatedAPISupport          *bool   `json:"authenticatedApiSupport,omitempty"`
+	AuthenticatedWebsocketAPISupport *bool   `json:"authenticatedWebsocketApiSupport,omitempty"`
+	APIKey                           *string `json:"apiKey,omitempty"`
+	APISecret                        *string `json:"apiSecret,omitempty"`
+	APIAuthPEMKeySupport             *bool   `json:"apiAuthPemKeySupport,omitempty"`
+	APIAuthPEMKey                    *string `json:"apiAuthPemKey,omitempty"`
+	APIURL                           *string `json:"apiUrl,omitempty"`
+	APIURLSecondary                  *string `json:"apiUrlSecondary,omitempty"`
+	ClientID                         *string `json:"clientId,omitempty"`
+	SupportsAutoPairUpdates          *bool   `json:"supportsAutoPairUpdates,omitempty"`
+	Websocket                        *bool   `json:"websocket,omitempty"`
+	WebsocketURL                     *string `json:"websocketUrl,omitempty"`
 }
 
 // Profiler defines the profiler configuration to enable pprof
@@ -374,8 +366,4 @@ type Orderbook struct {
 	// PublishPeriod here is a pointer because we want to distinguish
 	// between zeroed out and missing.
 	PublishPeriod *time.Duration `json:"publishPeriod"`
-}
-
-type versionManager interface {
-	Manage(context.Context, io.Reader, *Config) error
 }

@@ -16,15 +16,17 @@ import (
 )
 
 const (
-	// EncryptConfirmString has a the general confirmation string to allow us to
-	// see if the file is correctly encrypted
-	EncryptConfirmString = "THORS-HAMMER"
-	// SaltPrefix string
-	SaltPrefix = "~GCT~SO~SALTY~"
 	// SaltRandomLength is the number of random bytes to append after the prefix string
 	SaltRandomLength = 12
+)
 
-	errAESBlockSize = "config file data is too small for the AES required block size"
+var (
+	errAESBlockSize = errors.New("config file data is too small for the AES required block size")
+	errNoPrefix     = errors.New("data does not start with Encyption Prefix")
+
+	// EncryptConfirmPrefix is a prefix to tell us the file is encrypted
+	EncryptConfirmPrefix = []byte("THORS-HAMMER")
+	SaltPrefix           = []byte("~GCT~SO~SALTY~")
 )
 
 // promptForConfigEncryption asks for encryption confirmation
@@ -115,42 +117,42 @@ func (c *Config) encryptConfigFile(configData []byte) ([]byte, error) {
 	stream := cipher.NewCFBEncrypter(block, iv)
 	stream.XORKeyStream(ciphertext[aes.BlockSize:], configData)
 
-	appendedFile := []byte(EncryptConfirmString)
-	appendedFile = append(appendedFile, c.storedSalt...)
+	appendedFile := append(bytes.Clone(EncryptConfirmPrefix), c.storedSalt...)
 	appendedFile = append(appendedFile, ciphertext...)
 	return appendedFile, nil
 }
 
 // DecryptConfigFile decrypts configuration data with the supplied key and
 // returns the un-encrypted data as a byte array with an error
-func DecryptConfigFile(configData, key []byte) ([]byte, error) {
-	reader := bytes.NewReader(configData)
-	return (&Config{}).decryptConfigData(reader, key)
+func DecryptConfigFile(d, key []byte) ([]byte, error) {
+	return (&Config{}).decryptConfigData(d, key)
 }
 
 // decryptConfigData decrypts configuration data with the supplied key and
 // returns the un-encrypted data as a byte array with an error
-func (c *Config) decryptConfigData(configReader io.Reader, key []byte) ([]byte, error) {
-	err := skipECS(configReader)
-	if err != nil {
-		return nil, err
+func (c *Config) decryptConfigData(d []byte, key []byte) ([]byte, error) {
+	if !bytes.HasPrefix(d, EncryptConfirmPrefix) {
+		return d, errNoPrefix
 	}
-	origKey := key
-	configData, err := io.ReadAll(configReader)
+
+	d = bytes.TrimPrefix(d, EncryptConfirmPrefix)
+
+	sessionDK, storedSalt, err := makeNewSessionDK(key)
 	if err != nil {
 		return nil, err
 	}
 
-	if ConfirmSalt(configData) {
+	if bytes.HasPrefix(d, SaltPrefix) {
 		salt := make([]byte, len(SaltPrefix)+SaltRandomLength)
-		salt = configData[0:len(salt)]
+		salt = d[0:len(salt)]
 
+		var err error
 		key, err = getScryptDK(key, salt)
 		if err != nil {
 			return nil, err
 		}
 
-		configData = configData[len(salt):]
+		d = d[len(salt):]
 	}
 
 	blockDecrypt, err := aes.NewCipher(key)
@@ -158,46 +160,18 @@ func (c *Config) decryptConfigData(configReader io.Reader, key []byte) ([]byte, 
 		return nil, err
 	}
 
-	if len(configData) < aes.BlockSize {
-		return nil, errors.New(errAESBlockSize)
+	if len(d) < aes.BlockSize {
+		return nil, errAESBlockSize
 	}
 
-	iv := configData[:aes.BlockSize]
-	configData = configData[aes.BlockSize:]
+	iv, d := d[:aes.BlockSize], d[aes.BlockSize:]
 
 	stream := cipher.NewCFBDecrypter(blockDecrypt, iv)
-	stream.XORKeyStream(configData, configData)
+	stream.XORKeyStream(d, d)
 
-	sessionDK, storedSalt, err := makeNewSessionDK(origKey)
-	if err != nil {
-		return nil, err
-	}
 	c.sessionDK, c.storedSalt = sessionDK, storedSalt
 
-	return configData, nil
-}
-
-// ConfirmSalt checks whether the encrypted data contains a salt
-func ConfirmSalt(file []byte) bool {
-	return bytes.Contains(file, []byte(SaltPrefix))
-}
-
-// ConfirmECS confirms that the encryption confirmation string is found
-func ConfirmECS(file []byte) bool {
-	return bytes.Contains(file, []byte(EncryptConfirmString))
-}
-
-// skipECS skips encryption confirmation string
-// or errors, if the prefix wasn't found
-func skipECS(file io.Reader) error {
-	buf := make([]byte, len(EncryptConfirmString))
-	if _, err := io.ReadFull(file, buf); err != nil {
-		return err
-	}
-	if string(buf) != EncryptConfirmString {
-		return errors.New("data does not start with ECS")
-	}
-	return nil
+	return d, nil
 }
 
 func getScryptDK(key, salt []byte) ([]byte, error) {
