@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -24,7 +23,7 @@ func initTest(t *testing.T) *PairsManager {
 	}
 
 	spot := &PairStore{
-		AssetEnabled:  convert.BoolPtr(true),
+		AssetEnabled:  true,
 		Available:     spotAvailable,
 		Enabled:       spotEnabled,
 		RequestFormat: &PairFormat{Uppercase: true},
@@ -32,7 +31,7 @@ func initTest(t *testing.T) *PairsManager {
 	}
 
 	futures := &PairStore{
-		AssetEnabled:  convert.BoolPtr(false),
+		AssetEnabled:  false,
 		Available:     spotAvailable,
 		Enabled:       spotEnabled,
 		RequestFormat: &PairFormat{Uppercase: true},
@@ -486,13 +485,6 @@ func TestIsAssetEnabled_SetAssetEnabled(t *testing.T) {
 	// Test asset type which doesn't exist
 	p = initTest(t)
 
-	p.Pairs[asset.Spot].AssetEnabled = nil
-
-	err = p.IsAssetEnabled(asset.Spot)
-	if err == nil {
-		t.Error("unexpected result")
-	}
-
 	err = p.SetAssetEnabled(asset.Spot, false)
 	if err != nil {
 		t.Fatal(err)
@@ -528,7 +520,7 @@ func TestIsAssetEnabled_SetAssetEnabled(t *testing.T) {
 func TestFullStoreUnmarshalMarshal(t *testing.T) {
 	t.Parallel()
 	var um = make(FullStore)
-	um[asset.Spot] = &PairStore{AssetEnabled: convert.BoolPtr(true)}
+	um[asset.Spot] = &PairStore{AssetEnabled: true}
 
 	data, err := json.Marshal(um)
 	if err != nil {
@@ -591,9 +583,10 @@ func TestIsPairAvailable(t *testing.T) {
 
 	pm.Pairs[asset.PerpetualSwap] = &PairStore{}
 	_, err = pm.IsPairAvailable(cp, asset.PerpetualSwap)
-	assert.ErrorIs(t, err, ErrAssetIsNil, "Should error when store AssetEnabled is nil")
+	assert.NoError(t, err, "IsPairAvailable should not error when store is empty")
+	assert.False(t, ok, "IsPairAvailable should return false when store is empty")
 
-	_, err = pm.IsPairAvailable(EMPTYPAIR, asset.PerpetualSwap)
+	ok, err = pm.IsPairAvailable(EMPTYPAIR, asset.PerpetualSwap)
 	assert.ErrorIs(t, err, ErrCurrencyPairEmpty, "Should error when currency pair is empty")
 }
 
@@ -649,15 +642,12 @@ func TestIsPairEnabled(t *testing.T) {
 	}
 
 	pm.Pairs[asset.PerpetualSwap] = &PairStore{}
-	_, err = pm.IsPairEnabled(cp, asset.PerpetualSwap)
-	if !errors.Is(err, ErrAssetIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrAssetIsNil)
-	}
+	ok, err := pm.IsPairEnabled(cp, asset.PerpetualSwap)
+	assert.NoError(t, err, "IsPairEnabled should not error when PairStore is empty")
+	assert.False(t, ok, "IsPairEnabled should return false when PairStore is empty")
 
 	_, err = pm.IsPairEnabled(EMPTYPAIR, asset.PerpetualSwap)
-	if !errors.Is(err, ErrCurrencyPairEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairEmpty)
-	}
+	assert.ErrorIs(t, err, ErrCurrencyPairEmpty)
 }
 
 func TestEnsureOnePairEnabled(t *testing.T) {
@@ -667,7 +657,7 @@ func TestEnsureOnePairEnabled(t *testing.T) {
 		Pairs: map[asset.Item]*PairStore{
 			asset.Futures: {},
 			asset.Spot: {
-				AssetEnabled: convert.BoolPtr(true),
+				AssetEnabled: true,
 				Available: []Pair{
 					p,
 				},
@@ -700,13 +690,13 @@ func TestEnsureOnePairEnabled(t *testing.T) {
 	pm = PairsManager{
 		Pairs: map[asset.Item]*PairStore{
 			asset.Futures: {
-				AssetEnabled: convert.BoolPtr(true),
+				AssetEnabled: true,
 				Available: []Pair{
 					NewPair(BTC, USDC),
 				},
 			},
 			asset.Spot: {
-				AssetEnabled: convert.BoolPtr(true),
+				AssetEnabled: true,
 				Enabled: []Pair{
 					p,
 				},
@@ -733,11 +723,11 @@ func TestEnsureOnePairEnabled(t *testing.T) {
 	pm = PairsManager{
 		Pairs: map[asset.Item]*PairStore{
 			asset.Futures: {
-				AssetEnabled: convert.BoolPtr(true),
+				AssetEnabled: true,
 				Available:    []Pair{p},
 			},
 			asset.Options: {
-				AssetEnabled: convert.BoolPtr(true),
+				AssetEnabled: true,
 				Available:    []Pair{},
 			},
 		},
@@ -776,20 +766,20 @@ func TestLoad(t *testing.T) {
 		RequestFormat:   fmt2,
 		Pairs: map[asset.Item]*PairStore{
 			asset.Futures: {
-				AssetEnabled: convert.BoolPtr(true),
+				AssetEnabled: true,
 				Available:    []Pair{p},
 			},
 			asset.Options: {
-				AssetEnabled: convert.BoolPtr(false),
+				AssetEnabled: false,
 				Available:    []Pair{},
 			},
 		},
 	}
 
 	base.Load(&seed)
-	assert.True(t, *base.Pairs[asset.Futures].AssetEnabled, "Futures AssetEnabled should be true")
+	assert.True(t, base.Pairs[asset.Futures].AssetEnabled, "Futures AssetEnabled should be true")
 	assert.True(t, base.Pairs[asset.Futures].Available.Contains(p, true), "Futures Available Pairs should contain BTCUSDT")
-	assert.False(t, *base.Pairs[asset.Options].AssetEnabled, "Options AssetEnabled should be false")
+	assert.False(t, base.Pairs[asset.Options].AssetEnabled, "Options AssetEnabled should be false")
 	assert.Equal(t, tt, base.LastUpdated, "Last Updated should be correct")
 	assert.Equal(t, fmt1.Uppercase, base.ConfigFormat.Uppercase, "ConfigFormat Uppercase should be correct")
 	assert.Equal(t, fmt2.Delimiter, base.RequestFormat.Delimiter, "RequestFormat Delimiter should be correct")
@@ -909,7 +899,7 @@ func TestIsAssetSupported(t *testing.T) {
 	p := PairsManager{
 		Pairs: FullStore{
 			asset.Spot: {
-				AssetEnabled: convert.BoolPtr(false),
+				AssetEnabled: false,
 			},
 		},
 	}

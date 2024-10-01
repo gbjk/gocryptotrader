@@ -18,7 +18,6 @@ func TestVersion1Upgrade(t *testing.T) {
 
 	out, err := v.UpgradeExchange(context.Background(), in)
 	require.NoError(t, err)
-	require.NotEmpty(t, out)
 	assert.Equal(t, string(exp), string(out))
 }
 

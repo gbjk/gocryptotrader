@@ -830,7 +830,7 @@ func TestCheckPairConsistency(t *testing.T) {
 		t.Error("unexpected result")
 	}
 
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = convert.BoolPtr(true)
+	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = true
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{}
 
 	// Test no conflict and at least one on enabled asset type
@@ -838,7 +838,7 @@ func TestCheckPairConsistency(t *testing.T) {
 		t.Error("unexpected result")
 	}
 
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = convert.BoolPtr(true)
+	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = true
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{currency.NewPair(currency.DASH, currency.USD)}
 
 	// Test with conflict and at least one on enabled asset type
@@ -846,7 +846,7 @@ func TestCheckPairConsistency(t *testing.T) {
 		t.Error("unexpected result")
 	}
 
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = convert.BoolPtr(false)
+	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = false
 	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = currency.Pairs{}
 
 	// Test no conflict and at least one on disabled asset type
@@ -864,13 +864,6 @@ func TestCheckPairConsistency(t *testing.T) {
 	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
 		t.Error("unexpected result")
 	}
-
-	c.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = nil
-
-	// assetType enabled failure check
-	if err := c.CheckPairConsistency(testFakeExchangeName); err != nil {
-		t.Error("unexpected result")
-	}
 }
 
 func TestSupportsPair(t *testing.T) {
@@ -884,7 +877,7 @@ func TestSupportsPair(t *testing.T) {
 				CurrencyPairs: &currency.PairsManager{
 					Pairs: map[asset.Item]*currency.PairStore{
 						asset.Spot: {
-							AssetEnabled:  convert.BoolPtr(true),
+							AssetEnabled:  true,
 							Available:     []currency.Pair{currency.NewPair(currency.BTC, currency.USD)},
 							ConfigFormat:  fmt,
 							RequestFormat: fmt,
@@ -1538,7 +1531,7 @@ func TestCheckExchangeConfigValues(t *testing.T) {
 	cfg.Exchanges = append(cfg.Exchanges, cpy[0])
 
 	cfg.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].Enabled = nil
-	cfg.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = convert.BoolPtr(false)
+	cfg.Exchanges[0].CurrencyPairs.Pairs[asset.Spot].AssetEnabled = false
 	err = cfg.CheckExchangeConfigValues()
 	require.NoError(t, err)
 
@@ -1711,7 +1704,7 @@ func TestCheckConfig(t *testing.T) {
 					LastUpdated:     0,
 					Pairs: map[asset.Item]*currency.PairStore{
 						asset.Spot: {
-							AssetEnabled:  convert.BoolPtr(true),
+							AssetEnabled:  true,
 							Available:     currency.Pairs{cp1, cp2},
 							Enabled:       currency.Pairs{cp1},
 							ConfigFormat:  &currency.EMPTYFORMAT,
