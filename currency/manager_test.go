@@ -582,11 +582,11 @@ func TestIsPairAvailable(t *testing.T) {
 	assert.ErrorIs(t, err, asset.ErrNotSupported, "Should error when asset is not supported")
 
 	pm.Pairs[asset.PerpetualSwap] = &PairStore{}
-	_, err = pm.IsPairAvailable(cp, asset.PerpetualSwap)
+	ok, err = pm.IsPairAvailable(cp, asset.PerpetualSwap)
 	assert.NoError(t, err, "IsPairAvailable should not error when store is empty")
 	assert.False(t, ok, "IsPairAvailable should return false when store is empty")
 
-	ok, err = pm.IsPairAvailable(EMPTYPAIR, asset.PerpetualSwap)
+	_, err = pm.IsPairAvailable(EMPTYPAIR, asset.PerpetualSwap)
 	assert.ErrorIs(t, err, ErrCurrencyPairEmpty, "Should error when currency pair is empty")
 }
 
