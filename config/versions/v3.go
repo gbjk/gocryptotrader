@@ -21,14 +21,14 @@ func init() {
 func (v *Version3) Exchanges() []string { return []string{"*"} }
 
 // UpgradeExchange sets AssetEnabed: true for any exchange missing it
-func (v *Version3) UpgradeExchange(ctx context.Context, e []byte) ([]byte, error) {
+func (v *Version3) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
 	name, err := jsonparser.GetString(e, "name")
 	if err != nil {
 		return e, fmt.Errorf("%w `name`: %w", common.ErrGettingField, err)
 	}
 	cb := func(k []byte, v []byte, _ jsonparser.ValueType, _ int) error {
 		// Note: assetEnabled: null will error allowing upgrade of any confused config
-		if _, err := jsonparser.GetBoolean(v, "assetEnabled"); err != nil {
+		if _, err = jsonparser.GetBoolean(v, "assetEnabled"); err != nil {
 			fmt.Printf("Exchange %s: Setting asset %s enabled\n", name, k)
 			e, err = jsonparser.Set(e, []byte(`true`), "currencyPairs", "pairs", string(k), "assetEnabled")
 			return err
@@ -40,6 +40,6 @@ func (v *Version3) UpgradeExchange(ctx context.Context, e []byte) ([]byte, error
 }
 
 // DowngradeExchange doesn't do anything for this version, because it's a lossy downgrade to disable all assets
-func (v *Version3) DowngradeExchange(ctx context.Context, e []byte) ([]byte, error) {
+func (v *Version3) DowngradeExchange(_ context.Context, e []byte) ([]byte, error) {
 	return e, nil
 }
