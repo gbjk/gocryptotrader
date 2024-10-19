@@ -47,11 +47,10 @@ func upgradeFile(in, out string) {
 		fatal("Cannot upgrade an encrypted file. Please decrypt first")
 	}
 	c := &config.Config{}
-	err := c.ReadConfigFromFile(in, true)
-	if err == nil {
-		err = c.SaveConfigToFile(out)
+	if err := c.ReadConfigFromFile(in, true); err != nil {
+		fatal(err.Error())
 	}
-	if err != nil {
+	if err := c.SaveConfigToFile(out); err != nil {
 		fatal(err.Error())
 	}
 }
