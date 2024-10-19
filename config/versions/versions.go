@@ -182,7 +182,6 @@ func (m *manager) registerVersion(ver int, v any) {
 }
 
 // latest returns the highest version number
-// May return -1 if something has gone deeply wrong
 func (m *manager) latest() (int, error) {
 	m.m.RLock()
 	defer m.m.RUnlock()
