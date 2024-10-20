@@ -807,12 +807,11 @@ type KlinesRequestParams struct {
 	Size   int           // Size; [1-2000]
 }
 
-// WsRequest defines a request data structure
+// WsRequest is a request to subscribe to or unubscribe from a topic
 type WsRequest struct {
-	Topic       string `json:"req,omitempty"`
-	Subscribe   string `json:"sub,omitempty"`
-	Unsubscribe string `json:"unsub,omitempty"`
-	ClientID    int64  `json:"cid,string,omitempty"`
+	Id    int64  `json:"id,omitempty"`
+	Sub   string `json:"sub,omitempty"`
+	Unsub string `json:"unsub,omitempty"`
 }
 
 // WsResponse defines a response from the websocket connection when there
@@ -910,12 +909,6 @@ type WsAuthenticationRequest struct {
 	Timestamp        string `json:"Timestamp"`
 	Signature        string `json:"Signature"`
 	ClientID         int64  `json:"cid,string,omitempty"`
-}
-
-// WsMessage defines read data from the websocket connection
-type WsMessage struct {
-	Raw []byte
-	URL string
 }
 
 // WsAuthenticatedSubscriptionRequest request for subscription on authenticated connection
