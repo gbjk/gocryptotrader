@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -24,7 +23,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
@@ -72,29 +70,6 @@ func TestMain(m *testing.M) {
 		log.Fatal("Huobi setup error", err)
 	}
 	os.Exit(m.Run())
-}
-
-func setupWsTests(t *testing.T) {
-	t.Helper()
-	if wsSetupRan {
-		return
-	}
-	if !h.Websocket.IsEnabled() && !h.API.AuthenticatedWebsocketSupport || !sharedtestvalues.AreAPICredentialsSet(h) {
-		t.Skip(stream.ErrWebsocketNotEnabled.Error())
-	}
-	comms = make(chan WsMessage, sharedtestvalues.WebsocketChannelOverrideCapacity)
-	go h.wsReadData()
-	var dialer websocket.Dialer
-	err := h.wsAuthenticatedDial(&dialer)
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = h.wsLogin(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	wsSetupRan = true
 }
 
 func TestGetCurrenciesIncludingChains(t *testing.T) {
@@ -2121,7 +2096,7 @@ func TestQueryWithdrawQuota(t *testing.T) {
 
 // TestWsGetAccountsList connects to WS, logs in, gets account list
 func TestWsGetAccountsList(t *testing.T) {
-	setupWsTests(t)
+	t.Error("gbjk didn't dtrt")
 	if _, err := h.wsGetAccountsList(context.Background()); err != nil {
 		t.Error(err)
 	}
@@ -2129,36 +2104,18 @@ func TestWsGetAccountsList(t *testing.T) {
 
 // TestWsGetOrderList connects to WS, logs in, gets order list
 func TestWsGetOrderList(t *testing.T) {
-	setupWsTests(t)
-	p, err := currency.NewPairFromString("ethbtc")
-	if err != nil {
-		t.Error(err)
-	}
-	_, err = h.wsGetOrdersList(context.Background(), 1, p)
-	if err != nil {
-		t.Error(err)
-	}
+	t.Error("gbjk didn't dtrt")
+	p := currency.NewPairWithDelimiter("eth", "btc", "")
+	o, err := h.wsGetOrdersList(context.Background(), 1, p)
+	require.NoError(t, err)
+	require.NotEmpty(t, o)
 }
 
 // TestWsGetOrderDetails connects to WS, logs in, gets order details
 func TestWsGetOrderDetails(t *testing.T) {
-	setupWsTests(t)
+	t.Error("gbjk didn't dtrt")
 	orderID := "123"
 	_, err := h.wsGetOrderDetails(context.Background(), orderID)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
-func TestWsSubResponse(t *testing.T) {
-	pressXToJSON := []byte(`{
-  "op": "sub",
-  "cid": "123",
-  "err-code": 0,
-  "ts": 1489474081631,
-  "topic": "accounts"
-}`)
-	err := h.wsHandleData(pressXToJSON)
 	if err != nil {
 		t.Error(err)
 	}

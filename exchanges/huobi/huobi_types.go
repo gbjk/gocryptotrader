@@ -807,29 +807,24 @@ type KlinesRequestParams struct {
 	Size   int           // Size; [1-2000]
 }
 
-// WsRequest is a request to subscribe to or unubscribe from a topic
-type WsRequest struct {
+// wsSubReq is a request to subscribe to or unubscribe from a topic
+type wsSubReq struct {
 	Id    int64  `json:"id,omitempty"`
 	Sub   string `json:"sub,omitempty"`
 	Unsub string `json:"unsub,omitempty"`
 }
 
-// WsResponse defines a response from the websocket connection when there
-// is an error
-type WsResponse struct {
-	Op     string `json:"op"`
-	TS     int64  `json:"ts"`
-	Status string `json:"status"`
-	// ErrorCode returns either an integer or a string
-	ErrorCode    interface{} `json:"err-code"`
-	ErrorMessage string      `json:"err-msg"`
-	Ping         int64       `json:"ping"`
-	Channel      string      `json:"ch"`
-	Rep          string      `json:"rep"`
-	Topic        string      `json:"topic"`
-	Subscribed   string      `json:"subbed"`
-	UnSubscribed string      `json:"unsubbed"`
-	ClientID     int64       `json:"cid,string"`
+// wsSubResp is a response to a subscribe/unsubcribe request
+type wsSubResp struct {
+	Id           int64  `json:"id"`
+	Op           string `json:"op"`
+	Channel      string `json:"ch"`
+	Timestamp    int64  `json:"ts"`
+	Status       string `json:"status"`
+	ErrorCode    any    `json:"err-code"` // ErrorCode returns either an integer or a string
+	ErrorMessage string `json:"err-msg"`
+	Subscribed   string `json:"subbed"`
+	UnSubscribed string `json:"unsubbed"`
 }
 
 // WsHeartBeat defines a heartbeat request
@@ -908,7 +903,6 @@ type WsAuthenticationRequest struct {
 	SignatureVersion string `json:"SignatureVersion"`
 	Timestamp        string `json:"Timestamp"`
 	Signature        string `json:"Signature"`
-	ClientID         int64  `json:"cid,string,omitempty"`
 }
 
 // WsAuthenticatedSubscriptionRequest request for subscription on authenticated connection
@@ -920,7 +914,6 @@ type WsAuthenticatedSubscriptionRequest struct {
 	Timestamp        string `json:"Timestamp"`
 	Signature        string `json:"Signature"`
 	Topic            string `json:"topic"`
-	ClientID         int64  `json:"cid,string,omitempty"`
 }
 
 // WsAuthenticatedAccountsListRequest request for account list authenticated connection
@@ -933,7 +926,6 @@ type WsAuthenticatedAccountsListRequest struct {
 	Signature        string `json:"Signature"`
 	Topic            string `json:"topic"`
 	Symbol           string `json:"symbol"`
-	ClientID         int64  `json:"cid,string,omitempty"`
 }
 
 // WsAuthenticatedOrderDetailsRequest request for order details authenticated connection
@@ -946,7 +938,6 @@ type WsAuthenticatedOrderDetailsRequest struct {
 	Signature        string `json:"Signature"`
 	Topic            string `json:"topic"`
 	OrderID          string `json:"order-id"`
-	ClientID         int64  `json:"cid,string,omitempty"`
 }
 
 // WsAuthenticatedOrdersListRequest request for orderslist authenticated connection
@@ -961,12 +952,11 @@ type WsAuthenticatedOrdersListRequest struct {
 	States           string `json:"states"`
 	AccountID        int64  `json:"account-id"`
 	Symbol           string `json:"symbol"`
-	ClientID         int64  `json:"cid,string,omitempty"`
 }
 
 // WsAuthenticatedAccountsResponse response from Accounts authenticated subscription
 type WsAuthenticatedAccountsResponse struct {
-	WsResponse
+	wsSubResp
 	Data WsAuthenticatedAccountsResponseData `json:"data"`
 }
 
@@ -986,7 +976,7 @@ type WsAuthenticatedAccountsResponseDataList struct {
 
 // WsAuthenticatedOrdersUpdateResponse response from OrdersUpdate authenticated subscription
 type WsAuthenticatedOrdersUpdateResponse struct {
-	WsResponse
+	wsSubResp
 	Data WsAuthenticatedOrdersUpdateResponseData `json:"data"`
 }
 
@@ -1006,13 +996,13 @@ type WsAuthenticatedOrdersUpdateResponseData struct {
 
 // WsAuthenticatedOrdersResponse response from Orders authenticated subscription
 type WsAuthenticatedOrdersResponse struct {
-	WsResponse
+	wsSubResp
 	Data []WsAuthenticatedOrdersResponseData `json:"data"`
 }
 
 // WsOldOrderUpdate response from Orders authenticated subscription
 type WsOldOrderUpdate struct {
-	WsResponse
+	wsSubResp
 	Data WsAuthenticatedOrdersResponseData `json:"data"`
 }
 
@@ -1038,7 +1028,7 @@ type WsAuthenticatedOrdersResponseData struct {
 
 // WsAuthenticatedAccountsListResponse response from AccountsList authenticated endpoint
 type WsAuthenticatedAccountsListResponse struct {
-	WsResponse
+	wsSubResp
 	Data []WsAuthenticatedAccountsListResponseData `json:"data"`
 }
 
@@ -1059,19 +1049,14 @@ type WsAuthenticatedAccountsListResponseDataList struct {
 
 // WsAuthenticatedOrdersListResponse response from OrdersList authenticated endpoint
 type WsAuthenticatedOrdersListResponse struct {
-	WsResponse
+	wsSubResp
 	Data []OrderInfo `json:"data"`
 }
 
 // WsAuthenticatedOrderDetailResponse response from OrderDetail authenticated endpoint
 type WsAuthenticatedOrderDetailResponse struct {
-	WsResponse
+	wsSubResp
 	Data OrderInfo `json:"data"`
-}
-
-// WsPong sent for pong messages
-type WsPong struct {
-	Pong int64 `json:"pong"`
 }
 
 type authenticationPing struct {

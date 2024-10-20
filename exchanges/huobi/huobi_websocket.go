@@ -12,6 +12,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/buger/jsonparser"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -24,9 +25,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -56,6 +54,10 @@ const (
 	loginDelay = 50 * time.Millisecond
 )
 
+var (
+	errInvalidChannel = errors.New("invalid channel format")
+)
+
 type wsOpType uint8
 
 const (
@@ -64,6 +66,7 @@ const (
 )
 
 var defaultSubscriptions = subscription.List{
+	{Enabled: true, Asset: asset.Spot, Channel: "wibble"},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 0}, // Aggregation Levels; 0 is no depth aggregation
@@ -140,146 +143,186 @@ func (h *HUOBI) wsReadMsgs(ch chan []byte) {
 	}
 }
 func (h *HUOBI) wsHandleData(respRaw []byte) error {
-	var init WsResponse
-	err := json.Unmarshal(respRaw, &init)
-	if err != nil {
+	id, idErr := jsonparser.GetInt(respRaw, "id")
+
+	if _, err := jsonparser.GetString(respRaw, "subbed"); err == nil {
+		// Process successful subs inline to avoid context switching going down IncomingData channel
+		return h.wsHandleSubscribed(id, respRaw)
+	}
+
+	if ping, err := jsonparser.GetInt(respRaw, "ping"); err == nil {
+		if err := h.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, `{"pong":`+strconv.Itoa(int(ping))+`}`); err != nil {
+			return fmt.Errorf("error sending pong response: %w", err)
+		}
+		return nil
+	}
+
+	if err := getErrResp(respRaw); err != nil {
 		return err
 	}
-	if init.Subscribed != "" ||
-		init.UnSubscribed != "" ||
-		init.Op == "sub" ||
-		init.Op == "unsub" {
-		// TODO handle subs
-		return nil
-	}
-	if init.Ping != 0 {
-		h.sendPingResponse(init.Ping)
-		return nil
-	}
+	/* DO NOT COMMIT
+	if msg.ErrorMessage == "api-signature-not-valid" {
+		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
+		return errors.New(h.Name + " - invalid credentials. Authenticated requests disabled") }
+	codes, _ := msg.ErrorCode.(string)
+	return errors.New(h.Name + " Code:" + codes + " Message:" + msg.ErrorMessage)
+	*/
 
-	if init.Op == "ping" {
-		authPing := authenticationPing{
-			OP: "pong",
-			TS: init.TS,
+	if idErr == nil {
+		if s := h.Websocket.GetSubscription(id); s != nil {
+			return h.wsHandleSubMsgs(s, respRaw)
 		}
-		err := h.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, authPing)
-		if err != nil {
-			log.Errorln(log.ExchangeSys, err)
-		}
-		return nil
 	}
 
-	if init.ErrorMessage != "" {
-		if init.ErrorMessage == "api-signature-not-valid" {
-			h.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			return errors.New(h.Name +
-				" - invalid credentials. Authenticated requests disabled")
-		}
-
-		codes, _ := init.ErrorCode.(string)
-		return errors.New(h.Name + " Code:" + codes + " Message:" + init.ErrorMessage)
-	}
-
-	if init.ClientID > 0 {
-		if h.Websocket.Match.IncomingWithData(init.ClientID, respRaw) {
-			return nil
-		}
+	if action, err := jsonparser.GetString(respRaw, "action"); err == nil {
+		return h.wsHandleActionMsgs(action, respRaw)
 	}
 
 	switch {
-	case strings.EqualFold(init.Op, authOp):
-		h.Websocket.SetCanUseAuthenticatedEndpoints(true)
-		// Auth captured
+	/*
+			case strings.EqualFold(msg.Op, authOp):
+				h.Websocket.SetCanUseAuthenticatedEndpoints(true)
+				// Auth captured
+				return nil
+		case strings.EqualFold(msg.Topic, "accounts"):
+			var response WsAuthenticatedAccountsResponse
+			err := json.Unmarshal(respRaw, &response)
+			if err != nil {
+				return err
+			}
+			h.Websocket.DataHandler <- response
+
+		case strings.Contains(msg.Topic, "orders") &&
+			strings.Contains(msg.Topic, "update"):
+			var response WsAuthenticatedOrdersUpdateResponse
+			err := json.Unmarshal(respRaw, &response)
+			if err != nil {
+				return err
+			}
+			data := strings.Split(response.Topic, ".")
+			if len(data) < 2 {
+				return errors.New(h.Name +
+					" - currency could not be extracted from response")
+			}
+			orderID := strconv.FormatInt(response.Data.OrderID, 10)
+			var oSide order.Side
+			oSide, err = stringToOrderSide(response.Data.OrderType)
+			if err != nil {
+				h.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: h.Name,
+					OrderID:  orderID,
+					Err:      err,
+				}
+			}
+			var oType order.Type
+			oType, err = stringToOrderType(response.Data.OrderType)
+			if err != nil {
+				h.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: h.Name,
+					OrderID:  orderID,
+					Err:      err,
+				}
+			}
+			var oStatus order.Status
+			oStatus, err = stringToOrderStatus(response.Data.OrderState)
+			if err != nil {
+				h.Websocket.DataHandler <- order.ClassificationError{
+					Exchange: h.Name,
+					OrderID:  orderID,
+					Err:      err,
+				}
+			}
+			var p currency.Pair
+			var a asset.Item
+			p, a, err = h.GetRequestFormattedPairAndAssetType(data[1])
+			if err != nil {
+				return err
+			}
+			h.Websocket.DataHandler <- &order.Detail{
+				Price:           response.Data.Price,
+				Amount:          response.Data.UnfilledAmount + response.Data.FilledAmount,
+				ExecutedAmount:  response.Data.FilledAmount,
+				RemainingAmount: response.Data.UnfilledAmount,
+				Exchange:        h.Name,
+				OrderID:         orderID,
+				Type:            oType,
+				Side:            oSide,
+				Status:          oStatus,
+				AssetType:       a,
+				LastUpdated:     time.Unix(response.Timestamp*1000, 0),
+				Pair:            p,
+			}
+
+		case strings.Contains(msg.Topic, "orders"):
+			var response WsOldOrderUpdate
+			err := json.Unmarshal(respRaw, &response)
+			if err != nil {
+				return err
+			}
+			h.Websocket.DataHandler <- response
+	*/
+	default:
+		h.Websocket.DataHandler <- stream.UnhandledMessageWarning{
+			Message: h.Name + stream.UnhandledMessage + string(respRaw),
+		}
 		return nil
-	case strings.EqualFold(init.Topic, "accounts"):
-		var response WsAuthenticatedAccountsResponse
-		err := json.Unmarshal(respRaw, &response)
-		if err != nil {
-			return err
-		}
-		h.Websocket.DataHandler <- response
+	}
+	return nil
+}
 
-	case strings.Contains(init.Topic, "orders") &&
-		strings.Contains(init.Topic, "update"):
-		var response WsAuthenticatedOrdersUpdateResponse
-		err := json.Unmarshal(respRaw, &response)
-		if err != nil {
-			return err
-		}
-		data := strings.Split(response.Topic, ".")
-		if len(data) < 2 {
-			return errors.New(h.Name +
-				" - currency could not be extracted from response")
-		}
-		orderID := strconv.FormatInt(response.Data.OrderID, 10)
-		var oSide order.Side
-		oSide, err = stringToOrderSide(response.Data.OrderType)
-		if err != nil {
-			h.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: h.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
-		}
-		var oType order.Type
-		oType, err = stringToOrderType(response.Data.OrderType)
-		if err != nil {
-			h.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: h.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
-		}
-		var oStatus order.Status
-		oStatus, err = stringToOrderStatus(response.Data.OrderState)
-		if err != nil {
-			h.Websocket.DataHandler <- order.ClassificationError{
-				Exchange: h.Name,
-				OrderID:  orderID,
-				Err:      err,
-			}
-		}
-		var p currency.Pair
-		var a asset.Item
-		p, a, err = h.GetRequestFormattedPairAndAssetType(data[1])
-		if err != nil {
-			return err
-		}
-		h.Websocket.DataHandler <- &order.Detail{
-			Price:           response.Data.Price,
-			Amount:          response.Data.UnfilledAmount + response.Data.FilledAmount,
-			ExecutedAmount:  response.Data.FilledAmount,
-			RemainingAmount: response.Data.UnfilledAmount,
-			Exchange:        h.Name,
-			OrderID:         orderID,
-			Type:            oType,
-			Side:            oSide,
-			Status:          oStatus,
-			AssetType:       a,
-			LastUpdated:     time.Unix(response.TS*1000, 0),
-			Pair:            p,
-		}
+func (h *HUOBI) wsHandleSubscribed(id int64, respRaw []byte) error {
+	s := h.Websocket.GetSubscription(id)
+	if s == nil {
+		return fmt.Errorf("%w: %w: %v", stream.ErrSubscriptionFailure, subscription.ErrNotFound, id)
+	}
 
-	case strings.Contains(init.Topic, "orders"):
-		var response WsOldOrderUpdate
-		err := json.Unmarshal(respRaw, &response)
-		if err != nil {
-			return err
-		}
-		h.Websocket.DataHandler <- response
-	case strings.Contains(init.Channel, "depth"):
-		var depth WsDepth
-		err := json.Unmarshal(respRaw, &depth)
-		if err != nil {
-			return err
-		}
+	s.SetState(subscription.SubscribedState)
 
-		data := strings.Split(depth.Channel, ".")
-		err = h.WsProcessOrderbook(&depth, data[1])
+	if !h.Websocket.Match.IncomingWithData(id, respRaw) {
+		return fmt.Errorf("%w: %v for %s", stream.ErrNoMessageListener, id, s)
+	}
+
+	return nil
+}
+
+func (h *HUOBI) wsHandleActionMsgs(action string, respRaw []byte) error {
+	switch action {
+	case "ping":
+		ts, err := jsonparser.GetInt(respRaw, "data", "ts")
 		if err != nil {
-			return err
+			return fmt.Errorf("error getting ts from auth ping: %w", err)
 		}
-	case strings.Contains(init.Channel, "kline"):
+		if err := h.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, `{"action":"pong","data":{"ts":`+strconv.Itoa(int(ts))+`}}`); err != nil {
+			return fmt.Errorf("error sending auth pong response: %w", err)
+		}
+	}
+	return nil
+}
+
+func (h *HUOBI) wsHandleSubMsgs(s *subscription.Subscription, respRaw []byte) error {
+	switch s.Channel {
+	case subscription.OrderbookChannel:
+		return h.wsHandleOrderbookMsg(s, respRaw)
+	}
+	return nil
+}
+
+func (h *HUOBI) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []byte) error {
+	var depth WsDepth
+	if err := json.Unmarshal(respRaw, &depth); err != nil {
+		return err
+	}
+
+	parts := strings.Split(depth.Channel, ".")
+	if len(parts) != 4 {
+		return fmt.Errorf("%w: %s", errInvalidChannel, depth.Channel)
+	}
+	return h.WsProcessOrderbook(&depth, parts[1])
+}
+
+/*
+func wsHandleOrderbookMsg(respRaw []byte) error {
+	case strings.Contains(msg.Channel, "kline"):
 		var kline WsKline
 		err := json.Unmarshal(respRaw, &kline)
 		if err != nil {
@@ -304,7 +347,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			Volume:     kline.Tick.Volume,
 			Interval:   data[3],
 		}
-	case strings.Contains(init.Channel, "trade.detail"):
+	case strings.Contains(msg.Channel, "trade.detail"):
 		if !h.IsSaveTradeDataEnabled() {
 			return nil
 		}
@@ -338,8 +381,8 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			})
 		}
 		return trade.AddTradesToBuffer(h.Name, trades...)
-	case strings.Contains(init.Channel, "detail"),
-		strings.Contains(init.Rep, "detail"):
+	case strings.Contains(msg.Channel, "detail"),
+		strings.Contains(msg.Rep, "detail"):
 		var wsTicker WsTick
 		err := json.Unmarshal(respRaw, &wsTicker)
 		if err != nil {
@@ -372,14 +415,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			AssetType:    a,
 			Pair:         p,
 		}
-	default:
-		h.Websocket.DataHandler <- stream.UnhandledMessageWarning{
-			Message: h.Name + stream.UnhandledMessage + string(respRaw),
-		}
-		return nil
-	}
-	return nil
-}
+*/
 
 func stringToOrderStatus(status string) (order.Status, error) {
 	switch status {
@@ -419,13 +455,6 @@ func stringToOrderType(oType string) (order.Type, error) {
 
 	return order.UnknownType,
 		errors.New(oType + " not recognised as order type")
-}
-
-func (h *HUOBI) sendPingResponse(pong int64) {
-	err := h.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, WsPong{Pong: pong})
-	if err != nil {
-		log.Errorln(log.ExchangeSys, err)
-	}
 }
 
 // WsProcessOrderbook processes new orderbook data
@@ -509,9 +538,7 @@ func (h *HUOBI) Subscribe(subs subscription.List) error {
 	subs, errs := subs.ExpandTemplates(h)
 	// TODO: Private subs
 	if s := subs.Public(); len(s) > 0 {
-		errs = common.AppendError(errs,
-			h.ParallelChanOp(s, func(l subscription.List) error { return h.manageSubs(wsSubOp, h.Websocket.Conn, l) }, 1),
-		)
+		errs = common.AppendError(errs, h.ParallelChanOp(s, func(l subscription.List) error { return h.manageSubs(wsSubOp, h.Websocket.Conn, l) }, 1))
 	}
 	return errs
 }
@@ -521,9 +548,7 @@ func (h *HUOBI) Unsubscribe(subs subscription.List) error {
 	subs, errs := subs.ExpandTemplates(h)
 	// TODO: Private subs
 	if s := subs.Public(); len(s) > 0 {
-		errs = common.AppendError(errs,
-			h.ParallelChanOp(s, func(l subscription.List) error { return h.manageSubs(wsUnsubOp, h.Websocket.Conn, l) }, 1),
-		)
+		errs = common.AppendError(errs, h.ParallelChanOp(s, func(l subscription.List) error { return h.manageSubs(wsUnsubOp, h.Websocket.Conn, l) }, 1))
 	}
 	return errs
 }
@@ -532,21 +557,29 @@ func (h *HUOBI) manageSubs(op wsOpType, conn stream.Connection, subs subscriptio
 	if len(subs) != 1 {
 		return subscription.ErrBatchingNotSupported
 	}
+	// TODO: enforce standard names
 	s := subs[0]
 	ctx := context.Background()
-	req := WsRequest{
+	req := wsSubReq{
 		Id: conn.GenerateMessageID(false),
 	}
 	if op == wsSubOp {
 		req.Sub = s.QualifiedChannel
+		s.SetKey(req.Id)
+		if err := h.Websocket.AddSubscriptions(conn, s); err != nil {
+			return fmt.Errorf("%s: %w; error: %w", stream.ErrSubscriptionFailure, s, err)
+		}
 	} else {
 		req.Unsub = s.QualifiedChannel
 	}
-	err := conn.SendJSONMessage(ctx, request.Unset, req)
-	if err == nil {
-		err = h.Websocket.AddSuccessfulSubscriptions(conn, s)
+	respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.Id, req)
+	if err != nil {
+		return fmt.Errorf("%s: %w", s, err)
 	}
-	return err
+
+	// TODO: Unsubscribe response handling and RemoveSubscription
+
+	return getErrResp(respRaw)
 }
 
 func (h *HUOBI) wsGenerateSignature(creds *account.Credentials, timestamp, endpoint string) ([]byte, error) {
@@ -635,8 +668,10 @@ func (h *HUOBI) wsGetAccountsList(ctx context.Context) (*WsAuthenticatedAccounts
 		return nil, err
 	}
 	req.Signature = crypto.Base64Encode(hmac)
-	req.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
-	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ClientID, req)
+
+	// DO NOT COMMIT
+	//req.Id = h.Websocket.AuthConn.GenerateMessageID(true)
+	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, 0, req)
 	if err != nil {
 		return nil, err
 	}
@@ -686,9 +721,10 @@ func (h *HUOBI) wsGetOrdersList(ctx context.Context, accountID int64, pair curre
 		return nil, err
 	}
 	req.Signature = crypto.Base64Encode(hmac)
-	req.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
+	// DO NOT COMMIT
+	//req.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
 
-	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ClientID, req)
+	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, 0, req)
 	if err != nil {
 		return nil, err
 	}
@@ -729,8 +765,9 @@ func (h *HUOBI) wsGetOrderDetails(ctx context.Context, orderID string) (*WsAuthe
 		return nil, err
 	}
 	req.Signature = crypto.Base64Encode(hmac)
-	req.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
-	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, req.ClientID, req)
+	// DO NOT COMMIT
+	//req.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
+	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, 0, req)
 	if err != nil {
 		return nil, err
 	}
@@ -745,6 +782,22 @@ func (h *HUOBI) wsGetOrderDetails(ctx context.Context, orderID string) (*WsAuthe
 		return nil, errors.New(response.ErrorMessage)
 	}
 	return &response, nil
+}
+
+func getErrResp(respRaw []byte) error {
+	if errMsg, err2 := jsonparser.GetString(respRaw, "error-message"); err2 == nil {
+		err := errors.New(errMsg)
+		if codeStr, err3 := jsonparser.GetString(respRaw, "error-code"); err3 == nil {
+			err = fmt.Errorf("%w (%v)", err, codeStr)
+		} else if codeInt, err4 := jsonparser.GetInt(respRaw, "error-code"); err4 == nil {
+			err = fmt.Errorf("%w (%v)", err, codeInt)
+		}
+		return err
+	}
+	if status, err := jsonparser.GetString(respRaw, "status"); err == nil && status != "ok" {
+		return fmt.Errorf("unknown error for status `%s`", status)
+	}
+	return nil
 }
 
 // channelName converts global channel Names used in config of channel input into bitmex channel names
