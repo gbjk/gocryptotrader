@@ -25,6 +25,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 const (
@@ -143,11 +145,10 @@ func (h *HUOBI) wsReadMsgs(ch chan []byte) {
 	}
 }
 func (h *HUOBI) wsHandleData(respRaw []byte) error {
-	id, idErr := jsonparser.GetInt(respRaw, "id")
-
-	if _, err := jsonparser.GetString(respRaw, "subbed"); err == nil {
-		// Process successful subs inline to avoid context switching going down IncomingData channel
-		return h.wsHandleSubscribed(id, respRaw)
+	if id, err := jsonparser.GetInt(respRaw, "id"); err == nil {
+		if h.Websocket.Match.IncomingWithData(id, respRaw) {
+			return nil
+		}
 	}
 
 	if ping, err := jsonparser.GetInt(respRaw, "ping"); err == nil {
@@ -168,10 +169,12 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 	return errors.New(h.Name + " Code:" + codes + " Message:" + msg.ErrorMessage)
 	*/
 
-	if idErr == nil {
-		if s := h.Websocket.GetSubscription(id); s != nil {
-			return h.wsHandleSubMsgs(s, respRaw)
+	if ch, err := jsonparser.GetString(respRaw, "ch"); err == nil {
+		s := h.Websocket.GetSubscription(ch)
+		if s == nil {
+			panic(42)
 		}
+		return h.wsHandleChannelMsgs(s, respRaw)
 	}
 
 	if action, err := jsonparser.GetString(respRaw, "action"); err == nil {
@@ -270,21 +273,6 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 	return nil
 }
 
-func (h *HUOBI) wsHandleSubscribed(id int64, respRaw []byte) error {
-	s := h.Websocket.GetSubscription(id)
-	if s == nil {
-		return fmt.Errorf("%w: %w: %v", stream.ErrSubscriptionFailure, subscription.ErrNotFound, id)
-	}
-
-	s.SetState(subscription.SubscribedState)
-
-	if !h.Websocket.Match.IncomingWithData(id, respRaw) {
-		return fmt.Errorf("%w: %v for %s", stream.ErrNoMessageListener, id, s)
-	}
-
-	return nil
-}
-
 func (h *HUOBI) wsHandleActionMsgs(action string, respRaw []byte) error {
 	switch action {
 	case "ping":
@@ -299,88 +287,70 @@ func (h *HUOBI) wsHandleActionMsgs(action string, respRaw []byte) error {
 	return nil
 }
 
-func (h *HUOBI) wsHandleSubMsgs(s *subscription.Subscription, respRaw []byte) error {
+func (h *HUOBI) wsHandleChannelMsgs(s *subscription.Subscription, respRaw []byte) error {
+	if len(s.Pairs) != 0 {
+		return subscription.ErrNotSinglePair
+	}
 	switch s.Channel {
 	case subscription.OrderbookChannel:
 		return h.wsHandleOrderbookMsg(s, respRaw)
+	case subscription.CandlesChannel:
+		return h.wsHandleCandleMsg(s, respRaw)
+	case subscription.AllTradesChannel:
+		return h.wsHandleAllTradesMsg(s, respRaw)
 	}
 	return nil
 }
 
-func (h *HUOBI) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []byte) error {
-	var depth WsDepth
-	if err := json.Unmarshal(respRaw, &depth); err != nil {
+func (h *HUOBI) wsHandleCandleMsg(s *subscription.Subscription, respRaw []byte) error {
+	var kline WsKline
+	if err := json.Unmarshal(respRaw, &kline); err != nil {
 		return err
 	}
-
-	parts := strings.Split(depth.Channel, ".")
-	if len(parts) != 4 {
-		return fmt.Errorf("%w: %s", errInvalidChannel, depth.Channel)
+	h.Websocket.DataHandler <- stream.KlineData{
+		Timestamp:  time.UnixMilli(kline.Timestamp),
+		Exchange:   h.Name,
+		AssetType:  s.Asset,
+		Pair:       s.Pairs[0],
+		OpenPrice:  kline.Tick.Open,
+		ClosePrice: kline.Tick.Close,
+		HighPrice:  kline.Tick.High,
+		LowPrice:   kline.Tick.Low,
+		Volume:     kline.Tick.Volume,
+		Interval:   s.Interval.String(),
 	}
-	return h.WsProcessOrderbook(&depth, parts[1])
+	return nil
+}
+
+func (h *HUOBI) wsHandleAllTradesMsg(s *subscription.Subscription, respRaw []byte) error {
+	if !h.IsSaveTradeDataEnabled() {
+		return nil
+	}
+	var t WsTrade
+	if err := json.Unmarshal(respRaw, &t); err != nil {
+		return err
+	}
+	var trades []trade.Data
+	for i := range t.Tick.Data {
+		side := order.Buy
+		if t.Tick.Data[i].Direction != "buy" {
+			side = order.Sell
+		}
+		trades = append(trades, trade.Data{
+			Exchange:     h.Name,
+			AssetType:    s.Asset,
+			CurrencyPair: s.Pairs[0],
+			Timestamp:    time.UnixMilli(t.Tick.Data[i].Timestamp),
+			Amount:       t.Tick.Data[i].Amount,
+			Price:        t.Tick.Data[i].Price,
+			Side:         side,
+			TID:          strconv.FormatFloat(t.Tick.Data[i].TradeID, 'f', -1, 64),
+		})
+	}
+	return trade.AddTradesToBuffer(h.Name, trades...)
 }
 
 /*
-func wsHandleOrderbookMsg(respRaw []byte) error {
-	case strings.Contains(msg.Channel, "kline"):
-		var kline WsKline
-		err := json.Unmarshal(respRaw, &kline)
-		if err != nil {
-			return err
-		}
-		data := strings.Split(kline.Channel, ".")
-		var p currency.Pair
-		var a asset.Item
-		p, a, err = h.GetRequestFormattedPairAndAssetType(data[1])
-		if err != nil {
-			return err
-		}
-		h.Websocket.DataHandler <- stream.KlineData{
-			Timestamp:  time.UnixMilli(kline.Timestamp),
-			Exchange:   h.Name,
-			AssetType:  a,
-			Pair:       p,
-			OpenPrice:  kline.Tick.Open,
-			ClosePrice: kline.Tick.Close,
-			HighPrice:  kline.Tick.High,
-			LowPrice:   kline.Tick.Low,
-			Volume:     kline.Tick.Volume,
-			Interval:   data[3],
-		}
-	case strings.Contains(msg.Channel, "trade.detail"):
-		if !h.IsSaveTradeDataEnabled() {
-			return nil
-		}
-		var t WsTrade
-		err := json.Unmarshal(respRaw, &t)
-		if err != nil {
-			return err
-		}
-		data := strings.Split(t.Channel, ".")
-		var p currency.Pair
-		var a asset.Item
-		p, a, err = h.GetRequestFormattedPairAndAssetType(data[1])
-		if err != nil {
-			return err
-		}
-		var trades []trade.Data
-		for i := range t.Tick.Data {
-			side := order.Buy
-			if t.Tick.Data[i].Direction != "buy" {
-				side = order.Sell
-			}
-			trades = append(trades, trade.Data{
-				Exchange:     h.Name,
-				AssetType:    a,
-				CurrencyPair: p,
-				Timestamp:    time.UnixMilli(t.Tick.Data[i].Timestamp),
-				Amount:       t.Tick.Data[i].Amount,
-				Price:        t.Tick.Data[i].Price,
-				Side:         side,
-				TID:          strconv.FormatFloat(t.Tick.Data[i].TradeID, 'f', -1, 64),
-			})
-		}
-		return trade.AddTradesToBuffer(h.Name, trades...)
 	case strings.Contains(msg.Channel, "detail"),
 		strings.Contains(msg.Rep, "detail"):
 		var wsTicker WsTick
@@ -417,65 +387,11 @@ func wsHandleOrderbookMsg(respRaw []byte) error {
 		}
 */
 
-func stringToOrderStatus(status string) (order.Status, error) {
-	switch status {
-	case "submitted":
-		return order.New, nil
-	case "canceled":
-		return order.Cancelled, nil
-	case "partial-filled":
-		return order.PartiallyFilled, nil
-	case "partial-canceled":
-		return order.PartiallyCancelled, nil
-	default:
-		return order.UnknownStatus,
-			errors.New(status + " not recognised as order status")
-	}
-}
-
-func stringToOrderSide(side string) (order.Side, error) {
-	switch {
-	case strings.Contains(side, "buy"):
-		return order.Buy, nil
-	case strings.Contains(side, "sell"):
-		return order.Sell, nil
-	}
-
-	return order.UnknownSide,
-		errors.New(side + " not recognised as order side")
-}
-
-func stringToOrderType(oType string) (order.Type, error) {
-	switch {
-	case strings.Contains(oType, "limit"):
-		return order.Limit, nil
-	case strings.Contains(oType, "market"):
-		return order.Market, nil
-	}
-
-	return order.UnknownType,
-		errors.New(oType + " not recognised as order type")
-}
-
-// WsProcessOrderbook processes new orderbook data
-func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
-	pairs, err := h.GetEnabledPairs(asset.Spot)
-	if err != nil {
+func (h *HUOBI) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []byte) error {
+	var update WsDepth
+	if err := json.Unmarshal(respRaw, &update); err != nil {
 		return err
 	}
-
-	format, err := h.GetPairFormat(asset.Spot, true)
-	if err != nil {
-		return err
-	}
-
-	p, err := currency.NewPairFromFormattedPairs(symbol,
-		pairs,
-		format)
-	if err != nil {
-		return err
-	}
-
 	bids := make(orderbook.Tranches, len(update.Tick.Bids))
 	for i := range update.Tick.Bids {
 		price, ok := update.Tick.Bids[i][0].(float64)
@@ -511,7 +427,7 @@ func (h *HUOBI) WsProcessOrderbook(update *WsDepth, symbol string) error {
 	var newOrderBook orderbook.Base
 	newOrderBook.Asks = asks
 	newOrderBook.Bids = bids
-	newOrderBook.Pair = p
+	newOrderBook.Pair = s.Pairs[0]
 	newOrderBook.Asset = asset.Spot
 	newOrderBook.Exchange = h.Name
 	newOrderBook.VerifyOrderbook = h.CanVerifyOrderbook
@@ -565,7 +481,7 @@ func (h *HUOBI) manageSubs(op wsOpType, conn stream.Connection, subs subscriptio
 	}
 	if op == wsSubOp {
 		req.Sub = s.QualifiedChannel
-		s.SetKey(req.Id)
+		s.SetKey(s.QualifiedChannel)
 		if err := h.Websocket.AddSubscriptions(conn, s); err != nil {
 			return fmt.Errorf("%s: %w; error: %w", stream.ErrSubscriptionFailure, s, err)
 		}
@@ -573,13 +489,22 @@ func (h *HUOBI) manageSubs(op wsOpType, conn stream.Connection, subs subscriptio
 		req.Unsub = s.QualifiedChannel
 	}
 	respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.Id, req)
+	if err == nil {
+		err = getErrResp(respRaw)
+	}
 	if err != nil {
+		h.Websocket.RemoveSubscriptions(conn, s)
+		s.SetState(subscription.InactiveState)
 		return fmt.Errorf("%s: %w", s, err)
 	}
 
-	// TODO: Unsubscribe response handling and RemoveSubscription
+	s.SetState(subscription.SubscribedState)
 
-	return getErrResp(respRaw)
+	if h.Verbose {
+		log.Debugf(log.ExchangeSys, "%s Subscribed to %s", h.Name, s)
+	}
+
+	return nil
 }
 
 func (h *HUOBI) wsGenerateSignature(creds *account.Credentials, timestamp, endpoint string) ([]byte, error) {
@@ -782,6 +707,46 @@ func (h *HUOBI) wsGetOrderDetails(ctx context.Context, orderID string) (*WsAuthe
 		return nil, errors.New(response.ErrorMessage)
 	}
 	return &response, nil
+}
+
+func stringToOrderStatus(status string) (order.Status, error) {
+	switch status {
+	case "submitted":
+		return order.New, nil
+	case "canceled":
+		return order.Cancelled, nil
+	case "partial-filled":
+		return order.PartiallyFilled, nil
+	case "partial-canceled":
+		return order.PartiallyCancelled, nil
+	default:
+		return order.UnknownStatus,
+			errors.New(status + " not recognised as order status")
+	}
+}
+
+func stringToOrderSide(side string) (order.Side, error) {
+	switch {
+	case strings.Contains(side, "buy"):
+		return order.Buy, nil
+	case strings.Contains(side, "sell"):
+		return order.Sell, nil
+	}
+
+	return order.UnknownSide,
+		errors.New(side + " not recognised as order side")
+}
+
+func stringToOrderType(oType string) (order.Type, error) {
+	switch {
+	case strings.Contains(oType, "limit"):
+		return order.Limit, nil
+	case strings.Contains(oType, "market"):
+		return order.Market, nil
+	}
+
+	return order.UnknownType,
+		errors.New(oType + " not recognised as order type")
 }
 
 func getErrResp(respRaw []byte) error {
