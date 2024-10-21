@@ -2945,7 +2945,7 @@ func TestSubscribe(t *testing.T) {
 
 // TestAuthSubscribe exercises mock subscriptions for private channels
 func TestAuthSubscribe(t *testing.T) {
-	// TODO: currently using upstream
+	// TODO: currently using live - need to implement mock
 	t.Parallel()
 	h := new(HUOBI)
 	require.NoError(t, testexch.Setup(h), "Test instance Setup must not error")
@@ -2961,4 +2961,8 @@ func TestAuthSubscribe(t *testing.T) {
 	for _, s := range got {
 		assert.Equal(t, subscription.SubscribedState, s.State())
 	}
+}
+
+func TestStandardChannelNames(t *testing.T) {
+	t.Error("Not implemented")
 }
