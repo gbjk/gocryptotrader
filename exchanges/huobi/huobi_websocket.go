@@ -107,7 +107,7 @@ func (h *HUOBI) WsConnect() error {
 		if err := h.Websocket.AuthConn.Dial(dialer, http.Header{}); err != nil {
 			return fmt.Errorf("authenticated dial failed: %w", err)
 		}
-		if err := h.wsLogin(context.TODO()); err != nil {
+		if err := h.wsLogin(context.Background()); err != nil {
 			return fmt.Errorf("authentication failed: %w", err)
 		}
 		h.Websocket.SetCanUseAuthenticatedEndpoints(true)
@@ -152,7 +152,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 	}
 
 	if ping, err := jsonparser.GetInt(respRaw, "ping"); err == nil {
-		if err := h.Websocket.Conn.SendJSONMessage(context.TODO(), request.Unset, `{"pong":`+strconv.Itoa(int(ping))+`}`); err != nil {
+		if err := h.Websocket.Conn.SendJSONMessage(context.Background(), request.Unset, json.RawMessage(`{"pong":`+strconv.Itoa(int(ping))+`}`)); err != nil {
 			return fmt.Errorf("error sending pong response: %w", err)
 		}
 		return nil
@@ -280,7 +280,7 @@ func (h *HUOBI) wsHandleActionMsgs(action string, respRaw []byte) error {
 		if err != nil {
 			return fmt.Errorf("error getting ts from auth ping: %w", err)
 		}
-		if err := h.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, `{"action":"pong","data":{"ts":`+strconv.Itoa(int(ts))+`}}`); err != nil {
+		if err := h.Websocket.AuthConn.SendJSONMessage(context.Background(), request.Unset, `{"action":"pong","data":{"ts":`+strconv.Itoa(int(ts))+`}}`); err != nil {
 			return fmt.Errorf("error sending auth pong response: %w", err)
 		}
 	}
@@ -437,9 +437,11 @@ func (h *HUOBI) GetSubscriptionTemplate(_ *subscription.Subscription) (*template
 // Subscribe sends a websocket message to receive data from the channel
 func (h *HUOBI) Subscribe(subs subscription.List) error {
 	subs, errs := subs.ExpandTemplates(h)
-	// TODO: Private subs
 	if s := subs.Public(); len(s) > 0 {
 		errs = common.AppendError(errs, h.ParallelChanOp(s, func(l subscription.List) error { return h.manageSubs(wsSubOp, h.Websocket.Conn, l) }, 1))
+	}
+	if s := subs.Private(); len(s) > 0 {
+		errs = common.AppendError(errs, h.ParallelChanOp(s, func(l subscription.List) error { return h.manageSubs(wsSubOp, h.Websocket.AuthConn, l) }, 1))
 	}
 	return errs
 }
@@ -458,7 +460,6 @@ func (h *HUOBI) manageSubs(op wsOpType, conn stream.Connection, subs subscriptio
 	if len(subs) != 1 {
 		return subscription.ErrBatchingNotSupported
 	}
-	// TODO: enforce standard names
 	s := subs[0]
 	ctx := context.Background()
 	req := wsSubReq{
@@ -527,7 +528,7 @@ func (h *HUOBI) wsLogin(ctx context.Context) error {
 		return err
 	}
 	req.Signature = crypto.Base64Encode(hmac)
-	err = h.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, req)
+	err = h.Websocket.AuthConn.SendJSONMessage(context.Background(), request.Unset, req)
 	if err != nil {
 		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
@@ -552,7 +553,7 @@ func (h *HUOBI) wsAuthenticatedSubscribe(creds *account.Credentials, operation, 
 		return err
 	}
 	req.Signature = crypto.Base64Encode(hmac)
-	return h.Websocket.AuthConn.SendJSONMessage(context.TODO(), request.Unset, req)
+	return h.Websocket.AuthConn.SendJSONMessage(context.Background(), request.Unset, req)
 }
 
 func (h *HUOBI) wsGetAccountsList(ctx context.Context) (*WsAuthenticatedAccountsListResponse, error) {
@@ -581,7 +582,7 @@ func (h *HUOBI) wsGetAccountsList(ctx context.Context) (*WsAuthenticatedAccounts
 
 	// DO NOT COMMIT
 	//req.Id = h.Websocket.AuthConn.GenerateMessageID(true)
-	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, 0, req)
+	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.Unset, 0, req)
 	if err != nil {
 		return nil, err
 	}
@@ -634,7 +635,7 @@ func (h *HUOBI) wsGetOrdersList(ctx context.Context, accountID int64, pair curre
 	// DO NOT COMMIT
 	//req.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
 
-	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, 0, req)
+	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.Unset, 0, req)
 	if err != nil {
 		return nil, err
 	}
@@ -677,7 +678,7 @@ func (h *HUOBI) wsGetOrderDetails(ctx context.Context, orderID string) (*WsAuthe
 	req.Signature = crypto.Base64Encode(hmac)
 	// DO NOT COMMIT
 	//req.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
-	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(context.TODO(), request.Unset, 0, req)
+	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.Unset, 0, req)
 	if err != nil {
 		return nil, err
 	}
@@ -755,9 +756,9 @@ func getErrResp(respRaw []byte) error {
 func channelName(s *subscription.Subscription, p currency.Pair) string {
 	name := s.Channel
 	if n, ok := subscriptionNames[name]; ok {
-		name = n
+		return fmt.Sprintf(n, p)
 	}
-	return fmt.Sprintf(name, p)
+	panic(subscription.ErrPrivateChannelName)
 }
 
 const subTplText = `
