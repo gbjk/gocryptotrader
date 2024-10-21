@@ -2924,14 +2924,41 @@ func TestGenerateSubscriptions(t *testing.T) {
 	testsubs.EqualLists(t, exp, subs)
 }
 
+// TestSubscribe exercises live subscriptions for public channels
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
 	h := new(HUOBI)
 	require.NoError(t, testexch.Setup(h), "Test instance Setup must not error")
+	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	subs, err := h.Features.Subscriptions.ExpandTemplates(h)
 	require.NoError(t, err, "ExpandTemplates must not error")
 	h.Features.Subscriptions = subscription.List{}
 	testexch.SetupWs(t, h)
 	err = h.Subscribe(subs)
 	require.NoError(t, err, "Subscribe must not error")
+	got := h.Websocket.GetSubscriptions()
+	require.Len(t, got, len(subs))
+	for _, s := range got {
+		assert.Equal(t, subscription.SubscribedState, s.State())
+	}
+}
+
+// TestAuthSubscribe exercises mock subscriptions for private channels
+func TestAuthSubscribe(t *testing.T) {
+	// TODO: currently using upstream
+	t.Parallel()
+	h := new(HUOBI)
+	require.NoError(t, testexch.Setup(h), "Test instance Setup must not error")
+	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	subs, err := h.Features.Subscriptions.ExpandTemplates(h)
+	require.NoError(t, err, "ExpandTemplates must not error")
+	h.Features.Subscriptions = subscription.List{}
+	testexch.SetupWs(t, h)
+	err = h.Subscribe(subs)
+	require.NoError(t, err, "Subscribe must not error")
+	got := h.Websocket.GetSubscriptions()
+	require.Len(t, got, len(subs))
+	for _, s := range got {
+		assert.Equal(t, subscription.SubscribedState, s.State())
+	}
 }
