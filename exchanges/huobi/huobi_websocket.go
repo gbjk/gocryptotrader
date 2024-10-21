@@ -25,6 +25,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -68,7 +69,6 @@ const (
 )
 
 var defaultSubscriptions = subscription.List{
-	{Enabled: true, Asset: asset.Spot, Channel: "wibble"},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
 	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Levels: 0}, // Aggregation Levels; 0 is no depth aggregation
@@ -288,10 +288,12 @@ func (h *HUOBI) wsHandleActionMsgs(action string, respRaw []byte) error {
 }
 
 func (h *HUOBI) wsHandleChannelMsgs(s *subscription.Subscription, respRaw []byte) error {
-	if len(s.Pairs) != 0 {
+	if len(s.Pairs) != 1 {
 		return subscription.ErrNotSinglePair
 	}
 	switch s.Channel {
+	case subscription.TickerChannel:
+		return h.wsHandleTickerMsg(s, respRaw)
 	case subscription.OrderbookChannel:
 		return h.wsHandleOrderbookMsg(s, respRaw)
 	case subscription.CandlesChannel:
@@ -350,42 +352,25 @@ func (h *HUOBI) wsHandleAllTradesMsg(s *subscription.Subscription, respRaw []byt
 	return trade.AddTradesToBuffer(h.Name, trades...)
 }
 
-/*
-	case strings.Contains(msg.Channel, "detail"),
-		strings.Contains(msg.Rep, "detail"):
-		var wsTicker WsTick
-		err := json.Unmarshal(respRaw, &wsTicker)
-		if err != nil {
-			return err
-		}
-		var data []string
-		if wsTicker.Channel != "" {
-			data = strings.Split(wsTicker.Channel, ".")
-		}
-		if wsTicker.Rep != "" {
-			data = strings.Split(wsTicker.Rep, ".")
-		}
-
-		var p currency.Pair
-		var a asset.Item
-		p, a, err = h.GetRequestFormattedPairAndAssetType(data[1])
-		if err != nil {
-			return err
-		}
-
-		h.Websocket.DataHandler <- &ticker.Price{
-			ExchangeName: h.Name,
-			Open:         wsTicker.Tick.Open,
-			Close:        wsTicker.Tick.Close,
-			Volume:       wsTicker.Tick.Amount,
-			QuoteVolume:  wsTicker.Tick.Volume,
-			High:         wsTicker.Tick.High,
-			Low:          wsTicker.Tick.Low,
-			LastUpdated:  time.UnixMilli(wsTicker.Timestamp),
-			AssetType:    a,
-			Pair:         p,
-		}
-*/
+func (h *HUOBI) wsHandleTickerMsg(s *subscription.Subscription, respRaw []byte) error {
+	var wsTicker WsTick
+	if err := json.Unmarshal(respRaw, &wsTicker); err != nil {
+		return err
+	}
+	h.Websocket.DataHandler <- &ticker.Price{
+		ExchangeName: h.Name,
+		Open:         wsTicker.Tick.Open,
+		Close:        wsTicker.Tick.Close,
+		Volume:       wsTicker.Tick.Amount,
+		QuoteVolume:  wsTicker.Tick.Volume,
+		High:         wsTicker.Tick.High,
+		Low:          wsTicker.Tick.Low,
+		LastUpdated:  time.UnixMilli(wsTicker.Timestamp),
+		AssetType:    s.Asset,
+		Pair:         s.Pairs[0],
+	}
+	return nil
+}
 
 func (h *HUOBI) wsHandleOrderbookMsg(s *subscription.Subscription, respRaw []byte) error {
 	var update WsDepth
@@ -483,7 +468,7 @@ func (h *HUOBI) manageSubs(op wsOpType, conn stream.Connection, subs subscriptio
 		req.Sub = s.QualifiedChannel
 		s.SetKey(s.QualifiedChannel)
 		if err := h.Websocket.AddSubscriptions(conn, s); err != nil {
-			return fmt.Errorf("%s: %w; error: %w", stream.ErrSubscriptionFailure, s, err)
+			return fmt.Errorf("%w: %s; error: %w", stream.ErrSubscriptionFailure, s, err)
 		}
 	} else {
 		req.Unsub = s.QualifiedChannel
