@@ -807,7 +807,7 @@ type KlinesRequestParams struct {
 	Size   int           // Size; [1-2000]
 }
 
-// wsSubReq is a request to subscribe to or unubscribe from a topic
+// wsSubReq is a request to subscribe to or unubscribe from a topic for public channels (private channels use generic wsReq)
 type wsSubReq struct {
 	Id    int64  `json:"id,omitempty"`
 	Sub   string `json:"sub,omitempty"`

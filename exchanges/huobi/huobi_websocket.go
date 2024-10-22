@@ -41,9 +41,8 @@ const (
 	wsOrderbookChannel    = "market.%s.depth"
 	wsTradesChannel       = "market.%s.trade.detail"
 	wsMarketDetailChannel = "market.%s.detail"
-	wsMyOrdersChannel     = "orders.%s"
-	wsMyTradesChannel     = "orders.%s.update"
-	wsAccountsList        = "accounts.list"
+	wsMyOrdersChannel     = "orders#%s"
+	wsMyTradesChannel     = "trade.clearing#%s#1" // 0=Only trade events, 1=Trade and Cancellation events
 	wsOrdersList          = "orders.list"
 	wsOrdersDetail        = "orders.detail"
 	wsAuthChannel         = "auth"
@@ -52,17 +51,12 @@ const (
 	signatureMethod      = "HmacSHA256"
 	signatureVersion     = "2.1"
 	wsRequestOp          = "req"
+	wsSubOp              = "sub"
+	wsUnsubOp            = "unsub"
 )
 
 var (
 	errInvalidChannel = errors.New("invalid channel format")
-)
-
-type wsOpType uint8
-
-const (
-	wsSubOp wsOpType = iota
-	wsUnsubOp
 )
 
 var defaultSubscriptions = subscription.List{
@@ -154,13 +148,10 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 	if err := getErrResp(respRaw); err != nil {
 		return err
 	}
-	/* DO NOT COMMIT
-	if msg.ErrorMessage == "api-signature-not-valid" {
-		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
-		return errors.New(h.Name + " - invalid credentials. Authenticated requests disabled") }
-	codes, _ := msg.ErrorCode.(string)
-	return errors.New(h.Name + " Code:" + codes + " Message:" + msg.ErrorMessage)
-	*/
+
+	if action, err := jsonparser.GetString(respRaw, "action"); err == nil {
+		return h.wsHandleActionMsgs(action, respRaw)
+	}
 
 	if ch, err := jsonparser.GetString(respRaw, "ch"); err == nil {
 		s := h.Websocket.GetSubscription(ch)
@@ -168,10 +159,6 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 			panic(42)
 		}
 		return h.wsHandleChannelMsgs(s, respRaw)
-	}
-
-	if action, err := jsonparser.GetString(respRaw, "action"); err == nil {
-		return h.wsHandleActionMsgs(action, respRaw)
 	}
 
 	switch {
@@ -275,6 +262,12 @@ func (h *HUOBI) wsHandleActionMsgs(action string, respRaw []byte) error {
 		}
 		if err := h.Websocket.AuthConn.SendJSONMessage(context.Background(), request.Unset, `{"action":"pong","data":{"ts":`+strconv.Itoa(int(ts))+`}}`); err != nil {
 			return fmt.Errorf("error sending auth pong response: %w", err)
+		}
+	case wsSubOp:
+		if ch, err := jsonparser.GetString(respRaw, "ch"); err == nil {
+			if h.Websocket.Match.IncomingWithData(action+":"+ch, respRaw) {
+				return nil
+			}
 		}
 	}
 	return nil
@@ -430,61 +423,62 @@ func (h *HUOBI) GetSubscriptionTemplate(_ *subscription.Subscription) (*template
 // Subscribe sends a websocket message to receive data from the channel
 func (h *HUOBI) Subscribe(subs subscription.List) error {
 	subs, errs := subs.ExpandTemplates(h)
-	/*
-		if s := subs.Public(); len(s) > 0 {
-			errs = common.AppendError(errs, h.ParallelChanOp(s, func(l subscription.List) error { return h.manageSubs(wsSubOp, h.Websocket.Conn, l) }, 1))
-		}
-	*/
-	if s := subs.Private(); len(s) > 0 {
-		errs = common.AppendError(errs, h.ParallelChanOp(s, func(l subscription.List) error { return h.manageSubs(wsSubOp, h.Websocket.AuthConn, l) }, 1))
-	}
-	return errs
+	return common.AppendError(errs, h.ParallelChanOp(subs, func(l subscription.List) error { return h.manageSubs(wsSubOp, l) }, 1))
 }
 
 // Unsubscribe sends a websocket message to stop receiving data from the channel
 func (h *HUOBI) Unsubscribe(subs subscription.List) error {
 	subs, errs := subs.ExpandTemplates(h)
-	// TODO: Private subs
-	if s := subs.Public(); len(s) > 0 {
-		errs = common.AppendError(errs, h.ParallelChanOp(s, func(l subscription.List) error { return h.manageSubs(wsUnsubOp, h.Websocket.Conn, l) }, 1))
-	}
-	return errs
+	return common.AppendError(errs, h.ParallelChanOp(subs, func(l subscription.List) error { return h.manageSubs(wsUnsubOp, l) }, 1))
 }
 
-func (h *HUOBI) manageSubs(op wsOpType, conn stream.Connection, subs subscription.List) error {
+func (h *HUOBI) manageSubs(op string, subs subscription.List) error {
 	if len(subs) != 1 {
 		return subscription.ErrBatchingNotSupported
 	}
 	s := subs[0]
-	ctx := context.Background()
-	req := wsSubReq{
-		Id: conn.GenerateMessageID(false),
+	var c stream.Connection
+	var req any
+	if s.Authenticated {
+		c = h.Websocket.AuthConn
+		req = wsReq{Action: op, Channel: s.QualifiedChannel}
+	} else {
+		c := h.Websocket.Conn
+		req = wsReq{Action: wsSubOp, Channel: s.QualifiedChannel}
+		if op == wsSubOp {
+			req = wsSubReq{Sub: s.QualifiedChannel}
+			if err := h.Websocket.AddSubscriptions(c, s); err != nil {
+				return fmt.Errorf("%w: %s; error: %w", stream.ErrSubscriptionFailure, s, err)
+			}
+		} else {
+			req = wsSubReq{Unsub: s.QualifiedChannel}
+		}
 	}
 	if op == wsSubOp {
-		req.Sub = s.QualifiedChannel
 		s.SetKey(s.QualifiedChannel)
-		if err := h.Websocket.AddSubscriptions(conn, s); err != nil {
-			return fmt.Errorf("%w: %s; error: %w", stream.ErrSubscriptionFailure, s, err)
-		}
-	} else {
-		req.Unsub = s.QualifiedChannel
 	}
-	respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.Id, req)
+	if err := h.Websocket.AddSubscriptions(c, s); err != nil {
+		return fmt.Errorf("%w: %s; error: %w", stream.ErrSubscriptionFailure, s, err)
+	}
+	ctx := context.Background()
+	respRaw, err := c.SendMessageReturnResponse(ctx, request.Unset, wsSubOp+":"+s.QualifiedChannel, req)
 	if err == nil {
 		err = getErrResp(respRaw)
 	}
 	if err != nil {
-		h.Websocket.RemoveSubscriptions(conn, s)
-		s.SetState(subscription.InactiveState)
+		if op == wsSubOp {
+			h.Websocket.RemoveSubscriptions(c, s)
+		}
 		return fmt.Errorf("%s: %w", s, err)
 	}
-
-	s.SetState(subscription.SubscribedState)
-
-	if h.Verbose {
-		log.Debugf(log.ExchangeSys, "%s Subscribed to %s", h.Name, s)
+	if op == wsSubOp {
+		s.SetState(subscription.SubscribedState)
+		if h.Verbose {
+			log.Debugf(log.ExchangeSys, "%s Subscribed to %s", h.Name, s)
+		}
+	} else {
+		h.Websocket.RemoveSubscriptions(c, s)
 	}
-
 	return nil
 }
 
@@ -543,145 +537,6 @@ func (h *HUOBI) wsLogin(ctx context.Context) error {
 	}
 
 	return getV2ErrResp(resp.Raw)
-}
-
-func (h *HUOBI) wsGetAccountsList(ctx context.Context) (*WsAuthenticatedAccountsListResponse, error) {
-	if !h.Websocket.CanUseAuthenticatedEndpoints() {
-		return nil, fmt.Errorf("%v not authenticated cannot get accounts list", h.Name)
-	}
-	creds, err := h.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
-	req := WsAuthenticatedAccountsListRequest{
-		Op:               wsRequestOp,
-		AccessKeyID:      creds.Key,
-		SignatureMethod:  signatureMethod,
-		SignatureVersion: signatureVersion,
-		Timestamp:        timestamp,
-		Topic:            wsAccountsList,
-	}
-	hmac, err := h.wsGenerateSignature(creds, timestamp)
-	if err != nil {
-		return nil, err
-	}
-	req.Signature = crypto.Base64Encode(hmac)
-
-	// DO NOT COMMIT
-	//req.Id = h.Websocket.AuthConn.GenerateMessageID(true)
-	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.Unset, 0, req)
-	if err != nil {
-		return nil, err
-	}
-	var response WsAuthenticatedAccountsListResponse
-	err = json.Unmarshal(resp, &response)
-	if err != nil {
-		return nil, err
-	}
-
-	code, _ := response.ErrorCode.(int)
-	if code != 0 {
-		return nil, errors.New(response.ErrorMessage)
-	}
-	return &response, nil
-}
-
-func (h *HUOBI) wsGetOrdersList(ctx context.Context, accountID int64, pair currency.Pair) (*WsAuthenticatedOrdersResponse, error) {
-	if !h.Websocket.CanUseAuthenticatedEndpoints() {
-		return nil, fmt.Errorf("%v not authenticated cannot get orders list", h.Name)
-	}
-
-	creds, err := h.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	fPair, err := h.FormatExchangeCurrency(pair, asset.Spot)
-	if err != nil {
-		return nil, err
-	}
-
-	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
-	req := WsAuthenticatedOrdersListRequest{
-		Op:               wsRequestOp,
-		AccessKeyID:      creds.Key,
-		SignatureMethod:  signatureMethod,
-		SignatureVersion: signatureVersion,
-		Timestamp:        timestamp,
-		Topic:            wsOrdersList,
-		AccountID:        accountID,
-		Symbol:           fPair.String(),
-		States:           "submitted,partial-filled",
-	}
-
-	hmac, err := h.wsGenerateSignature(creds, timestamp)
-	if err != nil {
-		return nil, err
-	}
-	req.Signature = crypto.Base64Encode(hmac)
-	// DO NOT COMMIT
-	//req.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
-
-	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.Unset, 0, req)
-	if err != nil {
-		return nil, err
-	}
-
-	var response WsAuthenticatedOrdersResponse
-	err = json.Unmarshal(resp, &response)
-	if err != nil {
-		return nil, err
-	}
-
-	code, _ := response.ErrorCode.(int)
-	if code != 0 {
-		return nil, errors.New(response.ErrorMessage)
-	}
-	return &response, nil
-}
-
-func (h *HUOBI) wsGetOrderDetails(ctx context.Context, orderID string) (*WsAuthenticatedOrderDetailResponse, error) {
-	if !h.Websocket.CanUseAuthenticatedEndpoints() {
-		return nil, fmt.Errorf("%v not authenticated cannot get order details", h.Name)
-	}
-	creds, err := h.GetCredentials(ctx)
-	if err != nil {
-		return nil, err
-	}
-	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
-	req := WsAuthenticatedOrderDetailsRequest{
-		Op:               wsRequestOp,
-		AccessKeyID:      creds.Key,
-		SignatureMethod:  signatureMethod,
-		SignatureVersion: signatureVersion,
-		Timestamp:        timestamp,
-		Topic:            wsOrdersDetail,
-		OrderID:          orderID,
-	}
-	hmac, err := h.wsGenerateSignature(creds, timestamp)
-	if err != nil {
-		return nil, err
-	}
-	req.Signature = crypto.Base64Encode(hmac)
-	// DO NOT COMMIT
-	//req.ClientID = h.Websocket.AuthConn.GenerateMessageID(true)
-	resp, err := h.Websocket.AuthConn.SendMessageReturnResponse(context.Background(), request.Unset, 0, req)
-	if err != nil {
-		return nil, err
-	}
-	var response WsAuthenticatedOrderDetailResponse
-	err = json.Unmarshal(resp, &response)
-	if err != nil {
-		return nil, err
-	}
-
-	code, _ := response.ErrorCode.(int)
-	if code != 0 {
-		return nil, errors.New(response.ErrorMessage)
-	}
-	return &response, nil
 }
 
 func stringToOrderStatus(status string) (order.Status, error) {
@@ -772,7 +627,7 @@ func channelName(s *subscription.Subscription, p currency.Pair) string {
 
 const subTplText = `
 {{ range $asset, $pairs := $.AssetPairs }}
-	{{- range $p := $pairs -}}
+	{{- range $p := $pairs }}
 		{{- channelName $.S $p -}}
 		{{- if eq $.S.Channel "candles" -}} . {{- interval $.S.Interval }}{{ end }}
 		{{- if eq $.S.Channel "orderbook" -}} .step {{- $.S.Levels }}{{ end }}
