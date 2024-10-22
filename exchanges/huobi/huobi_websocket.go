@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -32,7 +31,8 @@ import (
 )
 
 const (
-	wsBaseURL     = "wss://api.huobi.pro/"
+	wsSpotHost    = "api.huobi.pro"
+	wsSpotURL     = "wss://" + wsSpotHost
 	wsFuturesURL  = "wss://api.hbdm.com/"
 	wsPublicPath  = "/ws"
 	wsPrivatePath = "/ws/v2"
@@ -490,13 +490,11 @@ func (h *HUOBI) manageSubs(op wsOpType, conn stream.Connection, subs subscriptio
 
 func (h *HUOBI) wsGenerateSignature(creds *account.Credentials, timestamp string) ([]byte, error) {
 	values := url.Values{}
-	values.Set("AccessKeyId", creds.Key)
-	values.Set("SignatureMethod", signatureMethod)
-	values.Set("SignatureVersion", signatureVersion)
-	values.Set("Timestamp", timestamp)
-	host := "api.huobi.pro"
-	payload := fmt.Sprintf("%s\n%s\n%s\n%s", http.MethodGet, host, wsPrivatePath, values.Encode())
-	fmt.Println(payload)
+	values.Set("accessKey", creds.Key)
+	values.Set("signatureMethod", signatureMethod)
+	values.Set("signatureVersion", signatureVersion)
+	values.Set("timestamp", timestamp)
+	payload := fmt.Sprintf("%s\n%s\n%s\n%s", http.MethodGet, wsSpotHost, wsPrivatePath, values.Encode())
 	return crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(creds.Secret))
 }
 
@@ -543,9 +541,8 @@ func (h *HUOBI) wsLogin(ctx context.Context) error {
 	if resp.Raw == nil {
 		return &websocket.CloseError{Code: websocket.CloseAbnormalClosure}
 	}
-	spew.Dump(resp)
 
-	return nil
+	return getV2ErrResp(resp.Raw)
 }
 
 func (h *HUOBI) wsGetAccountsList(ctx context.Context) (*WsAuthenticatedAccountsListResponse, error) {
@@ -747,6 +744,20 @@ func getErrResp(respRaw []byte) error {
 		return fmt.Errorf("unknown error for status `%s`", status)
 	}
 	return nil
+}
+
+// getV2ErrResp returns an error if the code field is not 200, including the message field
+func getV2ErrResp(respRaw []byte) error {
+	code, _ := jsonparser.GetInt(respRaw, "code")
+	if code == 200 {
+		return nil
+	}
+	msg, _ := jsonparser.GetString(respRaw, "message")
+	if msg == "" {
+		return fmt.Errorf("%w (%v)", common.ErrUnknownError, code)
+	}
+	return fmt.Errorf("%s (%v)", msg, code)
+
 }
 
 // channelName converts global channel Names used in config of channel input into bitmex channel names

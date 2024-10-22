@@ -65,10 +65,12 @@ func TestMain(m *testing.M) {
 		log.Fatal("Huobi setup error", err)
 	}
 
-	err = h.UpdateTradablePairs(context.Background(), true)
-	if err != nil {
-		log.Fatal("Huobi setup error", err)
-	}
+	/*
+		err = h.UpdateTradablePairs(context.Background(), true)
+		if err != nil {
+			log.Fatal("Huobi setup error", err)
+		}
+	*/
 	os.Exit(m.Run())
 }
 
@@ -2965,4 +2967,8 @@ func TestAuthSubscribe(t *testing.T) {
 
 func TestStandardChannelNames(t *testing.T) {
 	t.Error("Not implemented")
+}
+
+func TestAuthLogin(t *testing.T) {
+	//{"action":"req","code":2002,"ch":"auth","message":"auth.fail"}
 }

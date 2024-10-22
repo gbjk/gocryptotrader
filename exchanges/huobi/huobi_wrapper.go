@@ -176,7 +176,7 @@ func (h *HUOBI) SetDefaults() {
 		exchange.RestSpot:         huobiAPIURL,
 		exchange.RestFutures:      huobiFuturesURL,
 		exchange.RestCoinMargined: huobiFuturesURL,
-		exchange.WebsocketSpot:    wsBaseURL + wsPublicPath,
+		exchange.WebsocketSpot:    wsSpotURL + wsPublicPath,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -209,7 +209,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 
 	err = h.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig:        exch,
-		DefaultURL:            wsBaseURL + wsPublicPath,
+		DefaultURL:            wsSpotURL + wsPublicPath,
 		RunningURL:            wsRunningURL,
 		Connector:             h.WsConnect,
 		Subscriber:            h.Subscribe,
@@ -234,7 +234,7 @@ func (h *HUOBI) Setup(exch *config.Exchange) error {
 		RateLimit:            request.NewWeightedRateLimitByDuration(20 * time.Millisecond),
 		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		URL:                  wsBaseURL + wsPrivatePath,
+		URL:                  wsSpotURL + wsPrivatePath,
 		Authenticated:        true,
 	})
 }
