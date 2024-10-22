@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/buger/jsonparser"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
@@ -31,30 +32,26 @@ import (
 )
 
 const (
-	baseWSURL    = "wss://api.huobi.pro/ws"
-	futuresWSURL = "wss://api.hbdm.com/"
+	wsBaseURL     = "wss://api.huobi.pro/"
+	wsFuturesURL  = "wss://api.hbdm.com/"
+	wsPublicPath  = "/ws"
+	wsPrivatePath = "/ws/v2"
 
-	wsMarketURL           = "/ws"
-	wsPrivateURL          = "/ws/v2"
 	wsCandlesChannel      = "market.%s.kline"
 	wsOrderbookChannel    = "market.%s.depth"
 	wsTradesChannel       = "market.%s.trade.detail"
 	wsMarketDetailChannel = "market.%s.detail"
 	wsMyOrdersChannel     = "orders.%s"
 	wsMyTradesChannel     = "orders.%s.update"
-
-	wsAccountsList = "accounts.list"
-	wsOrdersList   = "orders.list"
-	wsOrdersDetail = "orders.detail"
+	wsAccountsList        = "accounts.list"
+	wsOrdersList          = "orders.list"
+	wsOrdersDetail        = "orders.detail"
+	wsAuthChannel         = "auth"
 
 	wsDateTimeFormatting = "2006-01-02T15:04:05"
-
-	signatureMethod  = "HmacSHA256"
-	signatureVersion = "2"
-	requestOp        = "req"
-	authOp           = "auth"
-
-	loginDelay = 50 * time.Millisecond
+	signatureMethod      = "HmacSHA256"
+	signatureVersion     = "2.1"
+	wsRequestOp          = "req"
 )
 
 var (
@@ -92,10 +89,10 @@ func (h *HUOBI) WsConnect() error {
 	if !h.Websocket.IsEnabled() || !h.IsEnabled() {
 		return stream.ErrWebsocketNotEnabled
 	}
-	dialer := &websocket.Dialer{}
-	if err := h.Websocket.Conn.Dial(dialer, http.Header{}); err != nil {
+	if err := h.Websocket.Conn.Dial(&websocket.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
+	ctx := context.Background()
 
 	ch := make(chan []byte)
 	h.Websocket.Wg.Add(2)
@@ -104,13 +101,9 @@ func (h *HUOBI) WsConnect() error {
 
 	h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 	if h.IsWebsocketAuthenticationSupported() {
-		if err := h.Websocket.AuthConn.Dial(dialer, http.Header{}); err != nil {
-			return fmt.Errorf("authenticated dial failed: %w", err)
+		if err := h.wsAuthConnect(ctx); err != nil {
+			return fmt.Errorf("error authenticating websocket: %w", err)
 		}
-		if err := h.wsLogin(context.Background()); err != nil {
-			return fmt.Errorf("authentication failed: %w", err)
-		}
-		h.Websocket.SetCanUseAuthenticatedEndpoints(true)
 		h.Websocket.Wg.Add(1)
 		go h.wsFunnelMsgs(h.Websocket.AuthConn, ch)
 	}
@@ -437,9 +430,11 @@ func (h *HUOBI) GetSubscriptionTemplate(_ *subscription.Subscription) (*template
 // Subscribe sends a websocket message to receive data from the channel
 func (h *HUOBI) Subscribe(subs subscription.List) error {
 	subs, errs := subs.ExpandTemplates(h)
-	if s := subs.Public(); len(s) > 0 {
-		errs = common.AppendError(errs, h.ParallelChanOp(s, func(l subscription.List) error { return h.manageSubs(wsSubOp, h.Websocket.Conn, l) }, 1))
-	}
+	/*
+		if s := subs.Public(); len(s) > 0 {
+			errs = common.AppendError(errs, h.ParallelChanOp(s, func(l subscription.List) error { return h.manageSubs(wsSubOp, h.Websocket.Conn, l) }, 1))
+		}
+	*/
 	if s := subs.Private(); len(s) > 0 {
 		errs = common.AppendError(errs, h.ParallelChanOp(s, func(l subscription.List) error { return h.manageSubs(wsSubOp, h.Websocket.AuthConn, l) }, 1))
 	}
@@ -493,67 +488,64 @@ func (h *HUOBI) manageSubs(op wsOpType, conn stream.Connection, subs subscriptio
 	return nil
 }
 
-func (h *HUOBI) wsGenerateSignature(creds *account.Credentials, timestamp, endpoint string) ([]byte, error) {
+func (h *HUOBI) wsGenerateSignature(creds *account.Credentials, timestamp string) ([]byte, error) {
 	values := url.Values{}
 	values.Set("AccessKeyId", creds.Key)
 	values.Set("SignatureMethod", signatureMethod)
 	values.Set("SignatureVersion", signatureVersion)
 	values.Set("Timestamp", timestamp)
 	host := "api.huobi.pro"
-	payload := fmt.Sprintf("%s\n%s\n%s\n%s",
-		http.MethodGet, host, endpoint, values.Encode())
+	payload := fmt.Sprintf("%s\n%s\n%s\n%s", http.MethodGet, host, wsPrivatePath, values.Encode())
+	fmt.Println(payload)
 	return crypto.GetHMAC(crypto.HashSHA256, []byte(payload), []byte(creds.Secret))
 }
 
-func (h *HUOBI) wsLogin(ctx context.Context) error {
-	if !h.IsWebsocketAuthenticationSupported() {
-		return fmt.Errorf("%v AuthenticatedWebsocketAPISupport not enabled", h.Name)
+func (h *HUOBI) wsAuthConnect(ctx context.Context) error {
+	if err := h.Websocket.AuthConn.Dial(&websocket.Dialer{}, http.Header{}); err != nil {
+		return fmt.Errorf("authenticated dial failed: %w", err)
 	}
+	if err := h.wsLogin(ctx); err != nil {
+		return fmt.Errorf("authentication failed: %w", err)
+	}
+	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
+	return nil
+}
+
+func (h *HUOBI) wsLogin(ctx context.Context) error {
 	creds, err := h.GetCredentials(ctx)
 	if err != nil {
 		return err
 	}
 
-	h.Websocket.SetCanUseAuthenticatedEndpoints(true)
-	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
-	req := WsAuthenticationRequest{
-		Op:               authOp,
-		AccessKeyID:      creds.Key,
-		SignatureMethod:  signatureMethod,
-		SignatureVersion: signatureVersion,
-		Timestamp:        timestamp,
-	}
-	hmac, err := h.wsGenerateSignature(creds, timestamp, wsPrivateURL)
+	c := h.Websocket.AuthConn
+	ts := time.Now().UTC().Format(wsDateTimeFormatting)
+	hmac, err := h.wsGenerateSignature(creds, ts)
 	if err != nil {
 		return err
 	}
-	req.Signature = crypto.Base64Encode(hmac)
-	err = h.Websocket.AuthConn.SendJSONMessage(context.Background(), request.Unset, req)
+	req := wsReq{
+		Action:  wsRequestOp,
+		Channel: wsAuthChannel,
+		Params: wsAuthReq{
+			AuthType:         "api",
+			AccessKey:        creds.Key,
+			SignatureMethod:  signatureMethod,
+			SignatureVersion: signatureVersion,
+			Signature:        crypto.Base64Encode(hmac),
+			Timestamp:        ts,
+		},
+	}
+	err = c.SendJSONMessage(context.Background(), request.Unset, req)
 	if err != nil {
-		h.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
 	}
+	resp := c.ReadMessage()
+	if resp.Raw == nil {
+		return &websocket.CloseError{Code: websocket.CloseAbnormalClosure}
+	}
+	spew.Dump(resp)
 
-	time.Sleep(loginDelay)
 	return nil
-}
-
-func (h *HUOBI) wsAuthenticatedSubscribe(creds *account.Credentials, operation, endpoint, topic string) error {
-	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
-	req := WsAuthenticatedSubscriptionRequest{
-		Op:               operation,
-		AccessKeyID:      creds.Key,
-		SignatureMethod:  signatureMethod,
-		SignatureVersion: signatureVersion,
-		Timestamp:        timestamp,
-		Topic:            topic,
-	}
-	hmac, err := h.wsGenerateSignature(creds, timestamp, endpoint)
-	if err != nil {
-		return err
-	}
-	req.Signature = crypto.Base64Encode(hmac)
-	return h.Websocket.AuthConn.SendJSONMessage(context.Background(), request.Unset, req)
 }
 
 func (h *HUOBI) wsGetAccountsList(ctx context.Context) (*WsAuthenticatedAccountsListResponse, error) {
@@ -567,14 +559,14 @@ func (h *HUOBI) wsGetAccountsList(ctx context.Context) (*WsAuthenticatedAccounts
 
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	req := WsAuthenticatedAccountsListRequest{
-		Op:               requestOp,
+		Op:               wsRequestOp,
 		AccessKeyID:      creds.Key,
 		SignatureMethod:  signatureMethod,
 		SignatureVersion: signatureVersion,
 		Timestamp:        timestamp,
 		Topic:            wsAccountsList,
 	}
-	hmac, err := h.wsGenerateSignature(creds, timestamp, wsPrivateURL)
+	hmac, err := h.wsGenerateSignature(creds, timestamp)
 	if err != nil {
 		return nil, err
 	}
@@ -616,7 +608,7 @@ func (h *HUOBI) wsGetOrdersList(ctx context.Context, accountID int64, pair curre
 
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	req := WsAuthenticatedOrdersListRequest{
-		Op:               requestOp,
+		Op:               wsRequestOp,
 		AccessKeyID:      creds.Key,
 		SignatureMethod:  signatureMethod,
 		SignatureVersion: signatureVersion,
@@ -627,7 +619,7 @@ func (h *HUOBI) wsGetOrdersList(ctx context.Context, accountID int64, pair curre
 		States:           "submitted,partial-filled",
 	}
 
-	hmac, err := h.wsGenerateSignature(creds, timestamp, wsPrivateURL)
+	hmac, err := h.wsGenerateSignature(creds, timestamp)
 	if err != nil {
 		return nil, err
 	}
@@ -663,7 +655,7 @@ func (h *HUOBI) wsGetOrderDetails(ctx context.Context, orderID string) (*WsAuthe
 	}
 	timestamp := time.Now().UTC().Format(wsDateTimeFormatting)
 	req := WsAuthenticatedOrderDetailsRequest{
-		Op:               requestOp,
+		Op:               wsRequestOp,
 		AccessKeyID:      creds.Key,
 		SignatureMethod:  signatureMethod,
 		SignatureVersion: signatureVersion,
@@ -671,7 +663,7 @@ func (h *HUOBI) wsGetOrderDetails(ctx context.Context, orderID string) (*WsAuthe
 		Topic:            wsOrdersDetail,
 		OrderID:          orderID,
 	}
-	hmac, err := h.wsGenerateSignature(creds, timestamp, wsPrivateURL)
+	hmac, err := h.wsGenerateSignature(creds, timestamp)
 	if err != nil {
 		return nil, err
 	}
@@ -735,6 +727,12 @@ func stringToOrderType(oType string) (order.Type, error) {
 		errors.New(oType + " not recognised as order type")
 }
 
+/*
+	getErrResp looks for any of the following to determine an error
+
+- An err-code and err-message
+- A status field that isn't "ok"
+*/
 func getErrResp(respRaw []byte) error {
 	if errMsg, err2 := jsonparser.GetString(respRaw, "error-message"); err2 == nil {
 		err := errors.New(errMsg)

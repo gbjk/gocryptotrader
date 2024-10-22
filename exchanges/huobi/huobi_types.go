@@ -895,14 +895,21 @@ type WsTrade struct {
 	}
 }
 
-// WsAuthenticationRequest data for login
-type WsAuthenticationRequest struct {
-	Op               string `json:"op"`
-	AccessKeyID      string `json:"AccessKeyId"`
-	SignatureMethod  string `json:"SignatureMethod"`
-	SignatureVersion string `json:"SignatureVersion"`
-	Timestamp        string `json:"Timestamp"`
-	Signature        string `json:"Signature"`
+// wsReq contains authentication login fields
+type wsReq struct {
+	Action  string `json:"action"`
+	Channel string `json:"ch"`
+	Params  any    `json:"params"`
+}
+
+// wsAuthReq contains authentication login fields
+type wsAuthReq struct {
+	AuthType         string `json:"authType"`
+	AccessKey        string `json:"accessKey"`
+	SignatureMethod  string `json:"signatureMethod"`
+	SignatureVersion string `json:"signatureVersion"`
+	Timestamp        string `json:"timestamp"`
+	Signature        string `json:"signature"`
 }
 
 // WsAuthenticatedSubscriptionRequest request for subscription on authenticated connection
