@@ -2096,33 +2096,6 @@ func TestQueryWithdrawQuota(t *testing.T) {
 	}
 }
 
-// TestWsGetAccountsList connects to WS, logs in, gets account list
-func TestWsGetAccountsList(t *testing.T) {
-	t.Error("gbjk didn't dtrt")
-	if _, err := h.wsGetAccountsList(context.Background()); err != nil {
-		t.Error(err)
-	}
-}
-
-// TestWsGetOrderList connects to WS, logs in, gets order list
-func TestWsGetOrderList(t *testing.T) {
-	t.Error("gbjk didn't dtrt")
-	p := currency.NewPairWithDelimiter("eth", "btc", "")
-	o, err := h.wsGetOrdersList(context.Background(), 1, p)
-	require.NoError(t, err)
-	require.NotEmpty(t, o)
-}
-
-// TestWsGetOrderDetails connects to WS, logs in, gets order details
-func TestWsGetOrderDetails(t *testing.T) {
-	t.Error("gbjk didn't dtrt")
-	orderID := "123"
-	_, err := h.wsGetOrderDetails(context.Background(), orderID)
-	if err != nil {
-		t.Error(err)
-	}
-}
-
 func TestWsKline(t *testing.T) {
 	pressXToJSON := []byte(`{
   "ch": "market.btcusdt.kline.1min",

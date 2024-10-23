@@ -132,9 +132,12 @@ func (h *HUOBI) wsReadMsgs(ch chan []byte) {
 	}
 }
 func (h *HUOBI) wsHandleData(respRaw []byte) error {
-	if id, err := jsonparser.GetInt(respRaw, "id"); err == nil {
-		if h.Websocket.Match.IncomingWithData(id, respRaw) {
-			return nil
+	for _, op := range []string{wsSubOp, wsUnsubOp} {
+		key := op + "bed" // subbed, unsubbed
+		if ch, err := jsonparser.GetString(respRaw, key); err == nil {
+			if !h.Websocket.Match.IncomingWithData(op+":"+ch, respRaw) {
+				return fmt.Errorf("%w: %s:%s", stream.ErrNoMessageListener, op, ch)
+			}
 		}
 	}
 
@@ -443,8 +446,7 @@ func (h *HUOBI) manageSubs(op string, subs subscription.List) error {
 		c = h.Websocket.AuthConn
 		req = wsReq{Action: op, Channel: s.QualifiedChannel}
 	} else {
-		c := h.Websocket.Conn
-		req = wsReq{Action: wsSubOp, Channel: s.QualifiedChannel}
+		c = h.Websocket.Conn
 		if op == wsSubOp {
 			req = wsSubReq{Sub: s.QualifiedChannel}
 			if err := h.Websocket.AddSubscriptions(c, s); err != nil {
