@@ -603,8 +603,11 @@ func getErrResp(msg []byte) error {
 		errCode = strconv.Itoa(int(errCodeInt))
 	case jsonparser.KeyPathNotFoundError:
 		errCodeInt, err = jsonparser.GetInt(msg, "code")
-		if errCodeInt == 200 {
+		if errCodeInt == 200 || errors.Is(err, jsonparser.KeyPathNotFoundError) {
 			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("%w: %w", errParsingMsg, err)
 		}
 		errCode = strconv.Itoa(int(errCodeInt))
 		errMsg, _ = jsonparser.GetString(msg, "message")
