@@ -43,8 +43,6 @@ const (
 	wsMarketDetailChannel = "market.%s.detail"
 	wsMyOrdersChannel     = "orders#%s"
 	wsMyTradesChannel     = "trade.clearing#%s#1" // 0=Only trade events, 1=Trade and Cancellation events
-	wsOrdersList          = "orders.list"
-	wsOrdersDetail        = "orders.detail"
 	wsAuthChannel         = "auth"
 
 	wsDateTimeFormatting = "2006-01-02T15:04:05"
@@ -57,6 +55,7 @@ const (
 
 var (
 	errInvalidChannel = errors.New("invalid channel format")
+	errParsingMsg     = errors.New("error parsing message")
 )
 
 var defaultSubscriptions = subscription.List{
@@ -141,6 +140,12 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 		}
 	}
 
+	if id, err := jsonparser.GetString(respRaw, "id"); err == nil {
+		if h.Websocket.Match.IncomingWithData(id, respRaw) {
+			return nil
+		}
+	}
+
 	if ping, err := jsonparser.GetInt(respRaw, "ping"); err == nil {
 		if err := h.Websocket.Conn.SendJSONMessage(context.Background(), request.Unset, json.RawMessage(`{"pong":`+strconv.Itoa(int(ping))+`}`)); err != nil {
 			return fmt.Errorf("error sending pong response: %w", err)
@@ -148,18 +153,18 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 		return nil
 	}
 
-	if err := getErrResp(respRaw); err != nil {
-		return err
-	}
-
 	if action, err := jsonparser.GetString(respRaw, "action"); err == nil {
 		return h.wsHandleActionMsgs(action, respRaw)
+	}
+
+	if err := getErrResp(respRaw); err != nil {
+		return err
 	}
 
 	if ch, err := jsonparser.GetString(respRaw, "ch"); err == nil {
 		s := h.Websocket.GetSubscription(ch)
 		if s == nil {
-			panic(42)
+			return subscription.ErrNotFound
 		}
 		return h.wsHandleChannelMsgs(s, respRaw)
 	}
@@ -263,10 +268,10 @@ func (h *HUOBI) wsHandleActionMsgs(action string, respRaw []byte) error {
 		if err != nil {
 			return fmt.Errorf("error getting ts from auth ping: %w", err)
 		}
-		if err := h.Websocket.AuthConn.SendJSONMessage(context.Background(), request.Unset, `{"action":"pong","data":{"ts":`+strconv.Itoa(int(ts))+`}}`); err != nil {
+		if err := h.Websocket.AuthConn.SendJSONMessage(context.Background(), request.Unset, json.RawMessage(`{"action":"pong","data":{"ts":`+strconv.Itoa(int(ts))+`}}`)); err != nil {
 			return fmt.Errorf("error sending auth pong response: %w", err)
 		}
-	case wsSubOp:
+	case wsSubOp, wsUnsubOp:
 		if ch, err := jsonparser.GetString(respRaw, "ch"); err == nil {
 			if h.Websocket.Match.IncomingWithData(action+":"+ch, respRaw) {
 				return nil
@@ -448,7 +453,8 @@ func (h *HUOBI) manageSubs(op string, subs subscription.List) error {
 	} else {
 		c = h.Websocket.Conn
 		if op == wsSubOp {
-			req = wsSubReq{Sub: s.QualifiedChannel}
+			// Set the id to the channel so that V1 errors can make it back to us
+			req = wsSubReq{Id: wsSubOp + ":" + s.QualifiedChannel, Sub: s.QualifiedChannel}
 			if err := h.Websocket.AddSubscriptions(c, s); err != nil {
 				return fmt.Errorf("%w: %s; error: %w", stream.ErrSubscriptionFailure, s, err)
 			}
@@ -538,7 +544,7 @@ func (h *HUOBI) wsLogin(ctx context.Context) error {
 		return &websocket.CloseError{Code: websocket.CloseAbnormalClosure}
 	}
 
-	return getV2ErrResp(resp.Raw)
+	return getErrResp(resp.Raw)
 }
 
 func stringToOrderStatus(status string) (order.Status, error) {
@@ -582,39 +588,33 @@ func stringToOrderType(oType string) (order.Type, error) {
 }
 
 /*
-	getErrResp looks for any of the following to determine an error
-
-- An err-code and err-message
-- A status field that isn't "ok"
+getErrResp looks for any of the following to determine an error:
+- An err-code (V1)
+- A code field that isn't 200 (V2)
+Error message is retreieved from the field err-message or message.
+Errors are returned in the format of <message> (<code>)
 */
-func getErrResp(respRaw []byte) error {
-	if errMsg, err2 := jsonparser.GetString(respRaw, "error-message"); err2 == nil {
-		err := errors.New(errMsg)
-		if codeStr, err3 := jsonparser.GetString(respRaw, "error-code"); err3 == nil {
-			err = fmt.Errorf("%w (%v)", err, codeStr)
-		} else if codeInt, err4 := jsonparser.GetInt(respRaw, "error-code"); err4 == nil {
-			err = fmt.Errorf("%w (%v)", err, codeInt)
+func getErrResp(msg []byte) error {
+	var errCode string
+	errMsg, _ := jsonparser.GetString(msg, "err-message")
+	errCodeInt, err := jsonparser.GetInt(msg, "err-code")
+	switch err {
+	case nil:
+		errCode = strconv.Itoa(int(errCodeInt))
+	case jsonparser.KeyPathNotFoundError:
+		errCodeInt, err = jsonparser.GetInt(msg, "code")
+		if errCodeInt == 200 {
+			return nil
 		}
-		return err
+		errCode = strconv.Itoa(int(errCodeInt))
+		errMsg, _ = jsonparser.GetString(msg, "message")
+	default:
+		errCode, err = jsonparser.GetString(msg, "err-code")
 	}
-	if status, err := jsonparser.GetString(respRaw, "status"); err == nil && status != "ok" {
-		return fmt.Errorf("unknown error for status `%s`", status)
+	if errCode != "" {
+		return fmt.Errorf("%s (%v)", errMsg, errCode)
 	}
 	return nil
-}
-
-// getV2ErrResp returns an error if the code field is not 200, including the message field
-func getV2ErrResp(respRaw []byte) error {
-	code, _ := jsonparser.GetInt(respRaw, "code")
-	if code == 200 {
-		return nil
-	}
-	msg, _ := jsonparser.GetString(respRaw, "message")
-	if msg == "" {
-		return fmt.Errorf("%w (%v)", common.ErrUnknownError, code)
-	}
-	return fmt.Errorf("%s (%v)", msg, code)
-
 }
 
 // channelName converts global channel Names used in config of channel input into bitmex channel names
