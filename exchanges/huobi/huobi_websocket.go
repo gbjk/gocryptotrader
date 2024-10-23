@@ -455,18 +455,15 @@ func (h *HUOBI) manageSubs(op string, subs subscription.List) error {
 		if op == wsSubOp {
 			// Set the id to the channel so that V1 errors can make it back to us
 			req = wsSubReq{Id: wsSubOp + ":" + s.QualifiedChannel, Sub: s.QualifiedChannel}
-			if err := h.Websocket.AddSubscriptions(c, s); err != nil {
-				return fmt.Errorf("%w: %s; error: %w", stream.ErrSubscriptionFailure, s, err)
-			}
 		} else {
 			req = wsSubReq{Unsub: s.QualifiedChannel}
 		}
 	}
 	if op == wsSubOp {
 		s.SetKey(s.QualifiedChannel)
-	}
-	if err := h.Websocket.AddSubscriptions(c, s); err != nil {
-		return fmt.Errorf("%w: %s; error: %w", stream.ErrSubscriptionFailure, s, err)
+		if err := h.Websocket.AddSubscriptions(c, s); err != nil {
+			return fmt.Errorf("%w: %s; error: %w", stream.ErrSubscriptionFailure, s, err)
+		}
 	}
 	ctx := context.Background()
 	respRaw, err := c.SendMessageReturnResponse(ctx, request.Unset, wsSubOp+":"+s.QualifiedChannel, req)
