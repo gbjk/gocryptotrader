@@ -590,7 +590,7 @@ func TestIsPairAvailable(t *testing.T) {
 
 	pm.Pairs[asset.PerpetualSwap] = &PairStore{}
 	_, err = pm.IsPairAvailable(cp, asset.PerpetualSwap)
-	assert.ErrorIs(t, err, ErrAssetIsNil, "Should error when store AssetEnabled is nil")
+	require.NoError(t, err, "Must not error when store is empty")
 
 	_, err = pm.IsPairAvailable(EMPTYPAIR, asset.PerpetualSwap)
 	assert.ErrorIs(t, err, ErrCurrencyPairEmpty, "Should error when currency pair is empty")
@@ -601,62 +601,35 @@ func TestIsPairEnabled(t *testing.T) {
 	pm := initTest(t)
 	cp := NewPairWithDelimiter("BTC", "USD", "-")
 	enabled, err := pm.IsPairEnabled(cp, asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if !enabled {
-		t.Fatal("expected pair to be enabled")
-	}
+	require.NoError(t, err)
+	assert.True(t, enabled, "IsPairEnabled should return true when pair is enabled")
 
 	enabled, err = pm.IsPairEnabled(NewPair(SAFE, MOONRISE), asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if enabled {
-		t.Fatal("expected pair to be disabled")
-	}
+	require.NoError(t, err)
+	assert.False(t, enabled, "IsPairEnabled should return false when pair does not exist")
 
 	enabled, err = pm.IsPairEnabled(cp, asset.Futures)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if enabled {
-		t.Fatal("expected pair to be disabled because asset type is not enabled")
-	}
+	require.NoError(t, err)
+	assert.False(t, enabled, "IsPairEnabled should return false when asset not enabled")
 
 	cp = NewPairWithDelimiter("XRP", "DOGE", "-")
 	enabled, err = pm.IsPairEnabled(cp, asset.Spot)
-	if !errors.Is(err, nil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, nil)
-	}
-
-	if enabled {
-		t.Fatal("expected pair to be disabled because pair not found in enabled list")
-	}
+	require.NoError(t, err)
+	assert.False(t, enabled, "IsPairEnabled should return false when pair not in enabled list")
 
 	_, err = pm.IsPairEnabled(cp, asset.PerpetualSwap)
-	if !errors.Is(err, ErrAssetNotFound) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrAssetNotFound)
-	}
+	assert.ErrorIs(t, err, ErrAssetNotFound)
 
 	_, err = pm.IsPairEnabled(cp, asset.Item(1337))
-	if !errors.Is(err, asset.ErrNotSupported) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, asset.ErrNotSupported)
-	}
+	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
 	pm.Pairs[asset.PerpetualSwap] = &PairStore{}
-	_, err = pm.IsPairEnabled(cp, asset.PerpetualSwap)
-	if !errors.Is(err, ErrAssetIsNil) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrAssetIsNil)
-	}
+	enabled, err = pm.IsPairEnabled(cp, asset.PerpetualSwap)
+	require.NoError(t, err, "Must not error when store is empty")
+	assert.False(t, enabled, "Should return false when store is empty")
 
 	_, err = pm.IsPairEnabled(EMPTYPAIR, asset.PerpetualSwap)
-	if !errors.Is(err, ErrCurrencyPairEmpty) {
-		t.Fatalf("received: '%v' but expected: '%v'", err, ErrCurrencyPairEmpty)
-	}
+	assert.ErrorIs(t, err, ErrCurrencyPairEmpty)
 }
 
 func TestEnsureOnePairEnabled(t *testing.T) {

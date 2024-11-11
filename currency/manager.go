@@ -13,8 +13,6 @@ import (
 
 // Public errors
 var (
-	ErrAssetAlreadyEnabled              = errors.New("asset already enabled")
-	ErrAssetIsNil                       = errors.New("asset is nil")
 	ErrAssetNotFound                    = errors.New("asset type not found in pair store")
 	ErrPairAlreadyEnabled               = errors.New("pair already enabled")
 	ErrPairFormatIsNil                  = errors.New("pair format is nil")
@@ -407,12 +405,6 @@ func (p *PairsManager) SetAssetEnabled(a asset.Item, enabled bool) error {
 	pairStore, err := p.getPairStoreRequiresLock(a)
 	if err != nil {
 		return err
-	}
-
-	if !pairStore.AssetEnabled && !enabled {
-		return errors.New("asset already disabled")
-	} else if pairStore.AssetEnabled && enabled {
-		return ErrAssetAlreadyEnabled
 	}
 
 	pairStore.AssetEnabled = enabled
