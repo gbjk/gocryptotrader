@@ -41,12 +41,11 @@ const (
 	Options
 	OptionCombo
 	FutureCombo
-	LinearContract // Added to represent a USDT and USDC based linear derivatives(futures/perpetual) assets in Bybit V5
+	LinearContract // Added to represent a USDT and USDC based linear derivatives (futures/perpetual)
 	All
 
-	optionsFlag   = OptionCombo | Options
-	futuresFlag   = PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | LinearContract | FutureCombo
-	supportedFlag = Spot | Margin | CrossMargin | MarginFunding | Index | Binary | PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | Options | LinearContract | OptionCombo | FutureCombo
+	optionsFlag = OptionCombo | Options
+	futuresFlag = PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | LinearContract | FutureCombo
 
 	spot                   = "spot"
 	margin                 = "margin"
@@ -73,11 +72,6 @@ const (
 var (
 	supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, LinearContract, OptionCombo, FutureCombo}
 )
-
-// Supported returns a list of supported asset types
-func Supported() Items {
-	return supportedList
-}
 
 // String converts an Item to its string representation
 func (a Item) String() string {
@@ -137,11 +131,9 @@ func (a Items) Strings() []string {
 // Contains returns whether or not the supplied asset exists
 // in the list of Items
 func (a Items) Contains(i Item) bool {
-	if i.IsValid() {
-		for x := range a {
-			if a[x] == i {
-				return true
-			}
+	for x := range a {
+		if a[x] == i {
+			return true
 		}
 	}
 	return false
@@ -153,9 +145,9 @@ func (a Items) JoinToString(separator string) string {
 	return strings.Join(a.Strings(), separator)
 }
 
-// IsValid returns whether or not the supplied asset type is valid or not
+// IsValid returns if the asset type is populated
 func (a Item) IsValid() bool {
-	return a != Empty && supportedFlag&a == a
+	return a != Empty
 }
 
 // UnmarshalJSON conforms type to the umarshaler interface
@@ -227,7 +219,7 @@ func New(input string) (Item, error) {
 	case all:
 		return All, nil
 	default:
-		return 0, fmt.Errorf("%w '%v', only supports %s", ErrNotSupported, input, supportedList)
+		return 0, fmt.Errorf("%w: '%v'", ErrNotSupported, input)
 	}
 }
 
