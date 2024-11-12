@@ -416,7 +416,7 @@ func TestUpdate(t *testing.T) {
 		Exchange: "TeSt",
 		Accounts: []SubAccount{
 			{
-				AssetType: 6969,
+				AssetType: asset.Empty,
 				ID:        "1337",
 				Currencies: []Balance{
 					{
