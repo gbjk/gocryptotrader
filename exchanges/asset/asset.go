@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 )
 
@@ -20,10 +21,10 @@ type Item uint32
 // Items stores a list of assets types
 type Items []Item
 
-// Const vars for asset package
+// Supported Assets
 const (
 	Empty Item = 0
-	Spot  Item = 1 << iota
+	Spot  Item = 1 << (iota - 1)
 	Margin
 	CrossMargin
 	MarginFunding
@@ -41,12 +42,16 @@ const (
 	Options
 	OptionCombo
 	FutureCombo
-	LinearContract // Added to represent a USDT and USDC based linear derivatives (futures/perpetual)
-	All
+	LinearContract // A USDT or USDC base linear derivatives (futures/perpetual)
+	All            // Must come immediately after all valid assets
+)
 
+const (
 	optionsFlag = OptionCombo | Options
 	futuresFlag = PerpetualContract | PerpetualSwap | Futures | DeliveryFutures | UpsideProfitContract | DownsideProfitContract | CoinMarginedFutures | USDTMarginedFutures | USDCMarginedFutures | LinearContract | FutureCombo
+)
 
+const (
 	spot                   = "spot"
 	margin                 = "margin"
 	crossMargin            = "cross_margin" // for Gateio exchange
@@ -66,12 +71,18 @@ const (
 	options                = "options"
 	optionCombo            = "option_combo"
 	futureCombo            = "future_combo"
+	linearContract         = "linearcontract"
 	all                    = "all"
 )
 
-var (
-	supportedList = Items{Spot, Margin, CrossMargin, MarginFunding, Index, Binary, PerpetualContract, PerpetualSwap, Futures, DeliveryFutures, UpsideProfitContract, DownsideProfitContract, CoinMarginedFutures, USDTMarginedFutures, USDCMarginedFutures, Options, LinearContract, OptionCombo, FutureCombo}
-)
+// Supported returns a list of supported asset types
+func Supported() Items {
+	l := []Item{}
+	for i := Empty; 1<<i < All; i++ {
+		l = append(l, Item(uint32(1<<i)))
+	}
+	return slices.Clip(l)
+}
 
 // String converts an Item to its string representation
 func (a Item) String() string {
@@ -112,6 +123,8 @@ func (a Item) String() string {
 		return optionCombo
 	case FutureCombo:
 		return futureCombo
+	case LinearContract:
+		return linearContract
 	case All:
 		return all
 	default:
@@ -216,6 +229,8 @@ func New(input string) (Item, error) {
 		return OptionCombo, nil
 	case futureCombo:
 		return FutureCombo, nil
+	case linearContract:
+		return LinearContract, nil
 	case all:
 		return All, nil
 	default:

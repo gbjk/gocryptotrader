@@ -6,19 +6,25 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+func TestSupported(t *testing.T) {
+	t.Parallel()
+	s := Supported()
+	size := 0
+	for ; All>>size != 1; size++ {
+	}
+	require.Equal(t, size, len(s), "Supported must return expected number of assets")
+	require.Equal(t, All>>1, s[len(s)-1], "Last item must be correct")
+}
 
 func TestString(t *testing.T) {
 	t.Parallel()
-	a := Spot
-	if a.String() != "spot" {
-		t.Fatal("TestString returned an unexpected result")
+	for a := Item(1); a <= All; a = a << 1 {
+		assert.NotEmptyf(t, a.String(), "%s.String should return non-empty")
 	}
-
-	a = 0
-	if a.String() != "" {
-		t.Fatal("TestString returned an unexpected result")
-	}
+	assert.Empty(t, Empty.String(), "Empty.String should return empty")
 }
 
 func TestStrings(t *testing.T) {
@@ -79,8 +85,9 @@ func TestNew(t *testing.T) {
 		{Input: "Options", Expected: Options},
 		{Input: "Option", Expected: Options},
 		{Input: "Future", Error: ErrNotSupported},
-		{Input: "future_combo", Expected: FutureCombo},
 		{Input: "option_combo", Expected: OptionCombo},
+		{Input: "future_combo", Expected: FutureCombo},
+		{Input: "linearContract", Expected: LinearContract},
 	}
 
 	for _, tt := range cases {
