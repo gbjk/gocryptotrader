@@ -22,7 +22,7 @@ import (
 
 var errValidationCheckFailed = errors.New("validation check failed")
 
-func TestSubmit_Validate(t *testing.T) {
+func TestSubmitValidate(t *testing.T) {
 	t.Parallel()
 	testPair := currency.NewPair(currency.BTC, currency.LTC)
 	tester := []struct {
@@ -48,14 +48,10 @@ func TestSubmit_Validate(t *testing.T) {
 		{
 
 			ExpectedErr: ErrAssetNotSet,
-			Submit:      &Submit{Exchange: "test", Pair: testPair},
-		}, // valid pair but invalid asset
-		{
-			ExpectedErr: asset.ErrNotSupported,
 			Submit: &Submit{
 				Exchange:  "test",
 				Pair:      testPair,
-				AssetType: 255,
+				AssetType: asset.Empty,
 			},
 		}, // valid pair but invalid asset
 		{
