@@ -346,7 +346,7 @@ func (bi *Binanceus) wsHandleData(respRaw []byte) error {
 					}
 
 					return bi.Websocket.Trade.Update(saveTradeData,
-						trade.Data{
+						trade.Trade{
 							CurrencyPair: pair,
 							Timestamp:    t.TimeStamp,
 							Price:        price,

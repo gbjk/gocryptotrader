@@ -1187,7 +1187,7 @@ func (b *Base) ValidateKline(pair currency.Pair, a asset.Item, interval kline.In
 
 // AddTradesToBuffer is a helper function that will only
 // add trades to the buffer if it is allowed
-func (b *Base) AddTradesToBuffer(trades ...trade.Data) error {
+func (b *Base) AddTradesToBuffer(trades ...trade.Trade) error {
 	if !b.IsSaveTradeDataEnabled() {
 		return nil
 	}
@@ -1195,7 +1195,7 @@ func (b *Base) AddTradesToBuffer(trades ...trade.Data) error {
 }
 
 // IsSaveTradeDataEnabled checks the state of
-// SaveTradeData in a concurrent-friendly manner
+// SaveTradeDaAddt-friendly manner
 func (b *Base) IsSaveTradeDataEnabled() bool {
 	b.settingsMutex.RLock()
 	isEnabled := b.Features.Enabled.SaveTradeData

@@ -355,7 +355,7 @@ func (d *Deribit) processUserOrderChanges(respRaw []byte, channels []string) err
 	if err != nil {
 		return err
 	}
-	td := make([]trade.Data, len(changeData.Trades))
+	td := make([]trade.Trade, len(changeData.Trades))
 	for x := range changeData.Trades {
 		var side order.Side
 		side, err = order.StringToOrderSide(changeData.Trades[x].Direction)
@@ -369,7 +369,7 @@ func (d *Deribit) processUserOrderChanges(respRaw []byte, channels []string) err
 			return err
 		}
 
-		td[x] = trade.Data{
+		td[x] = trade.Trade{
 			CurrencyPair: cp,
 			Exchange:     d.Name,
 			Timestamp:    changeData.Trades[x].Timestamp.Time(),
@@ -380,7 +380,7 @@ func (d *Deribit) processUserOrderChanges(respRaw []byte, channels []string) err
 			AssetType:    a,
 		}
 	}
-	err = trade.AddTradesToBuffer(d.Name, td...)
+	err = trade.Add(d.Name, td...)
 	if err != nil {
 		return err
 	}
@@ -462,7 +462,7 @@ func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
 	if len(tradeList) == 0 {
 		return fmt.Errorf("%v, empty list of trades found", common.ErrNoResponse)
 	}
-	tradeDatas := make([]trade.Data, len(tradeList))
+	tradeDatas := make([]trade.Trade, len(tradeList))
 	for x := range tradeDatas {
 		var cp currency.Pair
 		var a asset.Item
@@ -474,7 +474,7 @@ func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
 		if err != nil {
 			return err
 		}
-		tradeDatas[x] = trade.Data{
+		tradeDatas[x] = trade.Trade{
 			CurrencyPair: cp,
 			Exchange:     d.Name,
 			Timestamp:    tradeList[x].Timestamp.Time(),
@@ -485,7 +485,7 @@ func (d *Deribit) processTrades(respRaw []byte, channels []string) error {
 			AssetType:    a,
 		}
 	}
-	return trade.AddTradesToBuffer(d.Name, tradeDatas...)
+	return trade.Add(d.Name, tradeDatas...)
 }
 
 func (d *Deribit) processIncrementalTicker(respRaw []byte, channels []string) error {

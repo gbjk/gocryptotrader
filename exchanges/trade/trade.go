@@ -1,6 +1,7 @@
 package trade
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sort"
@@ -19,45 +20,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
-// Setup creates the trade processor if trading is supported
-func (p *Processor) setup(wg *sync.WaitGroup) {
-	p.mutex.Lock()
-	p.bufferProcessorInterval = BufferProcessorIntervalTime
-	p.mutex.Unlock()
-	go p.Run(wg)
-}
-
-// Setup configures necessary fields to the `Trade` structure that govern trade data
-// processing.
-func (t *Trade) Setup(exchangeName string, tradeFeedEnabled bool, c chan interface{}) {
-	t.exchangeName = exchangeName
-	t.dataHandler = c
-	t.tradeFeedEnabled = tradeFeedEnabled
-}
-
-// Update processes trade data, either by saving it or routing it through
-// the data channel.
-func (t *Trade) Update(save bool, data ...Data) error {
-	if len(data) == 0 {
-		// nothing to do
-		return nil
-	}
-
-	if t.tradeFeedEnabled {
-		t.dataHandler <- data
-	}
-
-	if save {
-		if err := AddTradesToBuffer(t.exchangeName, data...); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// AddTradesToBuffer will push trade data onto the buffer
-func AddTradesToBuffer(exchangeName string, data ...Data) error {
+// Add will push trade data onto the buffer
+func Add(exchangeName string, trades ...Trade) error {
 	cfg := database.DB.GetConfig()
 	if database.DB == nil || cfg == nil || !cfg.Enabled {
 		return nil
@@ -65,15 +29,13 @@ func AddTradesToBuffer(exchangeName string, data ...Data) error {
 	if len(data) == 0 {
 		return nil
 	}
-	if atomic.AddInt32(&processor.started, 0) == 0 {
-		var wg sync.WaitGroup
-		wg.Add(1)
-		processor.setup(&wg)
-		wg.Wait()
+	if processor.started.CompareAndSwap(false, true) {
+		ctx := context.Background()
+		processor.Start(ctx)
 	}
-	validDatas := make([]Data, 0, len(data))
 	var errs error
 	for i := range data {
+		trade
 		if data[i].Price == 0 ||
 			data[i].Amount == 0 ||
 			data[i].CurrencyPair.IsEmpty() ||
@@ -102,12 +64,21 @@ func AddTradesToBuffer(exchangeName string, data ...Data) error {
 			errs = common.AppendError(errs, fmt.Errorf("%s uuid failed to generate for trade: %+v", exchangeName, data[i]))
 		}
 		data[i].ID = uu
-		validDatas = append(validDatas, data[i])
+		go func() {
+			processor.queue <- data[i]
+		}()
 	}
 	processor.mutex.Lock()
 	processor.buffer = append(processor.buffer, validDatas...)
 	processor.mutex.Unlock()
 	return errs
+}
+
+// Start creates a processor pipeline and orphans a go routine
+func (p *Processor) Start(ctx context.Context) {
+	p.BufferProcessorInterval = BufferProcessorIntervalTime
+	p.queue = make(chan *Trade, 4096)
+	go p.Run(wg)
 }
 
 // Run will save trade data to the database in batches
@@ -142,7 +113,7 @@ func (p *Processor) Run(wg *sync.WaitGroup) {
 }
 
 // SaveTradesToDatabase converts trades and saves results to database
-func SaveTradesToDatabase(trades ...Data) error {
+func SaveTradesToDatabase(trades ...Trade) error {
 	sqlTrades, err := tradeToSQLData(trades...)
 	if err != nil {
 		return err
@@ -152,7 +123,7 @@ func SaveTradesToDatabase(trades ...Data) error {
 
 // GetTradesInRange calls db function to return trades in range
 // to minimise tradesql package usage
-func GetTradesInRange(exchangeName, assetType, base, quote string, startDate, endDate time.Time) ([]Data, error) {
+func GetTradesInRange(exchangeName, assetType, base, quote string, startDate, endDate time.Time) ([]Trade, error) {
 	if exchangeName == "" || assetType == "" || base == "" || quote == "" || startDate.IsZero() || endDate.IsZero() {
 		return nil, errors.New("invalid arguments received")
 	}
@@ -174,7 +145,7 @@ func HasTradesInRanges(exchangeName, assetType, base, quote string, rangeHolder 
 	return tradesql.VerifyTradeInIntervals(exchangeName, assetType, base, quote, rangeHolder)
 }
 
-func tradeToSQLData(trades ...Data) ([]tradesql.Data, error) {
+func tradeToSQLData(trades ...Trade) ([]tradesql.Data, error) {
 	sort.Sort(ByDate(trades))
 	results := make([]tradesql.Data, len(trades))
 	for i := range trades {
@@ -199,8 +170,8 @@ func tradeToSQLData(trades ...Data) ([]tradesql.Data, error) {
 }
 
 // SQLDataToTrade converts sql data to glorious trade data
-func SQLDataToTrade(dbTrades ...tradesql.Data) ([]Data, error) {
-	result := make([]Data, len(dbTrades))
+func SQLDataToTrade(dbTrades ...tradesql.Data) ([]Trade, error) {
+	result := make([]Trade, len(dbTrades))
 	for i := range dbTrades {
 		cp, err := currency.NewPairFromStrings(dbTrades[i].Base, dbTrades[i].Quote)
 		if err != nil {
@@ -214,7 +185,7 @@ func SQLDataToTrade(dbTrades ...tradesql.Data) ([]Data, error) {
 		if err != nil {
 			return nil, err
 		}
-		result[i] = Data{
+		result[i] = Trade{
 			ID:           uuid.FromStringOrNil(dbTrades[i].ID),
 			Timestamp:    dbTrades[i].Timestamp.UTC(),
 			Exchange:     dbTrades[i].Exchange,
@@ -229,7 +200,7 @@ func SQLDataToTrade(dbTrades ...tradesql.Data) ([]Data, error) {
 }
 
 // ConvertTradesToCandles turns trade data into kline.Items
-func ConvertTradesToCandles(interval kline.Interval, trades ...Data) (*kline.Item, error) {
+func ConvertTradesToCandles(interval kline.Interval, trades ...Trade) (*kline.Item, error) {
 	if len(trades) == 0 {
 		return nil, ErrNoTradesSupplied
 	}
@@ -247,8 +218,8 @@ func ConvertTradesToCandles(interval kline.Interval, trades ...Data) (*kline.Ite
 	return &candles, nil
 }
 
-func groupTradesToInterval(interval kline.Interval, times ...Data) map[int64][]Data {
-	groupedData := make(map[int64][]Data)
+func groupTradesToInterval(interval kline.Interval, times ...Trade) map[int64][]Trade {
+	groupedData := make(map[int64][]Trade)
 	for i := range times {
 		nearestInterval := getNearestInterval(times[i].Timestamp, interval)
 		groupedData[nearestInterval] = append(
@@ -263,7 +234,7 @@ func getNearestInterval(t time.Time, interval kline.Interval) int64 {
 	return t.Truncate(interval.Duration()).UTC().Unix()
 }
 
-func classifyOHLCV(t time.Time, datas ...Data) (c kline.Candle) {
+func classifyOHLCV(t time.Time, datas ...Trade) (c kline.Candle) {
 	sort.Sort(ByDate(datas))
 	c.Open = datas[0].Price
 	c.Close = datas[len(datas)-1].Price
@@ -288,12 +259,12 @@ func classifyOHLCV(t time.Time, datas ...Data) (c kline.Candle) {
 
 // FilterTradesByTime removes any trades that are not between the start
 // and end times
-func FilterTradesByTime(trades []Data, startTime, endTime time.Time) []Data {
+func FilterTradesByTime(trades []Trade, startTime, endTime time.Time) []Trade {
 	if startTime.IsZero() || endTime.IsZero() {
 		// can't filter without boundaries
 		return trades
 	}
-	var filteredTrades []Data
+	var filteredTrades []Trade
 	for i := range trades {
 		if trades[i].Timestamp.After(startTime) && trades[i].Timestamp.Before(endTime) {
 			filteredTrades = append(filteredTrades, trades[i])

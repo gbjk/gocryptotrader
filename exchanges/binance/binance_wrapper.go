@@ -766,14 +766,14 @@ func (b *Binance) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ 
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.Item) ([]trade.Data, error) {
+func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.Item) ([]trade.Trade, error) {
 	const limit = 1000
 	rFmt, err := b.GetPairFormat(a, true)
 	if err != nil {
 		return nil, err
 	}
 	pFmt := p.Format(rFmt)
-	resp := make([]trade.Data, 0, limit)
+	resp := make([]trade.Trade, 0, limit)
 	switch a {
 	case asset.Spot:
 		tradeData, err := b.GetMostRecentTrades(ctx,
@@ -783,7 +783,7 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 		}
 
 		for i := range tradeData {
-			resp = append(resp, trade.Data{
+			resp = append(resp, trade.Trade{
 				TID:          strconv.FormatInt(tradeData[i].ID, 10),
 				Exchange:     b.Name,
 				CurrencyPair: p,
@@ -800,7 +800,7 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 		}
 
 		for i := range tradeData {
-			resp = append(resp, trade.Data{
+			resp = append(resp, trade.Trade{
 				TID:          strconv.FormatInt(tradeData[i].ID, 10),
 				Exchange:     b.Name,
 				CurrencyPair: p,
@@ -817,7 +817,7 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 		}
 
 		for i := range tradeData {
-			resp = append(resp, trade.Data{
+			resp = append(resp, trade.Trade{
 				TID:          strconv.FormatInt(tradeData[i].ID, 10),
 				Exchange:     b.Name,
 				CurrencyPair: p,
@@ -830,7 +830,7 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 	}
 
 	if b.IsSaveTradeDataEnabled() {
-		err := trade.AddTradesToBuffer(b.Name, resp...)
+		err := trade.Add(b.Name, resp...)
 		if err != nil {
 			return nil, err
 		}
@@ -841,7 +841,7 @@ func (b *Binance) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (b *Binance) GetHistoricTrades(ctx context.Context, p currency.Pair, a asset.Item, from, to time.Time) ([]trade.Data, error) {
+func (b *Binance) GetHistoricTrades(ctx context.Context, p currency.Pair, a asset.Item, from, to time.Time) ([]trade.Trade, error) {
 	if err := b.CurrencyPairs.IsAssetEnabled(a); err != nil {
 		return nil, err
 	}
@@ -862,9 +862,9 @@ func (b *Binance) GetHistoricTrades(ctx context.Context, p currency.Pair, a asse
 	if err != nil {
 		return nil, fmt.Errorf("%w %v", err, pFmt)
 	}
-	result := make([]trade.Data, len(trades))
+	result := make([]trade.Trade, len(trades))
 	for i := range trades {
-		result[i] = trade.Data{
+		result[i] = trade.Trade{
 			CurrencyPair: p,
 			TID:          strconv.FormatInt(trades[i].ATradeID, 10),
 			Amount:       trades[i].Quantity,

@@ -884,7 +884,7 @@ func TestGetHistoricCandles(t *testing.T) {
 	if len(results.Candle) == 0 {
 		t.Error("expected results")
 	}
-	err = trade.SaveTradesToDatabase(trade.Data{
+	err = trade.SaveTradesToDatabase(trade.Trade{
 		TID:          "test123",
 		Exchange:     testExchange,
 		CurrencyPair: cp,
@@ -956,7 +956,7 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 		t.Errorf("expected a status message")
 	}
 	// one trade response
-	err = trade.SaveTradesToDatabase(trade.Data{
+	err = trade.SaveTradesToDatabase(trade.Trade{
 		TID:          "test1234",
 		Exchange:     testExchange,
 		CurrencyPair: cp,
@@ -989,7 +989,7 @@ func TestFindMissingSavedTradeIntervals(t *testing.T) {
 	}
 
 	// two trades response
-	err = trade.SaveTradesToDatabase(trade.Data{
+	err = trade.SaveTradesToDatabase(trade.Trade{
 		TID:          "test123",
 		Exchange:     testExchange,
 		CurrencyPair: cp,

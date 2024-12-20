@@ -655,7 +655,7 @@ func (by *Bybit) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketRespo
 	if err != nil {
 		return err
 	}
-	tradeDatas := make([]trade.Data, len(result))
+	tradeDatas := make([]trade.Trade, len(result))
 	for x := range result {
 		cp, err := by.MatchSymbolWithAvailablePairs(result[x].Symbol, assetType, hasPotentialDelimiter(assetType))
 		if err != nil {
@@ -665,7 +665,7 @@ func (by *Bybit) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketRespo
 		if err != nil {
 			return err
 		}
-		tradeDatas[x] = trade.Data{
+		tradeDatas[x] = trade.Trade{
 			Timestamp:    result[x].OrderFillTimestamp.Time(),
 			CurrencyPair: cp,
 			AssetType:    assetType,
@@ -676,7 +676,7 @@ func (by *Bybit) wsProcessPublicTrade(assetType asset.Item, resp *WebsocketRespo
 			TID:          result[x].TradeID,
 		}
 	}
-	return trade.AddTradesToBuffer(by.Name, tradeDatas...)
+	return trade.Add(by.Name, tradeDatas...)
 }
 
 func (by *Bybit) wsProcessOrderbook(assetType asset.Item, resp *WebsocketResponse) error {

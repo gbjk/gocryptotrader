@@ -53,8 +53,8 @@ type IBotExchange interface {
 	GetAvailablePairs(a asset.Item) (currency.Pairs, error)
 	SetPairs(pairs currency.Pairs, a asset.Item, enabled bool) error
 	GetAssetTypes(enabled bool) asset.Items
-	GetRecentTrades(ctx context.Context, p currency.Pair, a asset.Item) ([]trade.Data, error)
-	GetHistoricTrades(ctx context.Context, p currency.Pair, a asset.Item, startTime, endTime time.Time) ([]trade.Data, error)
+	GetRecentTrades(ctx context.Context, p currency.Pair, a asset.Item) ([]trade.Trade, error)
+	GetHistoricTrades(ctx context.Context, p currency.Pair, a asset.Item, startTime, endTime time.Time) ([]trade.Trade, error)
 	GetFeeByType(ctx context.Context, f *FeeBuilder) (float64, error)
 	GetLastPairsUpdateTime() int64
 	GetWithdrawPermissions() uint32

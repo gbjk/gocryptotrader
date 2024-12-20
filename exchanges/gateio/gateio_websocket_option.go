@@ -399,9 +399,9 @@ func (g *Gateio) processOptionsTradesPushData(data []byte) error {
 	if err != nil {
 		return err
 	}
-	trades := make([]trade.Data, len(resp.Result))
+	trades := make([]trade.Trade, len(resp.Result))
 	for x := range resp.Result {
-		trades[x] = trade.Data{
+		trades[x] = trade.Trade{
 			Timestamp:    resp.Result[x].CreateTimeMs.Time(),
 			CurrencyPair: resp.Result[x].Contract,
 			AssetType:    asset.Options,

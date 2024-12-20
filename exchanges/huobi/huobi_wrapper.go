@@ -912,8 +912,8 @@ func (h *HUOBI) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a as
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (h *HUOBI) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.Item) ([]trade.Data, error) {
-	var resp []trade.Data
+func (h *HUOBI) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.Item) ([]trade.Trade, error) {
+	var resp []trade.Trade
 	pFmt, err := h.GetPairFormat(a, true)
 	if err != nil {
 		return nil, err
@@ -934,7 +934,7 @@ func (h *HUOBI) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.It
 				if err != nil {
 					return nil, err
 				}
-				resp = append(resp, trade.Data{
+				resp = append(resp, trade.Trade{
 					Exchange:     h.Name,
 					TID:          strconv.FormatFloat(sTrades[i].Trades[j].TradeID, 'f', -1, 64),
 					CurrencyPair: p,
@@ -961,7 +961,7 @@ func (h *HUOBI) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.It
 						return nil, err
 					}
 				}
-				resp = append(resp, trade.Data{
+				resp = append(resp, trade.Trade{
 					Exchange:     h.Name,
 					TID:          strconv.FormatInt(fTrades.Data[i].Data[j].ID, 10),
 					CurrencyPair: p,
@@ -987,7 +987,7 @@ func (h *HUOBI) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.It
 					return nil, err
 				}
 			}
-			resp = append(resp, trade.Data{
+			resp = append(resp, trade.Trade{
 				Exchange:     h.Name,
 				TID:          strconv.FormatInt(cTrades.Data[i].ID, 10),
 				CurrencyPair: p,
@@ -1010,7 +1010,7 @@ func (h *HUOBI) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.It
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (h *HUOBI) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (h *HUOBI) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Trade, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

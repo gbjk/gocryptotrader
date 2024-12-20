@@ -30,7 +30,7 @@ func LoadData(ctx context.Context, dataType int64, startDate, endDate time.Time,
 			return nil, fmt.Errorf("could not retrieve candle data for %v %v %v, %v", exch.GetName(), a, fPair, err)
 		}
 	case common.DataTrade:
-		var trades []trade.Data
+		var trades []trade.Trade
 		trades, err = exch.GetHistoricTrades(ctx,
 			fPair,
 			a,

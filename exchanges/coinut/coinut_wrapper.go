@@ -444,7 +444,7 @@ func (c *COINUT) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ ass
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (c *COINUT) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (c *COINUT) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Trade, error) {
 	var err error
 	p, err = c.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -459,14 +459,14 @@ func (c *COINUT) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 	if err != nil {
 		return nil, err
 	}
-	resp := make([]trade.Data, len(tradeData.Trades))
+	resp := make([]trade.Trade, len(tradeData.Trades))
 	for i := range tradeData.Trades {
 		var side order.Side
 		side, err = order.StringToOrderSide(tradeData.Trades[i].Side)
 		if err != nil {
 			return nil, err
 		}
-		resp[i] = trade.Data{
+		resp[i] = trade.Trade{
 			Exchange:     c.Name,
 			TID:          strconv.FormatInt(tradeData.Trades[i].TransactionID, 10),
 			CurrencyPair: p,
@@ -488,7 +488,7 @@ func (c *COINUT) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (c *COINUT) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (c *COINUT) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Trade, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

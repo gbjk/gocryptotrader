@@ -208,7 +208,7 @@ func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
 		return g.processCrossMarginLoans(respRaw)
 	case spotPongChannel:
 	default:
-		g.Websocket.DataHandler <- stream.UnhandledMessageWarning{
+		g.Websocket.DataHandler <- stream.UnhandledMessageWarningTrade
 			Message: g.Name + stream.UnhandledMessage + string(respRaw),
 		}
 		return errors.New(stream.UnhandledMessage)

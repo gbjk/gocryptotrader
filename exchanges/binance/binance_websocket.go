@@ -338,7 +338,7 @@ func (b *Binance) wsHandleData(respRaw []byte) error {
 				err)
 		}
 		return b.Websocket.Trade.Update(saveTradeData,
-			trade.Data{
+			trade.Trade{
 				CurrencyPair: pair,
 				Timestamp:    t.TimeStamp,
 				Price:        t.Price.Float64(),

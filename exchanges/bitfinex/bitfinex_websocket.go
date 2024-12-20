@@ -977,7 +977,7 @@ func (b *Bitfinex) handleWSTradesUpdate(c *subscription.Subscription, eventType 
 			}
 			wsTrade.Price = price
 		}
-		tradeHolder = append(tradeHolder, wsTrade)
+		tradeHolder = append(tTradeHolder, wsTrade)
 	}
 	trades := make([]trade.Data, len(tradeHolder))
 	for i := range tradeHolder {
@@ -989,7 +989,7 @@ func (b *Bitfinex) handleWSTradesUpdate(c *subscription.Subscription, eventType 
 		}
 		price := tradeHolder[i].Price
 		if price == 0 && tradeHolder[i].Rate > 0 {
-			price = tradeHolder[i].Rate
+			price = tradeHoldTrade].Rate
 		}
 		trades[i] = trade.Data{
 			TID:          strconv.FormatInt(tradeHolder[i].ID, 10),

@@ -122,12 +122,12 @@ func (c *CustomEx) GetAssetTypes(_ bool) asset.Items {
 }
 
 // GetRecentTrades is a mock method for CustomEx
-func (c *CustomEx) GetRecentTrades(_ context.Context, _ currency.Pair, _ asset.Item) ([]trade.Data, error) {
+func (c *CustomEx) GetRecentTrades(_ context.Context, _ currency.Pair, _ asset.Item) ([]trade.Trade, error) {
 	return nil, nil
 }
 
 // GetHistoricTrades is a mock method for CustomEx
-func (c *CustomEx) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (c *CustomEx) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Trade, error) {
 	return nil, nil
 }
 

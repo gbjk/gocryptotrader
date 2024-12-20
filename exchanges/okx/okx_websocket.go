@@ -973,14 +973,14 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 	if err != nil {
 		return err
 	}
-	trades := make([]trade.Data, 0, len(response.Data)*len(assets))
+	trades := make([]trade.Trade, 0, len(response.Data)*len(assets))
 	for i := range response.Data {
 		pair, err := currency.NewPairFromString(response.Data[i].InstrumentID)
 		if err != nil {
 			return err
 		}
 		for j := range assets {
-			trades = append(trades, trade.Data{
+			trades = append(trades, trade.Trade{
 				Amount:       response.Data[i].Quantity.Float64(),
 				AssetType:    assets[j],
 				CurrencyPair: pair,
@@ -992,7 +992,7 @@ func (ok *Okx) wsProcessTrades(data []byte) error {
 			})
 		}
 	}
-	return trade.AddTradesToBuffer(ok.Name, trades...)
+	return trade.Add(ok.Name, trades...)
 }
 
 // wsProcessOrders handles websocket order push data responses.

@@ -38,7 +38,7 @@ func TestAddTradesToBuffer(t *testing.T) {
 		t.Error(err)
 	}
 	cp, _ := currency.NewPairFromString("BTC-USD")
-	err = AddTradesToBuffer("test!", []Data{
+	err = Add("test!", []Trade{
 		{
 			Timestamp:    time.Now(),
 			Exchange:     "test!",
@@ -56,7 +56,7 @@ func TestAddTradesToBuffer(t *testing.T) {
 		t.Error("expected the processor to have started")
 	}
 
-	err = AddTradesToBuffer("test!", []Data{
+	err = Add("test!", []Trade{
 		{
 			Timestamp:    time.Now(),
 			Exchange:     "test!",
@@ -74,7 +74,7 @@ func TestAddTradesToBuffer(t *testing.T) {
 	processor.buffer = nil
 	processor.mutex.Unlock()
 
-	err = AddTradesToBuffer("test!", []Data{
+	err = Add("test!", []Trade{
 		{
 			Timestamp:    time.Now(),
 			Exchange:     "test!",
@@ -131,7 +131,7 @@ func TestSqlDataToTrade(t *testing.T) {
 func TestTradeToSQLData(t *testing.T) {
 	t.Parallel()
 	cp := currency.NewPair(currency.BTC, currency.USD)
-	sqlData, err := tradeToSQLData(Data{
+	sqlData, err := tradeToSQLData(Trade{
 		Timestamp:    time.Now(),
 		Exchange:     "test!",
 		CurrencyPair: cp,
@@ -158,7 +158,7 @@ func TestConvertTradesToCandles(t *testing.T) {
 	t.Parallel()
 	cp, _ := currency.NewPairFromString("BTC-USD")
 	startDate := time.Date(2020, 1, 1, 1, 0, 0, 0, time.UTC)
-	candles, err := ConvertTradesToCandles(kline.FifteenSecond, []Data{
+	candles, err := ConvertTradesToCandles(kline.FifteenSecond, []Trade{
 		{
 			Timestamp:    startDate,
 			Exchange:     "test!",
@@ -219,7 +219,7 @@ func TestShutdown(t *testing.T) {
 
 func TestFilterTradesByTime(t *testing.T) {
 	t.Parallel()
-	trades := []Data{
+	trades := []Trade{
 		{
 			Exchange:  "test",
 			Timestamp: time.Now().Add(-time.Second),
@@ -237,7 +237,7 @@ func TestFilterTradesByTime(t *testing.T) {
 
 func TestSaveTradesToDatabase(t *testing.T) {
 	t.Parallel()
-	err := SaveTradesToDatabase(Data{})
+	err := SaveTradesToDatabase(Trade{})
 	if err != nil && err.Error() != "exchange name/uuid not set, cannot insert" {
 		t.Error(err)
 	}

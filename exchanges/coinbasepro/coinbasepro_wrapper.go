@@ -394,7 +394,7 @@ func (c *CoinbasePro) GetWithdrawalsHistory(_ context.Context, _ currency.Code, 
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (c *CoinbasePro) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (c *CoinbasePro) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Trade, error) {
 	var err error
 	p, err = c.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -405,14 +405,14 @@ func (c *CoinbasePro) GetRecentTrades(ctx context.Context, p currency.Pair, asse
 	if err != nil {
 		return nil, err
 	}
-	resp := make([]trade.Data, len(tradeData))
+	resp := make([]trade.Trade, len(tradeData))
 	for i := range tradeData {
 		var side order.Side
 		side, err = order.StringToOrderSide(tradeData[i].Side)
 		if err != nil {
 			return nil, err
 		}
-		resp[i] = trade.Data{
+		resp[i] = trade.Trade{
 			Exchange:     c.Name,
 			TID:          strconv.FormatInt(tradeData[i].TradeID, 10),
 			CurrencyPair: p,
@@ -434,7 +434,7 @@ func (c *CoinbasePro) GetRecentTrades(ctx context.Context, p currency.Pair, asse
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (c *CoinbasePro) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (c *CoinbasePro) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Trade, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

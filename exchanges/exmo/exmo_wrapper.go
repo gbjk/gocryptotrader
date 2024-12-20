@@ -424,7 +424,7 @@ func (e *EXMO) GetWithdrawalsHistory(ctx context.Context, _ currency.Code, _ ass
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (e *EXMO) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (e *EXMO) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Trade, error) {
 	var err error
 	p, err = e.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -437,14 +437,14 @@ func (e *EXMO) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 	}
 
 	mapData := tradeData[p.String()]
-	resp := make([]trade.Data, len(mapData))
+	resp := make([]trade.Trade, len(mapData))
 	for i := range mapData {
 		var side order.Side
 		side, err = order.StringToOrderSide(mapData[i].Type)
 		if err != nil {
 			return nil, err
 		}
-		resp[i] = trade.Data{
+		resp[i] = trade.Trade{
 			Exchange:     e.Name,
 			TID:          strconv.FormatInt(mapData[i].TradeID, 10),
 			CurrencyPair: p,
@@ -466,7 +466,7 @@ func (e *EXMO) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (e *EXMO) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (e *EXMO) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Trade, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

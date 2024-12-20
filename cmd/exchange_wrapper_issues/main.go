@@ -93,7 +93,7 @@ func main() {
 		wrapperConfig.OrderSubmission.OrderType = orderTypeOverride
 	}
 	if orderSideOverride != "BUY" {
-		wrapperConfig.OrderSubmission.OrderSide = orderSideOverride
+		wrapperConfig.OrderSubmission.OrderSide = orderSideOverrideDefaultSaveInterval
 	}
 	if orderPriceOverride > 0 {
 		wrapperConfig.OrderSubmission.Price = orderPriceOverride
@@ -432,7 +432,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Response:   jsonifyInterface([]interface{}{nil}),
 			})
 
-			var getHistoricTradesResponse []trade.Data
+			var getHistoricTradesResponse []trade.Trade
 			getHistoricTradesResponse, err = e.GetHistoricTrades(context.TODO(), p, assetTypes[i], time.Now().Add(-time.Hour), time.Now())
 			msg = ""
 			if err != nil {
@@ -446,7 +446,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 				Response:   jsonifyInterface([]interface{}{getHistoricTradesResponse}),
 			})
 
-			var getRecentTradesResponse []trade.Data
+			var getRecentTradesResponse []trade.Trade
 			getRecentTradesResponse, err = e.GetRecentTrades(context.TODO(), p, assetTypes[i])
 			msg = ""
 			if err != nil {

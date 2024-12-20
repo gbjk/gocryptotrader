@@ -2,7 +2,7 @@ package trade
 
 import (
 	"errors"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gofrs/uuid"
@@ -11,29 +11,16 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 )
 
-// DefaultProcessorIntervalTime is the default timer
-// to process queued trades and save them to the database
-const DefaultProcessorIntervalTime = time.Second * 15
+const DefaultSaveInterval = time.Second * 15
 
 var (
 	processor Processor
-	// BufferProcessorIntervalTime is the interval to save trade buffer data to the database.
-	// Change this by changing the runtime param `-tradeprocessinginterval=15s`
-	BufferProcessorIntervalTime = DefaultProcessorIntervalTime
 	// ErrNoTradesSupplied is returned when an attempt is made to process trades, but is an empty slice
 	ErrNoTradesSupplied = errors.New("no trades supplied")
 )
 
-// Trade used to hold data and methods related to trade dissemination and
-// storage
+// Trade defines trade data
 type Trade struct {
-	exchangeName     string
-	dataHandler      chan interface{}
-	tradeFeedEnabled bool
-}
-
-// Data defines trade data
-type Data struct {
 	ID           uuid.UUID `json:"ID,omitempty"`
 	TID          string
 	Exchange     string
@@ -45,17 +32,16 @@ type Data struct {
 	Timestamp    time.Time
 }
 
-// Processor used for processing trade data in batches
-// and saving them to the database
+// Processor used for processing trade data in batches and saving them to the database
 type Processor struct {
-	mutex                   sync.Mutex
-	started                 int32
+	started                 atomic.Bool
 	bufferProcessorInterval time.Duration
-	buffer                  []Data
+	queue                   chan *Trade
+	buffer                  []*Trade
 }
 
 // ByDate sorts trades by date ascending
-type ByDate []Data
+type ByDate []Trade
 
 func (b ByDate) Len() int {
 	return len(b)

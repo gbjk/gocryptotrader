@@ -371,12 +371,12 @@ func (l *Lbank) GetWithdrawalsHistory(ctx context.Context, c currency.Code, a as
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (l *Lbank) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (l *Lbank) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Trade, error) {
 	return l.GetHistoricTrades(ctx, p, assetType, time.Now().Add(-time.Minute*15), time.Now())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (l *Lbank) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+func (l *Lbank) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Trade, error) {
 	if err := common.StartEndTimeCheck(timestampStart, timestampEnd); err != nil {
 		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", timestampStart, timestampEnd, err)
 	}
@@ -385,7 +385,7 @@ func (l *Lbank) GetHistoricTrades(ctx context.Context, p currency.Pair, assetTyp
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+	var resp []trade.Trade
 	ts := timestampStart
 	limit := 600
 allTrades:
@@ -407,7 +407,7 @@ allTrades:
 			if strings.Contains(tradeData[i].Type, "sell") {
 				side = order.Sell
 			}
-			resp = append(resp, trade.Data{
+			resp = append(resp, trade.Trade{
 				Exchange:     l.Name,
 				TID:          tradeData[i].TID,
 				CurrencyPair: p,

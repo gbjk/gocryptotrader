@@ -299,7 +299,7 @@ func (b *Bitflyer) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ a
 }
 
 // GetRecentTrades returns recent historic trades
-func (b *Bitflyer) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (b *Bitflyer) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Trade, error) {
 	var err error
 	p, err = b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -309,7 +309,7 @@ func (b *Bitflyer) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 	if err != nil {
 		return nil, err
 	}
-	resp := make([]trade.Data, len(tradeData))
+	resp := make([]trade.Trade, len(tradeData))
 	for i := range tradeData {
 		var timestamp time.Time
 		timestamp, err = time.Parse("2006-01-02T15:04:05.999999999", tradeData[i].ExecDate)
@@ -321,7 +321,7 @@ func (b *Bitflyer) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 		if err != nil {
 			return nil, err
 		}
-		resp[i] = trade.Data{
+		resp[i] = trade.Trade{
 			TID:          strconv.FormatInt(tradeData[i].ID, 10),
 			Exchange:     b.Name,
 			CurrencyPair: p,
@@ -343,7 +343,7 @@ func (b *Bitflyer) GetRecentTrades(ctx context.Context, p currency.Pair, assetTy
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (b *Bitflyer) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (b *Bitflyer) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Trade, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

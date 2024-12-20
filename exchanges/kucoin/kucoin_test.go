@@ -2062,7 +2062,7 @@ func TestGetServerTime(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	var result []trade.Data
+	var result []trade.Trade
 	var err error
 	for assetType, tp := range assertToTradablePairMap {
 		result, err = ku.GetRecentTrades(context.Background(), tp, assetType)

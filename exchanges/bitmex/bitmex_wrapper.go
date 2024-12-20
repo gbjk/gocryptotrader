@@ -600,12 +600,12 @@ func (b *Bitmex) GetServerTime(_ context.Context, _ asset.Item) (time.Time, erro
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (b *Bitmex) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (b *Bitmex) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Trade, error) {
 	return b.GetHistoricTrades(ctx, p, assetType, time.Now().Add(-time.Minute*15), time.Now())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (b *Bitmex) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+func (b *Bitmex) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Trade, error) {
 	if assetType == asset.Index {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
@@ -624,7 +624,7 @@ func (b *Bitmex) GetHistoricTrades(ctx context.Context, p currency.Pair, assetTy
 		EndTime: timestampEnd.UTC().Format("2006-01-02T15:04:05.000Z"),
 	}
 	ts := timestampStart
-	var resp []trade.Data
+	var resp []trade.Trade
 allTrades:
 	for {
 		req.StartTime = ts.UTC().Format("2006-01-02T15:04:05.000Z")
@@ -647,7 +647,7 @@ allTrades:
 				// These have a size of 0 and are used only to indicate a changing price.
 				continue
 			}
-			resp = append(resp, trade.Data{
+			resp = append(resp, trade.Trade{
 				Exchange:     b.Name,
 				CurrencyPair: p,
 				AssetType:    assetType,

@@ -443,7 +443,7 @@ func (b *BTSE) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asset
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (b *BTSE) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (b *BTSE) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Trade, error) {
 	var err error
 	p, err = b.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -462,7 +462,7 @@ func (b *BTSE) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 		return nil, err
 	}
 
-	resp := make([]trade.Data, len(tradeData))
+	resp := make([]trade.Trade, len(tradeData))
 	for i := range tradeData {
 		tradeTimestamp := time.UnixMilli(tradeData[i].Time)
 		var side order.Side
@@ -470,7 +470,7 @@ func (b *BTSE) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 		if err != nil {
 			return nil, err
 		}
-		resp[i] = trade.Data{
+		resp[i] = trade.Trade{
 			Exchange:     b.Name,
 			TID:          strconv.FormatInt(tradeData[i].SerialID, 10),
 			CurrencyPair: p,
@@ -491,7 +491,7 @@ func (b *BTSE) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (b *BTSE) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (b *BTSE) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Trade, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

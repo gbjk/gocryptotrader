@@ -534,7 +534,7 @@ func (k *Kraken) wsProcessTrades(response []any, pair currency.Pair) error {
 	if !k.IsSaveTradeDataEnabled() {
 		return nil
 	}
-	trades := make([]trade.Data, len(data))
+	trades := make([]trade.Trade, len(data))
 	for i := range data {
 		t, ok := data[i].([]interface{})
 		if !ok {
@@ -563,7 +563,7 @@ func (k *Kraken) wsProcessTrades(response []any, pair currency.Pair) error {
 			tSide = order.Sell
 		}
 
-		trades[i] = trade.Data{
+		trades[i] = trade.Trade{
 			AssetType:    asset.Spot,
 			CurrencyPair: pair,
 			Exchange:     k.Name,
@@ -573,7 +573,7 @@ func (k *Kraken) wsProcessTrades(response []any, pair currency.Pair) error {
 			Side:         tSide,
 		}
 	}
-	return trade.AddTradesToBuffer(k.Name, trades...)
+	return trade.Add(k.Name, trades...)
 }
 
 // wsProcessOrderBook handles both partial and full orderbook updates

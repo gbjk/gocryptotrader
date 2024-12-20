@@ -214,13 +214,13 @@ func validateSettings(b *Engine, s *Settings, flagSet FlagSet) {
 		b.Settings.EventManagerDelay = EventSleepDelay
 	}
 
-	if b.Settings.TradeBufferProcessingInterval != trade.DefaultProcessorIntervalTime {
+	if b.Settings.TradeBufferProcessingInterval != trade.DefaultSaveInterval {
 		if b.Settings.TradeBufferProcessingInterval >= time.Second {
 			trade.BufferProcessorIntervalTime = b.Settings.TradeBufferProcessingInterval
 		} else {
-			b.Settings.TradeBufferProcessingInterval = trade.DefaultProcessorIntervalTime
+			b.Settings.TradeBufferProcessingInterval = trade.DefaultSaveInterval
 			gctlog.Warnf(gctlog.Global, "-tradeprocessinginterval must be >= to 1 second, using default value of %v",
-				trade.DefaultProcessorIntervalTime)
+				trade.DefaultSaveInterval)
 		}
 	}
 

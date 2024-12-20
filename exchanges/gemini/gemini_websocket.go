@@ -335,7 +335,7 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 				return err
 			}
 
-			tradeEvent := trade.Data{
+			tradeEvent := trade.Trade{
 				Timestamp:    time.UnixMilli(result.Timestamp),
 				CurrencyPair: pair,
 				AssetType:    asset.Spot,
@@ -346,7 +346,7 @@ func (g *Gemini) wsHandleData(respRaw []byte) error {
 				TID:          strconv.FormatInt(result.EventID, 10),
 			}
 
-			return trade.AddTradesToBuffer(g.Name, tradeEvent)
+			return trade.Add(g.Name, tradeEvent)
 		case "subscription_ack":
 			var result WsSubscriptionAcknowledgementResponse
 			err := json.Unmarshal(respRaw, &result)
@@ -542,7 +542,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 		return nil
 	}
 
-	trades := make([]trade.Data, len(result.Trades))
+	trades := make([]trade.Trade, len(result.Trades))
 	for x := range result.Trades {
 		tSide, err := order.StringToOrderSide(result.Trades[x].Side)
 		if err != nil {
@@ -551,7 +551,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 				Err:      err,
 			}
 		}
-		trades[x] = trade.Data{
+		trades[x] = trade.Trade{
 			Timestamp:    time.UnixMilli(result.Trades[x].Timestamp),
 			CurrencyPair: pair,
 			AssetType:    asset.Spot,
@@ -563,7 +563,7 @@ func (g *Gemini) wsProcessUpdate(result *wsL2MarketData) error {
 		}
 	}
 
-	return trade.AddTradesToBuffer(g.Name, trades...)
+	return trade.Add(g.Name, trades...)
 }
 
 func channelName(s *subscription.Subscription) string {

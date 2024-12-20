@@ -137,7 +137,7 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 			return err
 		}
 
-		toBuffer := make([]trade.Data, len(trades.List))
+		toBuffer := make([]trade.Trade, len(trades.List))
 		var lu time.Time
 		for x := range trades.List {
 			lu, err = time.ParseInLocation(tradeTimeLayout,
@@ -147,7 +147,7 @@ func (b *Bithumb) wsHandleData(respRaw []byte) error {
 				return err
 			}
 
-			toBuffer[x] = trade.Data{
+			toBuffer[x] = trade.Trade{
 				Exchange:     b.Name,
 				AssetType:    asset.Spot,
 				CurrencyPair: trades.List[x].Symbol,

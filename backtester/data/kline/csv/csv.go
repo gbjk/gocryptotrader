@@ -105,7 +105,7 @@ func LoadData(dataType int64, filepath, exchangeName string, interval time.Durat
 		}
 		resp.Item = &candles
 	case common.DataTrade:
-		var trades []trade.Data
+		var trades []trade.Trade
 		for {
 			row, errCSV := csvData.Read()
 			if errCSV != nil {
@@ -115,7 +115,7 @@ func LoadData(dataType int64, filepath, exchangeName string, interval time.Durat
 				return nil, errCSV
 			}
 
-			t := trade.Data{}
+			t := trade.Trade{}
 			v, errParse := strconv.ParseInt(row[0], 10, 32)
 			if errParse != nil {
 				return nil, errParse

@@ -409,13 +409,13 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		var trades []trade.Data
+		var trades []trade.Trade
 		for i := range t.Tick.Data {
 			side := order.Buy
 			if t.Tick.Data[i].Direction != "buy" {
 				side = order.Sell
 			}
-			trades = append(trades, trade.Data{
+			trades = append(trades, trade.Trade{
 				Exchange:     h.Name,
 				AssetType:    a,
 				CurrencyPair: p,
@@ -426,7 +426,7 @@ func (h *HUOBI) wsHandleData(respRaw []byte) error {
 				TID:          strconv.FormatFloat(t.Tick.Data[i].TradeID, 'f', -1, 64),
 			})
 		}
-		return trade.AddTradesToBuffer(h.Name, trades...)
+		return trade.Add(h.Name, trades...)
 	case strings.Contains(init.Channel, "detail"),
 		strings.Contains(init.Rep, "detail"):
 		var wsTicker WsTick

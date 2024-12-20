@@ -2986,11 +2986,11 @@ func (f *FakeBase) UpdateAccountInfo(context.Context, asset.Item) (account.Holdi
 	return account.Holdings{}, nil
 }
 
-func (f *FakeBase) GetRecentTrades(context.Context, currency.Pair, asset.Item) ([]trade.Data, error) {
+func (f *FakeBase) GetRecentTrades(context.Context, currency.Pair, asset.Item) ([]trade.Trade, error) {
 	return nil, nil
 }
 
-func (f *FakeBase) GetHistoricTrades(context.Context, currency.Pair, asset.Item, time.Time, time.Time) ([]trade.Data, error) {
+func (f *FakeBase) GetHistoricTrades(context.Context, currency.Pair, asset.Item, time.Time, time.Time) ([]trade.Trade, error) {
 	return nil, nil
 }
 

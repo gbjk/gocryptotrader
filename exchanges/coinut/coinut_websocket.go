@@ -277,7 +277,7 @@ func (c *COINUT) wsHandleData(_ context.Context, respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		var trades []trade.Data
+		var trades []trade.Trade
 		for i := range tradeSnap.Trades {
 			pairs, err := c.GetEnabledPairs(asset.Spot)
 			if err != nil {
@@ -299,7 +299,7 @@ func (c *COINUT) wsHandleData(_ context.Context, respRaw []byte) error {
 				}
 			}
 
-			trades = append(trades, trade.Data{
+			trades = append(trades, trade.Trade{
 				Timestamp:    time.Unix(0, tradeSnap.Trades[i].Timestamp*1000),
 				CurrencyPair: p,
 				AssetType:    asset.Spot,
@@ -310,7 +310,7 @@ func (c *COINUT) wsHandleData(_ context.Context, respRaw []byte) error {
 				TID:          strconv.FormatInt(tradeSnap.Trades[i].TransID, 10),
 			})
 		}
-		return trade.AddTradesToBuffer(c.Name, trades...)
+		return trade.Add(c.Name, trades...)
 	case "inst_trade_update":
 		if !c.IsSaveTradeDataEnabled() {
 			return nil
@@ -341,7 +341,7 @@ func (c *COINUT) wsHandleData(_ context.Context, respRaw []byte) error {
 			}
 		}
 
-		return trade.AddTradesToBuffer(c.Name, trade.Data{
+		return trade.Add(c.Name, trade.Trade{
 			Timestamp:    time.Unix(0, tradeUpdate.Timestamp*1000),
 			CurrencyPair: p,
 			AssetType:    asset.Spot,

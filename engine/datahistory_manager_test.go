@@ -1499,7 +1499,7 @@ func (d dataHistoryJobResultService) GetJobResultsBetween(_ string, _, _ time.Ti
 	return nil, nil
 }
 
-func dataHistoryTraderLoader(exch, a, base, quote string, start, _ time.Time) ([]trade.Data, error) {
+func dataHistoryTraderLoader(exch, a, base, quote string, start, _ time.Time) ([]trade.Trade, error) {
 	cp, err := currency.NewPairFromStrings(base, quote)
 	if err != nil {
 		return nil, err
@@ -1508,7 +1508,7 @@ func dataHistoryTraderLoader(exch, a, base, quote string, start, _ time.Time) ([
 	if err != nil {
 		return nil, err
 	}
-	return []trade.Data{
+	return []trade.Trade{
 		{
 			Exchange:     exch,
 			CurrencyPair: cp,
@@ -1546,7 +1546,7 @@ func dataHistoryCandleLoader(exch string, cp currency.Pair, a asset.Item, interv
 	}, nil
 }
 
-func dataHistoryTradeSaver(...trade.Data) error {
+func dataHistoryTradeSaver(...trade.Trade) error {
 	return nil
 }
 
@@ -1595,8 +1595,8 @@ func (f dhmExchange) GetHistoricCandlesExtended(_ context.Context, p currency.Pa
 	}, nil
 }
 
-func (f dhmExchange) GetHistoricTrades(_ context.Context, p currency.Pair, a asset.Item, startTime, _ time.Time) ([]trade.Data, error) {
-	return []trade.Data{
+func (f dhmExchange) GetHistoricTrades(_ context.Context, p currency.Pair, a asset.Item, startTime, _ time.Time) ([]trade.Trade, error) {
+	return []trade.Trade{
 		{
 			Exchange:     testExchange,
 			CurrencyPair: p,

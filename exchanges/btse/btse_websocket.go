@@ -249,7 +249,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		var trades []trade.Data
+		var trades []trade.Trade
 		for x := range tradeHistory.Data {
 			side := order.Buy
 			if tradeHistory.Data[x].Gain == -1 {
@@ -269,7 +269,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 			if err != nil {
 				return err
 			}
-			trades = append(trades, trade.Data{
+			trades = append(trades, trade.Trade{
 				Timestamp:    time.UnixMilli(tradeHistory.Data[x].TransactionTime),
 				CurrencyPair: p,
 				AssetType:    a,
@@ -280,7 +280,7 @@ func (b *BTSE) wsHandleData(respRaw []byte) error {
 				TID:          strconv.FormatInt(tradeHistory.Data[x].ID, 10),
 			})
 		}
-		return trade.AddTradesToBuffer(b.Name, trades...)
+		return trade.Add(b.Name, trades...)
 	case strings.Contains(topic, "orderBookL2Api"): // TODO: Fix orderbook updates.
 		var t wsOrderBook
 		err = json.Unmarshal(respRaw, &t)

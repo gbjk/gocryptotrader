@@ -666,13 +666,13 @@ func (k *Kraken) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ a
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Trade, error) {
 	var err error
 	p, err = k.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+	var resp []trade.Trade
 	switch assetType {
 	case asset.Spot:
 		var tradeData []RecentTrades
@@ -685,7 +685,7 @@ func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 			if tradeData[i].BuyOrSell == "s" {
 				side = order.Sell
 			}
-			resp = append(resp, trade.Data{
+			resp = append(resp, trade.Trade{
 				TID:          strconv.FormatInt(tradeData[i].TradeID, 10),
 				Exchange:     k.Name,
 				CurrencyPair: p,
@@ -707,7 +707,7 @@ func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 			if strings.EqualFold(tradeData.Elements[i].ExecutionEvent.OuterExecutionHolder.Execution.MakerOrder.Direction, "sell") {
 				side = order.Sell
 			}
-			resp = append(resp, trade.Data{
+			resp = append(resp, trade.Trade{
 				TID:          tradeData.Elements[i].UID,
 				Exchange:     k.Name,
 				CurrencyPair: p,
@@ -732,7 +732,7 @@ func (k *Kraken) GetRecentTrades(ctx context.Context, p currency.Pair, assetType
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (k *Kraken) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (k *Kraken) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Trade, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

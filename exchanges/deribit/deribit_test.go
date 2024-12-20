@@ -3332,7 +3332,7 @@ func TestGetWithdrawalsHistory(t *testing.T) {
 
 func TestGetRecentTrades(t *testing.T) {
 	t.Parallel()
-	var result []trade.Data
+	var result []trade.Trade
 	var err error
 	for assetType, cp := range assetTypeToPairsMap {
 		result, err = d.GetRecentTrades(context.Background(), cp, assetType)

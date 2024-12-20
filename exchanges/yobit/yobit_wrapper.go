@@ -321,7 +321,7 @@ func (y *Yobit) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ asse
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (y *Yobit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (y *Yobit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Trade, error) {
 	var err error
 	p, err = y.FormatExchangeCurrency(p, assetType)
 	if err != nil {
@@ -334,14 +334,14 @@ func (y *Yobit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType 
 		return nil, err
 	}
 
-	resp := make([]trade.Data, len(tradeData))
+	resp := make([]trade.Trade, len(tradeData))
 	for i := range tradeData {
 		tradeTS := time.Unix(tradeData[i].Timestamp, 0)
 		side := order.Buy
 		if tradeData[i].Type == "ask" {
 			side = order.Sell
 		}
-		resp[i] = trade.Data{
+		resp[i] = trade.Trade{
 			Exchange:     y.Name,
 			TID:          strconv.FormatInt(tradeData[i].TID, 10),
 			CurrencyPair: p,
@@ -363,7 +363,7 @@ func (y *Yobit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType 
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (y *Yobit) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (y *Yobit) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Trade, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

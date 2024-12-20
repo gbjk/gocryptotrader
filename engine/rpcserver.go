@@ -3219,7 +3219,7 @@ func (s *RPCServer) GetSavedTrades(_ context.Context, r *gctrpc.GetSavedTradesRe
 	if err != nil {
 		return nil, err
 	}
-	var trades []trade.Data
+	var trades []trade.Trade
 	trades, err = trade.GetTradesInRange(r.Exchange, r.AssetType, r.Pair.Base, r.Pair.Quote, start, end)
 	if err != nil {
 		return nil, err
@@ -3468,7 +3468,7 @@ func (s *RPCServer) FindMissingSavedTradeIntervals(_ context.Context, r *gctrpc.
 		iterationTime = iterationTime.Add(time.Hour)
 	}
 
-	var trades []trade.Data
+	var trades []trade.Trade
 	trades, err = trade.GetTradesInRange(
 		r.ExchangeName,
 		r.AssetType,
@@ -3563,7 +3563,7 @@ func (s *RPCServer) GetHistoricTrades(r *gctrpc.GetSavedTradesRequest, stream gc
 	if err != nil {
 		return err
 	}
-	var trades []trade.Data
+	var trades []trade.Trade
 	start, err := time.Parse(common.SimpleTimeFormatWithTimezone, r.Start)
 	if err != nil {
 		return fmt.Errorf("%w cannot parse start time %v", errInvalidTimes, err)
@@ -3644,7 +3644,7 @@ func (s *RPCServer) GetRecentTrades(ctx context.Context, r *gctrpc.GetSavedTrade
 		return nil, err
 	}
 
-	var trades []trade.Data
+	var trades []trade.Trade
 	trades, err = exch.GetRecentTrades(ctx, cp, a)
 	if err != nil {
 		return nil, err

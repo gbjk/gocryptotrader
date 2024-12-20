@@ -624,7 +624,7 @@ func (ok *Okx) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ ass
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Trade, error) {
 	pairFormat, err := ok.GetPairFormat(assetType, true)
 	if err != nil {
 		return nil, err
@@ -638,9 +638,9 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 		return nil, err
 	}
 
-	resp := make([]trade.Data, len(tradeData))
+	resp := make([]trade.Trade, len(tradeData))
 	for x := range tradeData {
-		resp[x] = trade.Data{
+		resp[x] = trade.Trade{
 			TID:          tradeData[x].TradeID,
 			Exchange:     ok.Name,
 			CurrencyPair: p,
@@ -652,7 +652,7 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 		}
 	}
 	if ok.IsSaveTradeDataEnabled() {
-		err = trade.AddTradesToBuffer(ok.Name, resp...)
+		err = trade.Add(ok.Name, resp...)
 		if err != nil {
 			return nil, err
 		}
@@ -662,7 +662,7 @@ func (ok *Okx) GetRecentTrades(ctx context.Context, p currency.Pair, assetType a
 }
 
 // GetHistoricTrades retrieves historic trade data within the timeframe provided
-func (ok *Okx) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+func (ok *Okx) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Trade, error) {
 	if timestampStart.Before(time.Now().Add(-kline.ThreeMonth.Duration())) {
 		return nil, errOnlyThreeMonthsSupported
 	}
@@ -674,7 +674,7 @@ func (ok *Okx) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
-	var resp []trade.Data
+	var resp []trade.Trade
 	instrumentID := pairFormat.Format(p)
 	tradeIDEnd := ""
 allTrades:
@@ -694,7 +694,7 @@ allTrades:
 				// reached end of trades to crawl
 				break allTrades
 			}
-			resp = append(resp, trade.Data{
+			resp = append(resp, trade.Trade{
 				TID:          trades[i].TradeID,
 				Exchange:     ok.Name,
 				CurrencyPair: p,
@@ -708,7 +708,7 @@ allTrades:
 		tradeIDEnd = trades[len(trades)-1].TradeID
 	}
 	if ok.IsSaveTradeDataEnabled() {
-		err = trade.AddTradesToBuffer(ok.Name, resp...)
+		err = trade.Add(ok.Name, resp...)
 		if err != nil {
 			return nil, err
 		}

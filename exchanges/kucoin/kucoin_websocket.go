@@ -766,7 +766,7 @@ func (ku *Kucoin) processTradeData(respData []byte, instrument, topic string) er
 			CurrencyPair: pair,
 			Timestamp:    response.Time.Time(),
 			Price:        response.Price,
-			Amount:       response.Size,
+			Amount:       response.Size,Trade
 			Side:         side,
 			Exchange:     ku.Name,
 			TID:          response.TradeID,

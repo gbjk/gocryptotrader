@@ -133,8 +133,8 @@ type DataHistoryManager struct {
 	maxResultInsertions        int64
 	verbose                    bool
 	candleLoader               func(string, currency.Pair, asset.Item, kline.Interval, time.Time, time.Time) (*kline.Item, error)
-	tradeLoader                func(string, string, string, string, time.Time, time.Time) ([]trade.Data, error)
-	tradeSaver                 func(...trade.Data) error
+	tradeLoader                func(string, string, string, string, time.Time, time.Time) ([]trade.Trade, error)
+	tradeSaver                 func(...trade.Trade) error
 	candleSaver                func(*kline.Item, bool) (uint64, error)
 }
 

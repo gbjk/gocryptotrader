@@ -579,12 +579,12 @@ func (ku *Kucoin) GetWithdrawalsHistory(ctx context.Context, c currency.Code, as
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (ku *Kucoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (ku *Kucoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Trade, error) {
 	p, err := ku.FormatExchangeCurrency(p, assetType)
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+	var resp []trade.Trade
 	switch assetType {
 	case asset.Futures:
 		tradeData, err := ku.GetFuturesTradeHistory(ctx, p.String())
@@ -597,7 +597,7 @@ func (ku *Kucoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 			if err != nil {
 				return nil, err
 			}
-			resp = append(resp, trade.Data{
+			resp = append(resp, trade.Trade{
 				TID:          tradeData[i].TradeID,
 				Exchange:     ku.Name,
 				CurrencyPair: p,
@@ -619,7 +619,7 @@ func (ku *Kucoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 			if err != nil {
 				return nil, err
 			}
-			resp = append(resp, trade.Data{
+			resp = append(resp, trade.Trade{
 				TID:          tradeData[i].Sequence,
 				Exchange:     ku.Name,
 				CurrencyPair: p,
@@ -634,7 +634,7 @@ func (ku *Kucoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	if ku.IsSaveTradeDataEnabled() {
-		err := trade.AddTradesToBuffer(ku.Name, resp...)
+		err := trade.Add(ku.Name, resp...)
 		if err != nil {
 			return nil, err
 		}
@@ -644,7 +644,7 @@ func (ku *Kucoin) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (ku *Kucoin) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Data, error) {
+func (ku *Kucoin) GetHistoricTrades(_ context.Context, _ currency.Pair, _ asset.Item, _, _ time.Time) ([]trade.Trade, error) {
 	return nil, common.ErrFunctionNotSupported
 }
 

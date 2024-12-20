@@ -387,12 +387,12 @@ func (h *HitBTC) GetWithdrawalsHistory(_ context.Context, _ currency.Code, _ ass
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (h *HitBTC) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (h *HitBTC) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Trade, error) {
 	return h.GetHistoricTrades(ctx, p, assetType, time.Now().Add(-time.Minute*15), time.Now())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (h *HitBTC) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+func (h *HitBTC) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Trade, error) {
 	if err := common.StartEndTimeCheck(timestampStart, timestampEnd); err != nil {
 		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", timestampStart, timestampEnd, err)
 	}
@@ -402,7 +402,7 @@ func (h *HitBTC) GetHistoricTrades(ctx context.Context, p currency.Pair, assetTy
 		return nil, err
 	}
 	ts := timestampStart
-	var resp []trade.Data
+	var resp []trade.Trade
 	limit := 1000
 allTrades:
 	for {
@@ -427,7 +427,7 @@ allTrades:
 			if err != nil {
 				return nil, err
 			}
-			resp = append(resp, trade.Data{
+			resp = append(resp, trade.Trade{
 				Exchange:     h.Name,
 				TID:          strconv.FormatInt(tradeData[i].ID, 10),
 				CurrencyPair: p,

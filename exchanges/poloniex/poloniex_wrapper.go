@@ -466,12 +466,12 @@ func (p *Poloniex) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (p *Poloniex) GetRecentTrades(ctx context.Context, pair currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (p *Poloniex) GetRecentTrades(ctx context.Context, pair currency.Pair, assetType asset.Item) ([]trade.Trade, error) {
 	return p.GetHistoricTrades(ctx, pair, assetType, time.Now().Add(-time.Minute*15), time.Now())
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (p *Poloniex) GetHistoricTrades(ctx context.Context, pair currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+func (p *Poloniex) GetHistoricTrades(ctx context.Context, pair currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Trade, error) {
 	if err := common.StartEndTimeCheck(timestampStart, timestampEnd); err != nil {
 		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v %w", timestampStart, timestampEnd, err)
 	}
@@ -481,7 +481,7 @@ func (p *Poloniex) GetHistoricTrades(ctx context.Context, pair currency.Pair, as
 		return nil, err
 	}
 
-	var resp []trade.Data
+	var resp []trade.Trade
 	ts := timestampStart
 allTrades:
 	for {
@@ -507,7 +507,7 @@ allTrades:
 			if err != nil {
 				return nil, err
 			}
-			resp = append(resp, trade.Data{
+			resp = append(resp, trade.Trade{
 				Exchange:     p.Name,
 				TID:          tradeData[i].TradeID,
 				CurrencyPair: pair,

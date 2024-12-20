@@ -926,12 +926,12 @@ func (g *Gateio) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ a
 		withdrawalHistories[x] = exchange.WithdrawalHistory{
 			Status:          records[x].Status,
 			TransferID:      records[x].ID,
-			Currency:        records[x].Currency,
+			Currency:        records[x].Currency,Trade
 			Amount:          records[x].Amount.Float64(),
 			CryptoTxID:      records[x].TransactionID,
 			CryptoToAddress: records[x].WithdrawalAddress,
 			Timestamp:       records[x].Timestamp.Time(),
-		}
+		}Trade
 	}
 	return withdrawalHistories, nil
 }
@@ -942,14 +942,14 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 	if err != nil {
 		return nil, err
 	}
-	var resp []trade.Data
+	var resp []trade.DataTrade
 	switch a {
 	case asset.Spot, asset.Margin, asset.CrossMargin:
 		var tradeData []Trade
 		if p.IsEmpty() {
 			return nil, currency.ErrCurrencyPairEmpty
 		}
-		tradeData, err = g.GetMarketTrades(ctx, p, 0, "", false, time.Time{}, time.Time{}, 0)
+		tradeData, err = TradetMarketTrades(ctx, p, 0, "", false, time.Time{}, time.Time{}, 0)
 		if err != nil {
 			return nil, err
 		}
@@ -971,9 +971,9 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 				Timestamp:    tradeData[i].CreateTimeMs.Time(),
 			}
 		}
-	case asset.Futures:
+	case asset.Futures:Trade
 		var settle currency.Code
-		settle, err = getSettlementFromCurrency(p)
+		settle, err = getTradelementFromCurrency(p)
 		if err != nil {
 			return nil, err
 		}
@@ -994,9 +994,9 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 				Timestamp:    futuresTrades[i].CreateTime.Time(),
 			}
 		}
-	case asset.DeliveryFutures:
+	case asset.DeliveryFuTrades:
 		var settle currency.Code
-		settle, err = getSettlementFromCurrency(p)
+		settle, err = getTradelementFromCurrency(p)
 		if err != nil {
 			return nil, err
 		}
@@ -1012,9 +1012,9 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 				Exchange:     g.Name,
 				CurrencyPair: p,
 				AssetType:    a,
-				Price:        deliveryTrades[i].Price.Float64(),
+				Price:        deliTradeTrades[i].Price.Float64(),
 				Amount:       deliveryTrades[i].Size,
-				Timestamp:    deliveryTrades[i].CreateTime.Time(),
+				Timestamp:    dTradeeryTrades[i].CreateTime.Time(),
 			}
 		}
 	case asset.Options:
@@ -1036,7 +1036,7 @@ func (g *Gateio) GetRecentTrades(ctx context.Context, p currency.Pair, a asset.I
 			}
 		}
 	default:
-		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)
+		return nil, fmt.Errorf("%w asset type: %v", asset.ErrNotSupported, a)Trade
 	}
 	err = g.AddTradesToBuffer(resp...)
 	if err != nil {

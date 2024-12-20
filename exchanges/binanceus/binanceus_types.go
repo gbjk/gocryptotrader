@@ -146,8 +146,8 @@ type AggregatedTrade struct {
 }
 
 // toTradeData this method converts the AggregatedTrade data into an instance of trade.Data
-func (a *AggregatedTrade) toTradeData(p currency.Pair, exchange string, aType asset.Item) *trade.Data {
-	return &trade.Data{
+func (a *AggregatedTrade) toTradeData(p currency.Pair, exchange string, aType asset.Item) *trade.Trade {
+	return &trade.Trade{
 		CurrencyPair: p,
 		TID:          strconv.FormatInt(a.ATradeID, 10),
 		Amount:       a.Quantity,

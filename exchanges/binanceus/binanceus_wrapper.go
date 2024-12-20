@@ -464,7 +464,7 @@ func (bi *Binanceus) GetWithdrawalsHistory(ctx context.Context, c currency.Code,
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (bi *Binanceus) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (bi *Binanceus) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Trade, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -476,9 +476,9 @@ func (bi *Binanceus) GetRecentTrades(ctx context.Context, p currency.Pair, asset
 	if err != nil {
 		return nil, err
 	}
-	resp := make([]trade.Data, len(tradeData))
+	resp := make([]trade.Trade, len(tradeData))
 	for i := range tradeData {
-		resp[i] = trade.Data{
+		resp[i] = trade.Trade{
 			TID:          strconv.FormatInt(tradeData[i].ID, 10),
 			Exchange:     bi.Name,
 			AssetType:    assetType,
@@ -490,7 +490,7 @@ func (bi *Binanceus) GetRecentTrades(ctx context.Context, p currency.Pair, asset
 	}
 
 	if bi.IsSaveTradeDataEnabled() {
-		err := trade.AddTradesToBuffer(bi.Name, resp...)
+		err := trade.Add(bi.Name, resp...)
 		if err != nil {
 			return nil, err
 		}
@@ -500,7 +500,7 @@ func (bi *Binanceus) GetRecentTrades(ctx context.Context, p currency.Pair, asset
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (bi *Binanceus) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+func (bi *Binanceus) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Trade, error) {
 	if p.IsEmpty() {
 		return nil, currency.ErrCurrencyPairEmpty
 	}
@@ -516,7 +516,7 @@ func (bi *Binanceus) GetHistoricTrades(ctx context.Context, p currency.Pair, ass
 	if err != nil {
 		return nil, err
 	}
-	result := make([]trade.Data, len(trades))
+	result := make([]trade.Trade, len(trades))
 	exName := bi.Name
 	for i := range trades {
 		t := trades[i].toTradeData(p, exName, assetType)

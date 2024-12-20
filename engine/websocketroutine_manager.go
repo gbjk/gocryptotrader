@@ -347,7 +347,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data int
 				m.printAccountHoldingsChangeSummary(d[x])
 			}
 		}
-	case []trade.Data:
+	case []trade.Trade:
 		if m.verbose {
 			log.Infof(log.Trade, "%+v", d)
 		}

@@ -204,7 +204,7 @@ func (b *BTCMarkets) wsHandleData(respRaw []byte) error {
 			side = order.Sell
 		}
 
-		return trade.AddTradesToBuffer(b.Name, trade.Data{
+		return trade.Add(b.Name, trade.Trade{
 			Timestamp:    t.Timestamp,
 			CurrencyPair: p,
 			AssetType:    asset.Spot,

@@ -530,7 +530,7 @@ func (d *Deribit) GetWithdrawalsHistory(ctx context.Context, c currency.Code, _ 
 }
 
 // GetRecentTrades returns the most recent trades for a currency and asset
-func (d *Deribit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Data, error) {
+func (d *Deribit) GetRecentTrades(ctx context.Context, p currency.Pair, assetType asset.Item) ([]trade.Trade, error) {
 	if !d.SupportsAsset(assetType) {
 		return nil, fmt.Errorf("%s: %w - %s", d.Name, asset.ErrNotSupported, assetType)
 	}
@@ -539,7 +539,7 @@ func (d *Deribit) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 		return nil, err
 	}
 	instrumentID := d.formatPairString(assetType, p)
-	resp := []trade.Data{}
+	resp := []trade.Trade{}
 	var trades *PublicTradesData
 	if d.Websocket.IsConnected() {
 		trades, err = d.WSRetrieveLastTradesByInstrument(
@@ -557,7 +557,7 @@ func (d *Deribit) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 		if trades.Trades[a].Direction == sideBUY {
 			sideData = order.Buy
 		}
-		resp = append(resp, trade.Data{
+		resp = append(resp, trade.Trade{
 			TID:          trades.Trades[a].TradeID,
 			Exchange:     d.Name,
 			Price:        trades.Trades[a].Price,
@@ -572,7 +572,7 @@ func (d *Deribit) GetRecentTrades(ctx context.Context, p currency.Pair, assetTyp
 }
 
 // GetHistoricTrades returns historic trade data within the timeframe provided
-func (d *Deribit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Data, error) {
+func (d *Deribit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetType asset.Item, timestampStart, timestampEnd time.Time) ([]trade.Trade, error) {
 	if common.StartEndTimeCheck(timestampStart, timestampEnd) != nil {
 		return nil, fmt.Errorf("invalid time range supplied. Start: %v End %v",
 			timestampStart,
@@ -589,7 +589,7 @@ func (d *Deribit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetT
 	default:
 		return nil, fmt.Errorf("%w asset type %v", asset.ErrNotSupported, assetType)
 	}
-	var resp []trade.Data
+	var resp []trade.Trade
 	var tradesData *PublicTradesData
 	var hasMore = true
 	for hasMore {
@@ -615,7 +615,7 @@ func (d *Deribit) GetHistoricTrades(ctx context.Context, p currency.Pair, assetT
 			if tradesData.Trades[t].Direction == sideBUY {
 				sideData = order.Buy
 			}
-			resp = append(resp, trade.Data{
+			resp = append(resp, trade.Trade{
 				TID:          tradesData.Trades[t].TradeID,
 				Exchange:     d.Name,
 				Price:        tradesData.Trades[t].Price,

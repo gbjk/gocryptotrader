@@ -223,7 +223,7 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
-		var trades []trade.Data
+		var trades []trade.Trade
 		p, err := currency.NewPairFromString(tradeSnapshot.Params.Symbol)
 		if err != nil {
 			return &order.ClassificationError{
@@ -239,7 +239,7 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 					Err:      err,
 				}
 			}
-			trades = append(trades, trade.Data{
+			trades = append(trades, trade.Trade{
 				Timestamp:    tradeSnapshot.Params.Data[i].Timestamp,
 				Exchange:     h.Name,
 				CurrencyPair: p,
@@ -250,7 +250,7 @@ func (h *HitBTC) wsHandleData(respRaw []byte) error {
 				TID:          strconv.FormatInt(tradeSnapshot.Params.Data[i].ID, 10),
 			})
 		}
-		return trade.AddTradesToBuffer(h.Name, trades...)
+		return trade.Add(h.Name, trades...)
 	case "activeOrders":
 		var o wsActiveOrdersResponse
 		err := json.Unmarshal(respRaw, &o)

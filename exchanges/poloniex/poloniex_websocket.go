@@ -1136,7 +1136,7 @@ func (p *Poloniex) processTrades(currencyID float64, subData []interface{}) erro
 		return fmt.Errorf("%w time not float64", errTypeAssertionFailure)
 	}
 
-	return p.AddTradesToBuffer(trade.Data{
+	return p.AddTradesToBuffer(trade.Trade{
 		TID:          tradeID,
 		Exchange:     p.Name,
 		CurrencyPair: pair,
