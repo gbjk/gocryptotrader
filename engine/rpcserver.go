@@ -2119,7 +2119,7 @@ func (s *RPCServer) SetExchangePair(_ context.Context, r *gctrpc.SetExchangePair
 	}
 
 	if exch.IsWebsocketEnabled() && pass && base.Websocket.IsConnected() {
-		err = exch.FlushWebsocketChannels()
+		err = exch.SyncSubscriptions()
 		if err != nil {
 			newErrors = common.AppendError(newErrors, err)
 		}
@@ -2935,7 +2935,7 @@ func (s *RPCServer) SetExchangeAsset(_ context.Context, r *gctrpc.SetExchangeAss
 	}
 
 	if base.IsWebsocketEnabled() && base.Websocket.IsConnected() {
-		err = exch.FlushWebsocketChannels()
+		err = exch.SyncSubscriptions()
 		if err != nil {
 			return nil, err
 		}
@@ -2993,7 +2993,7 @@ func (s *RPCServer) SetAllExchangePairs(_ context.Context, r *gctrpc.SetExchange
 	}
 
 	if exch.IsWebsocketEnabled() && base.Websocket.IsConnected() {
-		err = exch.FlushWebsocketChannels()
+		err = exch.SyncSubscriptions()
 		if err != nil {
 			return nil, err
 		}
@@ -3027,7 +3027,7 @@ func (s *RPCServer) UpdateExchangeSupportedPairs(ctx context.Context, r *gctrpc.
 	}
 
 	if exch.IsWebsocketEnabled() {
-		err = exch.FlushWebsocketChannels()
+		err = exch.SyncSubscriptions()
 		if err != nil {
 			return nil, err
 		}

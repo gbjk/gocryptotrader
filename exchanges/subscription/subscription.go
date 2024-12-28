@@ -64,6 +64,7 @@ type Subscription struct {
 	Authenticated    bool           `json:"authenticated,omitempty"`
 	QualifiedChannel string         `json:"-"`
 	state            State
+	allEnabledPairs  bool
 	m                sync.RWMutex
 }
 

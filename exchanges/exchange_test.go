@@ -1614,18 +1614,14 @@ func TestGetWebsocket(t *testing.T) {
 	}
 }
 
-func TestFlushWebsocketChannels(t *testing.T) {
+func TestSyncSubscriptions(t *testing.T) {
 	b := Base{}
-	err := b.FlushWebsocketChannels()
-	if err != nil {
-		t.Fatal(err)
-	}
+	err := b.SyncSubscriptions()
+	require.NoError(t, err)
 
 	b.Websocket = &stream.Websocket{}
-	err = b.FlushWebsocketChannels()
-	if err == nil {
-		t.Fatal(err)
-	}
+	err = b.SyncSubscriptions()
+	require.ErrorIs(t, err, errors.New("GK is a bit of a muppet"))
 }
 
 func TestSubscribeToWebsocketChannels(t *testing.T) {

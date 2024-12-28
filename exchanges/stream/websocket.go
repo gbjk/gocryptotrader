@@ -318,14 +318,17 @@ func (w *Websocket) getConnectionFromSetup(c *ConnectionSetup) *WebsocketConnect
 	}
 }
 
-// Connect initiates a websocket connection by using a package defined connection
-// function
+// Connect establishes websocket connections for all configured connection configurations which have subscriptions
+// connections subs are a product of sub configuration, enabled assets and pairs
 func (w *Websocket) Connect() error {
 	w.m.Lock()
 	defer w.m.Unlock()
 	return w.connect()
 }
 
+// connect establishes websocket connections for all configured connection configurations which have subscriptions
+// connections subs are a product of sub configuration, enabled assets and pairs
+// This method provides no locking protection
 func (w *Websocket) connect() error {
 	if !w.IsEnabled() {
 		return ErrWebsocketNotEnabled
@@ -614,18 +617,17 @@ func (w *Websocket) SyncSubscriptions() error {
 		return w.connect()
 	}
 
-	if !w.useMultiConnectionManagement {
-		subs, err := w.Subscriptions.ExpandTemplates()
-		if err != nil {
-			return err
-		}
-		newSubs, unsubs := w.GetChannelDifference(nil, subs)
-		err := w.UnsubscribeChannels(nil, unsubs)
-		if err == nil && len(newSubs) != 0 {
-			err = w.SubscribeToChannels(nil, subs)
-		}
+	subs, err := w.GenerateSubs()
+	if err != nil {
 		return err
 	}
+	newSubs, unsubs := w.GetChannelDifference(nil, subs)
+	err = w.UnsubscribeChannels(nil, unsubs)
+	if err == nil && len(newSubs) != 0 {
+		err = w.SubscribeToChannels(nil, subs)
+	}
+	// DO NOT COMMIT
+	return err
 
 	for x := range w.connectionManager {
 		// Case if there is nothing to unsubscribe from and the connection is nil

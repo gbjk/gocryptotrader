@@ -27,13 +27,6 @@ const (
 	deliveryTestNetUSDTTradingURL = "wss://fx-ws-testnet.gateio.ws/v4/ws/delivery/usdt"
 )
 
-var defaultDeliveryFuturesSubscriptions = []string{
-	futuresTickersChannel,
-	futuresTradesChannel,
-	futuresOrderbookChannel,
-	futuresCandlesticksChannel,
-}
-
 var fetchedFuturesCurrencyPairSnapshotOrderbook = make(map[string]bool)
 
 // WsDeliveryFuturesConnect initiates a websocket connection for delivery futures account

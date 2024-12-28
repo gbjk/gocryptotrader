@@ -25,38 +25,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
-const (
-	btcFuturesWebsocketURL  = "wss://fx-ws.gateio.ws/v4/ws/btc"
-	usdtFuturesWebsocketURL = "wss://fx-ws.gateio.ws/v4/ws/usdt"
-
-	futuresPingChannel            = "futures.ping"
-	futuresTickersChannel         = "futures.tickers"
-	futuresTradesChannel          = "futures.trades"
-	futuresOrderbookChannel       = "futures.order_book"
-	futuresOrderbookTickerChannel = "futures.book_ticker"
-	futuresOrderbookUpdateChannel = "futures.order_book_update"
-	futuresCandlesticksChannel    = "futures.candlesticks"
-	futuresOrdersChannel          = "futures.orders"
-
-	//  authenticated channels
-	futuresUserTradesChannel        = "futures.usertrades"
-	futuresLiquidatesChannel        = "futures.liquidates"
-	futuresAutoDeleveragesChannel   = "futures.auto_deleverages"
-	futuresAutoPositionCloseChannel = "futures.position_closes"
-	futuresBalancesChannel          = "futures.balances"
-	futuresReduceRiskLimitsChannel  = "futures.reduce_risk_limits"
-	futuresPositionsChannel         = "futures.positions"
-	futuresAutoOrdersChannel        = "futures.autoorders"
-)
-
-var defaultFuturesSubscriptions = []string{
-	futuresTickersChannel,
-	futuresTradesChannel,
-	futuresOrderbookChannel,
-	futuresOrderbookUpdateChannel,
-	futuresCandlesticksChannel,
-}
-
 // WsFuturesConnect initiates a websocket connection for futures account
 func (g *Gateio) WsFuturesConnect(ctx context.Context, conn stream.Connection) error {
 	a := asset.USDTMarginedFutures

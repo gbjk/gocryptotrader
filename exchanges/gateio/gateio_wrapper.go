@@ -210,7 +210,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		URL:                      gateioWebsocketEndpoint,
 		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
 		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		Handler:                  g.WsHandleSpotData,
+		Handler:                  g.WsHandleData,
 		Subscriber:               g.Subscribe,
 		Unsubscriber:             g.Unsubscribe,
 		Connector:                g.WsConnectSpot,

@@ -31,46 +31,65 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
+var (
+	errParsingWSField = errors.New("error parsing WS field")
+	errChannelParts   = errors.New("should contain asset and channel")
+)
+
 const (
 	gateioWebsocketEndpoint = "wss://api.gateio.ws/ws/v4/"
+	btcFuturesWebsocketURL  = "wss://fx-ws.gateio.ws/v4/ws/btc"
+	usdtFuturesWebsocketURL = "wss://fx-ws.gateio.ws/v4/ws/usdt"
 
-	spotPingChannel            = "spot.ping"
-	spotPongChannel            = "spot.pong"
-	spotTickerChannel          = "spot.tickers"
-	spotTradesChannel          = "spot.trades"
-	spotCandlesticksChannel    = "spot.candlesticks"
-	spotOrderbookTickerChannel = "spot.book_ticker"       // Best bid or ask price
-	spotOrderbookUpdateChannel = "spot.order_book_update" // Changed order book levels
-	spotOrderbookChannel       = "spot.order_book"        // Limited-Level Full Order Book Snapshot
-	spotOrdersChannel          = "spot.orders"
-	spotUserTradesChannel      = "spot.usertrades"
-	spotBalancesChannel        = "spot.balances"
-	marginBalancesChannel      = "spot.margin_balances"
-	spotFundingBalanceChannel  = "spot.funding_balances"
-	crossMarginBalanceChannel  = "spot.cross_balances"
-	crossMarginLoanChannel     = "spot.cross_loan"
+	// Public Channels
+	pingChannel            = "ping"
+	pongChannel            = "pong"
+	tickerChannel          = "tickers"
+	tradesChannel          = "trades"
+	candlesticksChannel    = "candlesticks"
+	orderbookTickerChannel = "book_ticker"       // Best bid or ask price
+	orderbookUpdateChannel = "order_book_update" // Changed order book levels
+	orderbookChannel       = "order_book"        // Limited-Level Full Order Book Snapshot
+	ordersChannel          = "orders"
+
+	// Private channels
+	userTradesChannel        = "usertrades"
+	balancesChannel          = "balances"
+	liquidatesChannel        = "liquidates"
+	positionsChannel         = "positions"
+	autoOrdersChannel        = "autoorders"
+	autoDeleveragesChannel   = "auto_deleverages"
+	autoPositionCloseChannel = "position_closes"
+	reduceRiskLimitsChannel  = "reduce_risk_limits"
+
+	// DO NOT COMMIT - Have these been checked? naming is weird AF
+	marginBalancesChannel = "margin_balances"
+	fundingBalanceChannel = "funding_balances"
+	// DO NOT COMMIT - Has this been tested?
+	crossMarginBalanceChannel = "cross_balances"
+	crossMarginLoanChannel    = "cross_loan"
 
 	subscribeEvent   = "subscribe"
 	unsubscribeEvent = "unsubscribe"
 )
 
 var defaultSubscriptions = subscription.List{
-	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot},
-	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.FiveMin},
-	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
-	{Enabled: true, Channel: spotBalancesChannel, Asset: asset.Spot, Authenticated: true},
+	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.All},
+	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.All, Interval: kline.FiveMin},
+	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.HundredMilliseconds},
+	{Enabled: false, Channel: subscription.AllTradesChannel, Asset: asset.All},
+	{Enabled: true, Channel: balancesChannel, Asset: asset.All, Authenticated: true},
 	{Enabled: true, Channel: crossMarginBalanceChannel, Asset: asset.CrossMargin, Authenticated: true},
 	{Enabled: true, Channel: marginBalancesChannel, Asset: asset.Margin, Authenticated: true},
-	{Enabled: false, Channel: subscription.AllTradesChannel, Asset: asset.Spot},
 }
 
 var fetchedCurrencyPairSnapshotOrderbook = make(map[string]bool)
 
 var subscriptionNames = map[string]string{
-	subscription.TickerChannel:    spotTickerChannel,
-	subscription.OrderbookChannel: spotOrderbookUpdateChannel,
-	subscription.CandlesChannel:   spotCandlesticksChannel,
-	subscription.AllTradesChannel: spotTradesChannel,
+	subscription.TickerChannel:    tickerChannel,
+	subscription.OrderbookChannel: orderbookUpdateChannel,
+	subscription.CandlesChannel:   candlesticksChannel,
+	subscription.AllTradesChannel: tradesChannel,
 }
 
 var standardMarginAssetTypes = []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin}
@@ -85,7 +104,7 @@ func (g *Gateio) WsConnectSpot(ctx context.Context, conn stream.Connection) erro
 	if err != nil {
 		return err
 	}
-	pingMessage, err := json.Marshal(WsInput{Channel: spotPingChannel})
+	pingMessage, err := json.Marshal(WsInput{Channel: asset.Spot.String() + "." + pingChannel})
 	if err != nil {
 		return err
 	}
@@ -165,49 +184,60 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (st
 	return hex.EncodeToString(mac.Sum(nil)), nil
 }
 
-// WsHandleSpotData handles spot data
-func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
+// wsHandleData handles websocket data
+func (g *Gateio) wsHandleData(ctx context.Context, respRaw []byte) error {
 	push, err := parseWSHeader(respRaw)
 	if err != nil {
 		return err
 	}
 
-	if push.RequestID != "" {
-		return g.Websocket.Match.RequireMatchWithData(push.RequestID, respRaw)
+	if channelParts := strings.Split(push.Channel, "."); len(channelParts) != 2 {
+		return fmt.Errorf("%w `channel` (`%s`)", errParsingWSField, push.Channel)
+	} else {
+		// Assign to push so that we can abstract CoinM/USDT as just Futures
+		if push.assetType, err = asset.New(channelParts[0]); err != nil {
+			return fmt.Errorf("%w `channel`; %w: `%s`", errParsingWSField, asset.ErrInvalidAsset, channelParts[0])
+		}
+		push.Channel = channelParts[1]
 	}
 
-	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
-		return g.Websocket.Match.RequireMatchWithData(push.ID, respRaw)
+	switch push.assetType {
+	case asset.Spot:
+		return g.wsHandleSpotData(ctx, push, respRaw)
 	}
+	return fmt.Errorf("%w `channel`; %w: `%s`", errParsingWSField, asset.ErrNotSupported, push.assetType)
+}
 
+// wsHandleSpotData handles spot data
+func (g *Gateio) wsHandleSpotData(ctx context.Context, push *WSResponse, respRaw []byte) error {
 	switch push.Channel { // TODO: Convert function params below to only use push.Result
-	case spotTickerChannel:
+	case tickerChannel:
 		return g.processTicker(push.Result, push.Time)
-	case spotTradesChannel:
+	case tradesChannel:
 		return g.processTrades(push.Result)
-	case spotCandlesticksChannel:
+	case candlesticksChannel:
 		return g.processCandlestick(push.Result)
-	case spotOrderbookTickerChannel:
+	case orderbookTickerChannel:
 		return g.processOrderbookTicker(push.Result, push.Time)
-	case spotOrderbookUpdateChannel:
+	case orderbookUpdateChannel:
 		return g.processOrderbookUpdate(push.Result, push.Time)
-	case spotOrderbookChannel:
+	case orderbookChannel:
 		return g.processOrderbookSnapshot(push.Result, push.Time)
-	case spotOrdersChannel:
+	case ordersChannel:
 		return g.processSpotOrders(respRaw)
-	case spotUserTradesChannel:
+	case userTradesChannel:
 		return g.processUserPersonalTrades(respRaw)
-	case spotBalancesChannel:
+	case balancesChannel:
 		return g.processSpotBalances(respRaw)
 	case marginBalancesChannel:
 		return g.processMarginBalances(respRaw)
-	case spotFundingBalanceChannel:
+	case fundingBalanceChannel:
 		return g.processFundingBalances(respRaw)
 	case crossMarginBalanceChannel:
 		return g.processCrossMarginBalance(respRaw)
 	case crossMarginLoanChannel:
 		return g.processCrossMarginLoans(respRaw)
-	case spotPongChannel:
+	case pongChannel:
 	default:
 		g.Websocket.DataHandler <- stream.UnhandledMessageWarning{
 			Message: g.Name + stream.UnhandledMessage + string(respRaw),
@@ -758,7 +788,7 @@ func channelName(s *subscription.Subscription) string {
 // singleSymbolChannel returns if the channel should be fanned out into single symbol requests
 func singleSymbolChannel(name string) bool {
 	switch name {
-	case spotCandlesticksChannel, spotOrderbookUpdateChannel, spotOrderbookChannel:
+	case candlesticksChannel, orderbookUpdateChannel, orderbookChannel:
 		return true
 	}
 	return false
