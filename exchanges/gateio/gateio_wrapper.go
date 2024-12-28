@@ -28,7 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -199,6 +198,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Features:                     &g.Features.Supports.WebsocketCapabilities,
 		FillsFeed:                    g.Features.Enabled.FillsFeed,
 		TradeFeed:                    g.Features.Enabled.TradeFeed,
+		GenerateSubscriptions:        g.generateSubscriptions,
 		UseMultiConnectionManagement: true,
 		RateLimitDefinitions:         packageRateLimits,
 	})
@@ -213,7 +213,6 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Handler:                  g.WsHandleSpotData,
 		Subscriber:               g.Subscribe,
 		Unsubscriber:             g.Unsubscribe,
-		GenerateSubscriptions:    g.generateSubscriptionsSpot,
 		Connector:                g.WsConnectSpot,
 		Authenticate:             g.authenticateSpot,
 		MessageFilter:            asset.Spot,
@@ -230,11 +229,8 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, incoming []byte) error {
 			return g.WsHandleFuturesData(ctx, incoming, asset.USDTMarginedFutures)
 		},
-		Subscriber:   g.FuturesSubscribe,
-		Unsubscriber: g.FuturesUnsubscribe,
-		GenerateSubscriptions: func() (subscription.List, error) {
-			return g.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
-		},
+		Subscriber:               g.FuturesSubscribe,
+		Unsubscriber:             g.FuturesUnsubscribe,
 		Connector:                g.WsFuturesConnect,
 		MessageFilter:            asset.USDTMarginedFutures,
 		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
@@ -251,11 +247,8 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Handler: func(ctx context.Context, incoming []byte) error {
 			return g.WsHandleFuturesData(ctx, incoming, asset.CoinMarginedFutures)
 		},
-		Subscriber:   g.FuturesSubscribe,
-		Unsubscriber: g.FuturesUnsubscribe,
-		GenerateSubscriptions: func() (subscription.List, error) {
-			return g.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
-		},
+		Subscriber:               g.FuturesSubscribe,
+		Unsubscriber:             g.FuturesUnsubscribe,
 		Connector:                g.WsFuturesConnect,
 		MessageFilter:            asset.CoinMarginedFutures,
 		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
@@ -275,7 +268,6 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		},
 		Subscriber:               g.DeliveryFuturesSubscribe,
 		Unsubscriber:             g.DeliveryFuturesUnsubscribe,
-		GenerateSubscriptions:    g.GenerateDeliveryFuturesDefaultSubscriptions,
 		Connector:                g.WsDeliveryFuturesConnect,
 		MessageFilter:            asset.DeliveryFutures,
 		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
@@ -292,7 +284,6 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Handler:                  g.WsHandleOptionsData,
 		Subscriber:               g.OptionsSubscribe,
 		Unsubscriber:             g.OptionsUnsubscribe,
-		GenerateSubscriptions:    g.GenerateOptionsDefaultSubscriptions,
 		Connector:                g.WsOptionsConnect,
 		MessageFilter:            asset.Options,
 		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,

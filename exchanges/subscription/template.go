@@ -109,6 +109,8 @@ func expandTemplate(e IExchange, s *Subscription, ap assetPairs, assets asset.It
 		for a := range ap {
 			ap[a] = s.Pairs
 		}
+	} else {
+		s.allEnabledPairs = true
 	}
 
 	switch s.Asset {

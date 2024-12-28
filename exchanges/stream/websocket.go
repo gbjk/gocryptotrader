@@ -364,15 +364,8 @@ func (w *Websocket) connect() error {
 			go w.monitorFrame(nil, w.monitorConnection)
 		}
 
-		subs, err := w.GenerateSubs() // regenerate state on new connection
-		if err != nil {
-			return fmt.Errorf("%s websocket: %w", w.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
-		}
-		if len(subs) != 0 {
-			if err := w.SubscribeToChannels(nil, subs); err != nil {
-				return err
-			}
-		}
+		w.SyncSubscriptions()
+
 		return nil
 	}
 
@@ -491,6 +484,8 @@ func (w *Websocket) connect() error {
 	// handled by the appropriate data handler.
 	w.setState(connectedState)
 
+	w.SyncSubscriptions()
+
 	if w.connectionMonitorRunning.CompareAndSwap(false, true) {
 		// This oversees all connections and does not need to be part of wait group management.
 		go w.monitorFrame(nil, w.monitorConnection)
@@ -599,8 +594,8 @@ func (w *Websocket) shutdown() error {
 	return nil
 }
 
-// FlushChannels flushes channel subscriptions when there is a pair/asset change
-func (w *Websocket) FlushChannels() error {
+// SyncSubscriptions flushes channel subscriptions when there is a pair/asset change
+func (w *Websocket) SyncSubscriptions() error {
 	if !w.IsEnabled() {
 		return fmt.Errorf("%s %w", w.exchangeName, ErrWebsocketNotEnabled)
 	}
@@ -609,8 +604,7 @@ func (w *Websocket) FlushChannels() error {
 		return fmt.Errorf("%s %w", w.exchangeName, ErrNotConnected)
 	}
 
-	// If the exchange does not support subscribing and or unsubscribing the full connection needs to be flushed to
-	// maintain consistency.
+	// If the exchange does not support subscribing and or unsubscribing the full connection needs to be flushed to maintain consistency.
 	if !w.features.Subscribe || !w.features.Unsubscribe {
 		w.m.Lock()
 		defer w.m.Unlock()
@@ -621,26 +615,19 @@ func (w *Websocket) FlushChannels() error {
 	}
 
 	if !w.useMultiConnectionManagement {
-		newSubs, err := w.GenerateSubs()
+		subs, err := w.Subscriptions.ExpandTemplates()
 		if err != nil {
 			return err
 		}
-		subs, unsubs := w.GetChannelDifference(nil, newSubs)
-		if err := w.UnsubscribeChannels(nil, unsubs); err != nil {
-			return err
+		newSubs, unsubs := w.GetChannelDifference(nil, subs)
+		err := w.UnsubscribeChannels(nil, unsubs)
+		if err == nil && len(newSubs) != 0 {
+			err = w.SubscribeToChannels(nil, subs)
 		}
-		if len(subs) == 0 {
-			return nil
-		}
-		return w.SubscribeToChannels(nil, subs)
+		return err
 	}
 
 	for x := range w.connectionManager {
-		newSubs, err := w.connectionManager[x].Setup.GenerateSubscriptions()
-		if err != nil {
-			return err
-		}
-
 		// Case if there is nothing to unsubscribe from and the connection is nil
 		if len(newSubs) == 0 && w.connectionManager[x].Connection == nil {
 			continue

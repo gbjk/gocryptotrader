@@ -652,8 +652,8 @@ func (g *Gateio) processCrossMarginLoans(data []byte) error {
 	return nil
 }
 
-// generateSubscriptionsSpot returns configured subscriptions
-func (g *Gateio) generateSubscriptionsSpot() (subscription.List, error) {
+// generateSubscriptions returns configured subscriptions
+func (g *Gateio) generateSubscriptions() (subscription.List, error) {
 	return g.Features.Subscriptions.ExpandTemplates(g)
 }
 

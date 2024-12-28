@@ -50,7 +50,8 @@ type Websocket struct {
 	connector                    func() error
 
 	// connectionManager stores all *potential* connections for the exchange, organised within ConnectionWrapper structs.
-	// Each ConnectionWrapper one connection (will be expanded soon) tailored for specific exchange functionalities or asset types. // TODO: Expand this to support multiple connections per ConnectionWrapper
+	// Each ConnectionWrapper one connection (will be expanded soon) tailored for specific exchange functionalities or asset types.
+	// TODO: Expand this to support multiple connections per ConnectionWrapper
 	// For example, separate connections can be used for Spot, Margin, and Futures trading. This structure is especially useful
 	// for exchanges that differentiate between trading pairs by using different connection endpoints or protocols for various asset classes.
 	// If an exchange does not require such differentiation, all connections may be managed under a single ConnectionWrapper.
@@ -74,40 +75,27 @@ type Websocket struct {
 
 	Match *Match
 
-	// shutdown synchronises shutdown event across routines
-	ShutdownC chan struct{}
+	ShutdownC chan struct{} // ShutdownC synchronises shutdown across routines
 	Wg        sync.WaitGroup
 
-	// Orderbook is a local buffer of orderbooks
-	Orderbook buffer.Orderbook
+	Orderbook buffer.Orderbook // Orderbook is a local buffer of orderbooks
+	Trade     trade.Trade      // Trade is a notifier of occurring trades
+	Fills     fill.Fills       // Fills is a notifier of occurring fills
 
-	// Trade is a notifier of occurring trades
-	Trade trade.Trade
-
-	// Fills is a notifier of occurring fills
-	Fills fill.Fills
-
-	// trafficAlert monitors if there is a halt in traffic throughput
-	TrafficAlert chan struct{}
-	// ReadMessageErrors will received all errors from ws.ReadMessage() and
-	// verify if its a disconnection
-	ReadMessageErrors chan error
+	TrafficAlert      chan struct{} // trafficAlert monitors if there is a halt in traffic throughput
+	ReadMessageErrors chan error    // ReadMessageErrors will received all errors from ws.ReadMessage() and verify if its a disconnection
 	features          *protocol.Features
 
-	// Standard stream connection
-	Conn Connection
-	// Authenticated stream connection
-	AuthConn Connection
+	Conn     Connection // Public stream connection
+	AuthConn Connection // Private stream connection
 
-	// Latency reporter
-	ExchangeLevelReporter Reporter
+	ExchangeLevelReporter Reporter // Latency reporter
 
 	// MaxSubScriptionsPerConnection defines the maximum number of
 	// subscriptions per connection that is allowed by the exchange.
 	MaxSubscriptionsPerConnection int
 
-	// rateLimitDefinitions contains the rate limiters shared between Websocket and REST connections for all potential
-	// endpoints.
+	// rateLimitDefinitions contains the rate limiters shared between Websocket and REST connections for all potential endpoints
 	rateLimitDefinitions request.RateLimitDefinitions
 }
 
