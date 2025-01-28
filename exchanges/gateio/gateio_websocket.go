@@ -805,10 +805,10 @@ const subTplText = `
 				{{- if hasPrefix "spot.order_book" $name -}} , {{- interval $.S.Interval }}{{ end }}
 				{{- $.PairSeparator }}
 			{{- end }}
-			{{- $.AssetSeparator }}
 		{{- else }}
 			{{- $pairs.Join }}
 		{{- end }}
+		{{- $.AssetSeparator }}
 	{{- end }}
 {{- end }}
 `
