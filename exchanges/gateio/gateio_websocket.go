@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 	"text/template"
@@ -16,7 +15,6 @@ import (
 
 	"github.com/Masterminds/sprig/v3"
 	"github.com/buger/jsonparser"
-	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -93,29 +91,6 @@ var subscriptionNames = map[string]string{
 }
 
 var standardMarginAssetTypes = []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin}
-
-// WsConnectSpot initiates a websocket connection
-func (g *Gateio) WsConnectSpot(ctx context.Context, conn stream.Connection) error {
-	err := g.CurrencyPairs.IsAssetEnabled(asset.Spot)
-	if err != nil {
-		return err
-	}
-	err = conn.DialContext(ctx, &websocket.Dialer{}, http.Header{})
-	if err != nil {
-		return err
-	}
-	pingMessage, err := json.Marshal(WsInput{Channel: asset.Spot.String() + "." + pingChannel})
-	if err != nil {
-		return err
-	}
-	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, stream.PingHandler{
-		Websocket:   true,
-		Delay:       time.Second * 15,
-		Message:     pingMessage,
-		MessageType: websocket.TextMessage,
-	})
-	return nil
-}
 
 // authenticateSpot sends an authentication message to the websocket connection
 func (g *Gateio) authenticateSpot(ctx context.Context, conn stream.Connection) error {

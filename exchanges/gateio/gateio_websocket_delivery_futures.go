@@ -2,13 +2,10 @@ package gateio
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"net/http"
 	"strconv"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -28,33 +25,6 @@ const (
 )
 
 var fetchedFuturesCurrencyPairSnapshotOrderbook = make(map[string]bool)
-
-// WsDeliveryFuturesConnect initiates a websocket connection for delivery futures account
-func (g *Gateio) WsDeliveryFuturesConnect(ctx context.Context, conn stream.Connection) error {
-	err := g.CurrencyPairs.IsAssetEnabled(asset.DeliveryFutures)
-	if err != nil {
-		return err
-	}
-	err = conn.DialContext(ctx, &websocket.Dialer{}, http.Header{})
-	if err != nil {
-		return err
-	}
-	pingMessage, err := json.Marshal(WsInput{
-		ID:      conn.GenerateMessageID(false),
-		Time:    time.Now().Unix(), // TODO: Func for dynamic time as this will be the same time for every ping message.
-		Channel: futuresPingChannel,
-	})
-	if err != nil {
-		return err
-	}
-	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, stream.PingHandler{
-		Websocket:   true,
-		Delay:       time.Second * 5,
-		MessageType: websocket.PingMessage,
-		Message:     pingMessage,
-	})
-	return nil
-}
 
 // GenerateDeliveryFuturesDefaultSubscriptions returns delivery futures default subscriptions params.
 func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.List, error) {

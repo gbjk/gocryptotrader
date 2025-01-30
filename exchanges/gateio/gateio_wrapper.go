@@ -213,7 +213,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Handler:                  g.WsHandleData,
 		Subscriber:               g.Subscribe,
 		Unsubscriber:             g.Unsubscribe,
-		Connector:                g.WsConnectSpot,
+		Connector:                g.WsConnect,
 		Authenticate:             g.authenticateSpot,
 		MessageFilter:            asset.Spot,
 		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
@@ -231,7 +231,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		},
 		Subscriber:               g.FuturesSubscribe,
 		Unsubscriber:             g.FuturesUnsubscribe,
-		Connector:                g.WsFuturesConnect,
+		Connector:                g.WsConnect,
 		MessageFilter:            asset.USDTMarginedFutures,
 		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
 	})
@@ -249,7 +249,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		},
 		Subscriber:               g.FuturesSubscribe,
 		Unsubscriber:             g.FuturesUnsubscribe,
-		Connector:                g.WsFuturesConnect,
+		Connector:                g.WsConnect,
 		MessageFilter:            asset.CoinMarginedFutures,
 		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
 	})
@@ -268,7 +268,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		},
 		Subscriber:               g.DeliveryFuturesSubscribe,
 		Unsubscriber:             g.DeliveryFuturesUnsubscribe,
-		Connector:                g.WsDeliveryFuturesConnect,
+		Connector:                g.WsConnect,
 		MessageFilter:            asset.DeliveryFutures,
 		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
 	})
@@ -284,7 +284,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Handler:                  g.WsHandleOptionsData,
 		Subscriber:               g.OptionsSubscribe,
 		Unsubscriber:             g.OptionsUnsubscribe,
-		Connector:                g.WsOptionsConnect,
+		Connector:                g.WsConnect,
 		MessageFilter:            asset.Options,
 		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
 	})

@@ -5,12 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -24,35 +22,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
-
-// WsFuturesConnect initiates a websocket connection for futures account
-func (g *Gateio) WsFuturesConnect(ctx context.Context, conn stream.Connection) error {
-	a := asset.USDTMarginedFutures
-	if conn.GetURL() == btcFuturesWebsocketURL {
-		a = asset.CoinMarginedFutures
-	}
-	if err := g.CurrencyPairs.IsAssetEnabled(a); err != nil {
-		return err
-	}
-	if err := conn.DialContext(ctx, &websocket.Dialer{}, http.Header{}); err != nil {
-		return err
-	}
-	pingMessage, err := json.Marshal(WsInput{
-		ID:      conn.GenerateMessageID(false),
-		Time:    time.Now().Unix(), // TODO: Func for dynamic time as this will be the same time for every ping message.
-		Channel: futuresPingChannel,
-	})
-	if err != nil {
-		return err
-	}
-	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, stream.PingHandler{
-		Websocket:   true,
-		MessageType: websocket.PingMessage,
-		Delay:       time.Second * 15,
-		Message:     pingMessage,
-	})
-	return nil
-}
 
 // GenerateFuturesDefaultSubscriptions returns default subscriptions information.
 func (g *Gateio) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscription.List, error) {

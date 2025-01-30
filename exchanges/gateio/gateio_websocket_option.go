@@ -30,7 +30,6 @@ const (
 	optionsWebsocketTestnetURL = "wss://op-ws-testnet.gateio.live/v4/ws"
 
 	// channels
-	optionsPingChannel                   = "options.ping"
 	optionsContractTickersChannel        = "options.contract_tickers"
 	optionsUnderlyingTickersChannel      = "options.ul_tickers"
 	optionsTradesChannel                 = "options.trades"
