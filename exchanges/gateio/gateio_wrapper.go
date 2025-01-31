@@ -180,20 +180,18 @@ func (g *Gateio) SetDefaults() {
 
 // Setup sets user configuration
 func (g *Gateio) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
 	if !exch.Enabled {
 		g.SetEnabled(false)
 		return nil
 	}
-	err = g.SetupDefaults(exch)
-	if err != nil {
+	if err = g.SetupDefaults(exch); err != nil {
 		return err
 	}
 
-	err = g.Websocket.Setup(&stream.WebsocketSetup{
+	if err := g.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig:               exch,
 		Features:                     &g.Features.Supports.WebsocketCapabilities,
 		FillsFeed:                    g.Features.Enabled.FillsFeed,
@@ -201,93 +199,29 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions:        g.generateSubscriptions,
 		UseMultiConnectionManagement: true,
 		RateLimitDefinitions:         packageRateLimits,
-	})
-	if err != nil {
-		return err
-	}
-	// Spot connection
-	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                      gateioWebsocketEndpoint,
-		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		Handler:                  g.WsHandleData,
-		Subscriber:               g.Subscribe,
-		Unsubscriber:             g.Unsubscribe,
-		Connector:                g.WsConnect,
-		Authenticate:             g.authenticateSpot,
-		MessageFilter:            asset.Spot,
-		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
-	})
-	if err != nil {
-		return err
-	}
-	// Futures connection - USDT margined
-	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                  usdtFuturesWebsocketURL,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Handler: func(ctx context.Context, incoming []byte) error {
-			return g.WsHandleFuturesData(ctx, incoming, asset.USDTMarginedFutures)
-		},
-		Subscriber:               g.FuturesSubscribe,
-		Unsubscriber:             g.FuturesUnsubscribe,
-		Connector:                g.WsConnect,
-		MessageFilter:            asset.USDTMarginedFutures,
-		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 
-	// Futures connection - BTC margined
-	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                  btcFuturesWebsocketURL,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Handler: func(ctx context.Context, incoming []byte) error {
-			return g.WsHandleFuturesData(ctx, incoming, asset.CoinMarginedFutures)
-		},
-		Subscriber:               g.FuturesSubscribe,
-		Unsubscriber:             g.FuturesUnsubscribe,
-		Connector:                g.WsConnect,
-		MessageFilter:            asset.CoinMarginedFutures,
-		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
-	})
-	if err != nil {
-		return err
+	var errs error
+	for _, a := range g.GetEnabledAssets() {
+		if err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+			URL:                  wsURLs[a],
+			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
+			Handler:              func(ctx context.Context, msg []byte) error { return g.wsHandleData(ctx, msg, a) },
+			Subscriber:           g.Subscribe,
+			Unsubscriber:         g.Unsubscribe,
+			Connector:            g.WsConnect,
+			// TODO: Abstract auth spot
+			Authenticate:             g.authenticateSpot,
+			MessageFilter:            a,
+			BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
+		}); err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("%w: %s", err, a))
+		}
 	}
-
-	// TODO: Add BTC margined delivery futures.
-	// Futures connection - Delivery - USDT margined
-	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                  deliveryRealUSDTTradingURL,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Handler: func(ctx context.Context, incoming []byte) error {
-			return g.WsHandleFuturesData(ctx, incoming, asset.DeliveryFutures)
-		},
-		Subscriber:               g.DeliveryFuturesSubscribe,
-		Unsubscriber:             g.DeliveryFuturesUnsubscribe,
-		Connector:                g.WsConnect,
-		MessageFilter:            asset.DeliveryFutures,
-		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
-	})
-	if err != nil {
-		return err
-	}
-
-	// Futures connection - Options
-	return g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                      optionsWebsocketURL,
-		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		Handler:                  g.WsHandleOptionsData,
-		Subscriber:               g.OptionsSubscribe,
-		Unsubscriber:             g.OptionsUnsubscribe,
-		Connector:                g.WsConnect,
-		MessageFilter:            asset.Options,
-		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
-	})
+	return errs
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

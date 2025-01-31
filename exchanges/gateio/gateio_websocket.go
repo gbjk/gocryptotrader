@@ -30,8 +30,9 @@ import (
 )
 
 var (
-	errParsingWSField = errors.New("error parsing WS field")
-	errChannelParts   = errors.New("should contain asset and channel")
+	errParsingWSField      = errors.New("error parsing WS field")
+	errChannelParts        = errors.New("should contain asset and channel")
+	errMsgAssetTypeInvalid = errors.New("message AssetType prefix does not match connection AssetType")
 )
 
 const (
@@ -160,7 +161,7 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (st
 }
 
 // wsHandleData handles websocket data
-func (g *Gateio) wsHandleData(ctx context.Context, respRaw []byte) error {
+func (g *Gateio) wsHandleData(ctx context.Context, a asset.Item, respRaw []byte) error {
 	push, err := parseWSHeader(respRaw)
 	if err != nil {
 		return err
@@ -169,18 +170,26 @@ func (g *Gateio) wsHandleData(ctx context.Context, respRaw []byte) error {
 	if channelParts := strings.Split(push.Channel, "."); len(channelParts) != 2 {
 		return fmt.Errorf("%w `channel` (`%s`)", errParsingWSField, push.Channel)
 	} else {
-		// Assign to push so that we can abstract CoinM/USDT as just Futures
-		if push.assetType, err = asset.New(channelParts[0]); err != nil {
+		if a.String() != channelParts[0] {
 			return fmt.Errorf("%w `channel`; %w: `%s`", errParsingWSField, asset.ErrInvalidAsset, channelParts[0])
 		}
 		push.Channel = channelParts[1]
 	}
 
-	switch push.assetType {
-	case asset.Spot:
-		return g.wsHandleSpotData(ctx, push, respRaw)
+	assetHandlers, ok := wsHandlerFuncs[a]
+	if !ok {
+		return fmt.Errorf("%w `channel`; %w: `%s`", errParsingWSField, asset.ErrNotSupported, a)
 	}
-	return fmt.Errorf("%w `channel`; %w: `%s`", errParsingWSField, asset.ErrNotSupported, push.assetType)
+
+	handler, ok := wsHandlerFuncs[a][push.Channel]
+	if !ok {
+		g.Websocket.DataHandler <- stream.UnhandledMessageWarning{
+			Message: g.Name + ": " + stream.UnhandledMessage + ": " + string(respRaw),
+		}
+		return errors.New(stream.UnhandledMessage)
+	}
+
+	return handler(ctx, a, push, respRaw)
 }
 
 // wsHandleSpotData handles spot data

@@ -4,12 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -23,6 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
+/*
 // GenerateFuturesDefaultSubscriptions returns default subscriptions information.
 func (g *Gateio) GenerateFuturesDefaultSubscriptions(a asset.Item) (subscription.List, error) {
 	channelsToSubscribe := defaultFuturesSubscriptions
@@ -73,21 +72,10 @@ func (g *Gateio) FuturesSubscribe(ctx context.Context, conn stream.Connection, c
 func (g *Gateio) FuturesUnsubscribe(ctx context.Context, conn stream.Connection, channelsToUnsubscribe subscription.List) error {
 	return g.handleSubscription(ctx, conn, unsubscribeEvent, channelsToUnsubscribe, g.generateFuturesPayload)
 }
+*/
 
 // WsHandleFuturesData handles futures websocket data
-func (g *Gateio) WsHandleFuturesData(_ context.Context, respRaw []byte, a asset.Item) error {
-	push, err := parseWSHeader(respRaw)
-	if err != nil {
-		return err
-	}
-
-	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
-		if !g.Websocket.Match.IncomingWithData(push.ID, respRaw) {
-			return fmt.Errorf("couldn't match subscription message with ID: %d", push.ID)
-		}
-		return nil
-	}
-
+func (g *Gateio) wsHandleFuturesData(_ context.Context, a asset.Item, push *WSResponse, respRaw []byte) error {
 	switch push.Channel {
 	case futuresTickersChannel:
 		return g.processFuturesTickers(respRaw, a)

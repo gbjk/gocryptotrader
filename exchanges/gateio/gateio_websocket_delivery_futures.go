@@ -1,19 +1,5 @@
 package gateio
 
-import (
-	"context"
-	"errors"
-	"strconv"
-	"time"
-
-	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
-)
-
 const (
 	// delivery real trading urls
 	deliveryRealUSDTTradingURL = "wss://fx-ws.gateio.ws/v4/ws/delivery/usdt"
@@ -26,6 +12,7 @@ const (
 
 var fetchedFuturesCurrencyPairSnapshotOrderbook = make(map[string]bool)
 
+/*
 // GenerateDeliveryFuturesDefaultSubscriptions returns delivery futures default subscriptions params.
 func (g *Gateio) GenerateDeliveryFuturesDefaultSubscriptions() (subscription.List, error) {
 	_, err := g.GetCredentials(context.Background())
@@ -174,3 +161,4 @@ func (g *Gateio) generateDeliveryFuturesPayload(ctx context.Context, conn stream
 	}
 	return outbound, nil
 }
+*/

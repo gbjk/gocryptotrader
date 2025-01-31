@@ -2001,7 +2001,6 @@ type WSResponse struct {
 	Event     string          `json:"event"`
 	Result    json.RawMessage `json:"result"`
 	RequestID string          `json:"request_id"`
-	assetType asset.Item
 }
 
 // WsTicker websocket ticker information.
