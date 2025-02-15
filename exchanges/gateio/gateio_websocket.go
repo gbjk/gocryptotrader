@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strconv"
 	"strings"
 	"text/template"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/Masterminds/sprig/v3"
 	"github.com/buger/jsonparser"
+	"github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -35,11 +37,21 @@ var (
 	errMsgAssetTypeInvalid = errors.New("message AssetType prefix does not match connection AssetType")
 )
 
-const (
-	gateioWebsocketEndpoint = "wss://api.gateio.ws/ws/v4/"
-	btcFuturesWebsocketURL  = "wss://fx-ws.gateio.ws/v4/ws/btc"
-	usdtFuturesWebsocketURL = "wss://fx-ws.gateio.ws/v4/ws/usdt"
+var wsURLs = map[asset.Item]string{
+	asset.Spot:                "wss://api.gateio.ws/ws/v4/",
+	asset.CoinMarginedFutures: "wss://fx-ws.gateio.ws/v4/ws/btc",
+	asset.USDTMarginedFutures: "wss://fx-ws.gateio.ws/v4/ws/usdt",
+	asset.DeliveryFutures:     "wss://fx-ws.gateio.ws/v4/ws/delivery/usdt",
+	asset.Options:             "wss://op-ws.gateio.live/v4/ws",
+}
 
+/* Testnet urls
+"wss://fx-ws-testnet.gateio.ws/v4/ws/delivery/btc"
+deliveryTestNetUSDTTradingURL = "wss://fx-ws-testnet.gateio.ws/v4/ws/delivery/usdt"
+optionsWebsocketTestnetURL = "wss://op-ws-testnet.gateio.live/v4/ws"
+*/
+
+const (
 	// Public Channels
 	pingChannel            = "ping"
 	pongChannel            = "pong"
@@ -92,6 +104,34 @@ var subscriptionNames = map[string]string{
 }
 
 var standardMarginAssetTypes = []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin}
+
+// wsConnect connects a websocket connection
+func (g *Gateio) wsConnect(ctx context.Context, conn stream.Connection) error {
+	a, ok := conn.MessageFilter().(asset.Item)
+	if !ok {
+		return fmt.Errorf("%w: %w", common.GetTypeAssertError("asset.Item", conn.MessageFilter()), stream.ErrInvalidMessageFilter)
+	}
+	if err := g.CurrencyPairs.IsAssetEnabled(a); err != nil {
+		return err
+	}
+	if !g.IsAssetWebsocketSupported(a) {
+		return fmt.Errorf("%w: `%s`", asset.ErrNotSupported, a)
+	}
+	if err := conn.DialContext(ctx, &websocket.Dialer{}, http.Header{}); err != nil {
+		return err
+	}
+	pingMessage, err := json.Marshal(WsInput{Channel: a.String() + "." + pingChannel})
+	if err != nil {
+		return err
+	}
+	conn.SetupPingHandler(websocketRateLimitNotNeededEPL, stream.PingHandler{
+		Websocket:   true,
+		Delay:       time.Second * 15,
+		Message:     pingMessage,
+		MessageType: websocket.TextMessage,
+	})
+	return nil
+}
 
 // authenticateSpot sends an authentication message to the websocket connection
 func (g *Gateio) authenticateSpot(ctx context.Context, conn stream.Connection) error {
@@ -181,7 +221,7 @@ func (g *Gateio) wsHandleData(ctx context.Context, a asset.Item, respRaw []byte)
 		return fmt.Errorf("%w `channel`; %w: `%s`", errParsingWSField, asset.ErrNotSupported, a)
 	}
 
-	handler, ok := wsHandlerFuncs[a][push.Channel]
+	handler, ok := assetHandlers[push.Channel]
 	if !ok {
 		g.Websocket.DataHandler <- stream.UnhandledMessageWarning{
 			Message: g.Name + ": " + stream.UnhandledMessage + ": " + string(respRaw),
@@ -189,14 +229,16 @@ func (g *Gateio) wsHandleData(ctx context.Context, a asset.Item, respRaw []byte)
 		return errors.New(stream.UnhandledMessage)
 	}
 
-	return handler(ctx, a, push, respRaw)
+	return handler(g, a, push)
 }
 
 // wsHandleSpotData handles spot data
 func (g *Gateio) wsHandleSpotData(ctx context.Context, push *WSResponse, respRaw []byte) error {
 	switch push.Channel { // TODO: Convert function params below to only use push.Result
-	case tickerChannel:
-		return g.processTicker(push.Result, push.Time)
+	/*
+		case tickerChannel:
+			return g.processTicker(a, push)
+	*/
 	case tradesChannel:
 		return g.processTrades(push.Result)
 	case candlesticksChannel:
@@ -270,9 +312,9 @@ func parseWSHeader(msg []byte) (r *WSResponse, errs error) {
 	return r, errs
 }
 
-func (g *Gateio) processTicker(incoming []byte, pushTime time.Time) error {
+func (g *Gateio) processTicker(_ asset.Item, msg *WSResponse) error {
 	var data WsTicker
-	if err := json.Unmarshal(incoming, &data); err != nil {
+	if err := json.Unmarshal(msg.Result, &data); err != nil {
 		return err
 	}
 	out := make([]ticker.Price, 0, len(standardMarginAssetTypes))
@@ -289,7 +331,7 @@ func (g *Gateio) processTicker(incoming []byte, pushTime time.Time) error {
 				Ask:          data.LowestAsk.Float64(),
 				AssetType:    a,
 				Pair:         data.CurrencyPair,
-				LastUpdated:  pushTime,
+				LastUpdated:  msg.Time,
 			})
 		}
 	}

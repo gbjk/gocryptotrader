@@ -167,7 +167,7 @@ func (g *Gateio) SetDefaults() {
 		exchange.RestSpot:              gateioTradeURL,
 		exchange.RestFutures:           gateioFuturesLiveTradingAlternative,
 		exchange.RestSpotSupplementary: gateioFuturesTestnetTrading,
-		exchange.WebsocketSpot:         gateioWebsocketEndpoint,
+		exchange.WebsocketSpot:         wsURLs[asset.Spot],
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -187,7 +187,7 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		g.SetEnabled(false)
 		return nil
 	}
-	if err = g.SetupDefaults(exch); err != nil {
+	if err := g.SetupDefaults(exch); err != nil {
 		return err
 	}
 
@@ -196,7 +196,6 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 		Features:                     &g.Features.Supports.WebsocketCapabilities,
 		FillsFeed:                    g.Features.Enabled.FillsFeed,
 		TradeFeed:                    g.Features.Enabled.TradeFeed,
-		GenerateSubscriptions:        g.generateSubscriptions,
 		UseMultiConnectionManagement: true,
 		RateLimitDefinitions:         packageRateLimits,
 	}); err != nil {
@@ -204,15 +203,16 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 	}
 
 	var errs error
-	for _, a := range g.GetEnabledAssets() {
-		if err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-			URL:                  wsURLs[a],
-			ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-			Handler:              func(ctx context.Context, msg []byte) error { return g.wsHandleData(ctx, msg, a) },
-			Subscriber:           g.Subscribe,
-			Unsubscriber:         g.Unsubscribe,
-			Connector:            g.WsConnect,
+	for _, a := range g.GetAssetTypes(true) {
+		if err := g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+			URL:                   wsURLs[a],
+			ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+			Handler:               func(ctx context.Context, msg []byte) error { return g.wsHandleData(ctx, a, msg) },
+			GenerateSubscriptions: g.generateSubscriptions,
+			Subscriber:            g.Subscribe,
+			Unsubscriber:          g.Unsubscribe,
+			Connector:             g.wsConnect,
 			// TODO: Abstract auth spot
 			Authenticate:             g.authenticateSpot,
 			MessageFilter:            a,

@@ -32,6 +32,7 @@ var (
 	ErrRequestRouteNotFound     = errors.New("request route not found")
 	ErrSignatureNotSet          = errors.New("signature not set")
 	ErrRequestPayloadNotSet     = errors.New("request payload not set")
+	ErrInvalidMessageFilter     = errors.New("invalid message filter")
 )
 
 // Private websocket errors
@@ -69,7 +70,6 @@ var (
 	errExchangeConfigEmpty                  = errors.New("exchange config is empty")
 	errCannotObtainOutboundConnection       = errors.New("cannot obtain outbound connection")
 	errMessageFilterNotSet                  = errors.New("message filter not set")
-	errMessageFilterNotComparable           = errors.New("message filter is not comparable")
 )
 
 var globalReporter Reporter
@@ -266,7 +266,7 @@ func (w *Websocket) SetupNewConnection(c *ConnectionSetup) error {
 		}
 
 		if c.MessageFilter != nil && !reflect.TypeOf(c.MessageFilter).Comparable() {
-			return errMessageFilterNotComparable
+			return ErrInvalidMessageFilter
 		}
 
 		for x := range w.connectionManager {
@@ -311,6 +311,7 @@ func (w *Websocket) getConnectionFromSetup(c *ConnectionSetup) *WebsocketConnect
 		shutdown:                 w.ShutdownC,
 		Wg:                       &w.Wg,
 		Match:                    w.Match,
+		messageFilter:            c.MessageFilter,
 		RateLimit:                c.RateLimit,
 		Reporter:                 c.ConnectionLevelReporter,
 		bespokeGenerateMessageID: c.BespokeGenerateMessageID,

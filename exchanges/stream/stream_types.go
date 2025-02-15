@@ -37,6 +37,7 @@ type Connection interface {
 	SetProxy(string)
 	GetURL() string
 	Shutdown() error
+	MessageFilter() any
 }
 
 // Inspector is used to verify messages via SendMessageReturnResponsesWithInspection

@@ -373,6 +373,10 @@ inspection:
 	return resps, nil
 }
 
+func (w *WebsocketConnection) MessageFilter() any {
+	return w.messageFilter
+}
+
 func removeURLQueryString(url string) string {
 	if index := strings.Index(url, "?"); index != -1 {
 		return url[:index]

@@ -1269,7 +1269,7 @@ func TestSetupNewConnection(t *testing.T) {
 	connSetup.Handler = func(context.Context, []byte) error { return nil }
 	connSetup.MessageFilter = []string{"slices are super naughty and not comparable"}
 	err = multi.SetupNewConnection(connSetup)
-	require.ErrorIs(t, err, errMessageFilterNotComparable)
+	require.ErrorIs(t, err, ErrInvalidMessageFilter)
 
 	connSetup.MessageFilter = "comparable string signature"
 	err = multi.SetupNewConnection(connSetup)

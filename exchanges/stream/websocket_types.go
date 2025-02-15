@@ -136,8 +136,7 @@ type WebsocketSetup struct {
 	RateLimitDefinitions request.RateLimitDefinitions
 }
 
-// WebsocketConnection contains all the data needed to send a message to a WS
-// connection
+// WebsocketConnection wraps a websocket.Conn with GCT fields required to send and receive websocket messages
 type WebsocketConnection struct {
 	Verbose   bool
 	connected int32
@@ -165,6 +164,7 @@ type WebsocketConnection struct {
 	ResponseMaxLimit  time.Duration
 	Traffic           chan struct{}
 	readMessageErrors chan error
+	messageFilter     any
 
 	// bespokeGenerateMessageID is a function that returns a unique message ID
 	// defined externally. This is used for exchanges that require a unique
