@@ -1,6 +1,7 @@
 package stream
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -30,8 +31,8 @@ const (
 	connectedState
 )
 
-// Websocket defines a return type for websocket connections via the interface
-// wrapper for routine processing
+// Websocket provides control over websocket connections and subscriptions
+// TODO: Rename to manager
 type Websocket struct {
 	canUseAuthenticatedEndpoints atomic.Bool
 	enabled                      atomic.Bool
@@ -47,17 +48,17 @@ type Websocket struct {
 	runningURLAuth               string
 	exchangeName                 string
 	m                            sync.Mutex
-	connector                    func() error
+	connector                    func(context.Context, *WebsocketConnection) error
 
-	// connectionManager stores all *potential* connections for the exchange, organised within ConnectionWrapper structs.
+	// connectionConfigs stores all *potential* connections for the exchange, organised within ConnectionWrapper structs.
 	// Each ConnectionWrapper one connection (will be expanded soon) tailored for specific exchange functionalities or asset types.
 	// TODO: Expand this to support multiple connections per ConnectionWrapper
 	// For example, separate connections can be used for Spot, Margin, and Futures trading. This structure is especially useful
 	// for exchanges that differentiate between trading pairs by using different connection endpoints or protocols for various asset classes.
 	// If an exchange does not require such differentiation, all connections may be managed under a single ConnectionWrapper.
-	connectionManager []*ConnectionWrapper
+	connectionConfigs []*ConnectionSetup
 	// connections holds a look up table for all connections to their corresponding ConnectionWrapper and subscription holder
-	connections map[Connection]*ConnectionWrapper
+	connections []*Connection
 
 	subscriptions *subscription.Store
 
@@ -67,8 +68,7 @@ type Websocket struct {
 	Unsubscriber func(subscription.List) error
 	// GenerateSubs function for exchange specific generating subscriptions from Features.Subscriptions, Pairs and Assets
 	GenerateSubs func() (subscription.List, error)
-
-	useMultiConnectionManagement bool
+	Authenticate func(ctx context.Context, conn Connection) error
 
 	DataHandler chan interface{}
 	ToRoutine   chan interface{}
@@ -78,55 +78,28 @@ type Websocket struct {
 	ShutdownC chan struct{} // ShutdownC synchronises shutdown across routines
 	Wg        sync.WaitGroup
 
-	Orderbook buffer.Orderbook // Orderbook is a local buffer of orderbooks
-	Trade     trade.Trade      // Trade is a notifier of occurring trades
-	Fills     fill.Fills       // Fills is a notifier of occurring fills
-
-	TrafficAlert      chan struct{} // trafficAlert monitors if there is a halt in traffic throughput
-	ReadMessageErrors chan error    // ReadMessageErrors will received all errors from ws.ReadMessage() and verify if its a disconnection
-	features          *protocol.Features
-
-	Conn     Connection // Public stream connection
-	AuthConn Connection // Private stream connection
-
-	ExchangeLevelReporter Reporter // Latency reporter
-
-	// MaxSubScriptionsPerConnection defines the maximum number of
-	// subscriptions per connection that is allowed by the exchange.
-	MaxSubscriptionsPerConnection int
-
-	// rateLimitDefinitions contains the rate limiters shared between Websocket and REST connections for all potential endpoints
-	rateLimitDefinitions request.RateLimitDefinitions
+	Orderbook             buffer.Orderbook // Orderbook is a local buffer of orderbooks
+	Trade                 trade.Trade      // Trade is a notifier of occurring trades
+	Fills                 fill.Fills       // Fills is a notifier of occurring fills
+	TrafficAlert          chan struct{}    // trafficAlert monitors if there is a halt in traffic throughput
+	ReadMessageErrors     chan error       // ReadMessageErrors will received all errors from ws.ReadMessage() and verify if its a disconnection
+	features              *protocol.Features
+	ExchangeLevelReporter Reporter                     // Latency reporter
+	rateLimitDefinitions  request.RateLimitDefinitions // rate limiters shared between Websocket and REST connections for all potential endpoints
 }
 
-// WebsocketSetup defines variables for setting up a websocket connection
+// TODO: Rename to ManagerSetup
 type WebsocketSetup struct {
 	ExchangeConfig        *config.Exchange
-	DefaultURL            string
-	RunningURL            string
-	RunningURLAuth        string
+	Handler               MessageHandler
 	Connector             func() error
 	Subscriber            func(subscription.List) error
 	Unsubscriber          func(subscription.List) error
 	GenerateSubscriptions func() (subscription.List, error)
 	Features              *protocol.Features
-
-	// Local orderbook buffer config values
-	OrderbookBufferConfig buffer.Config
-
-	// UseMultiConnectionManagement allows the connections to be managed by the
-	// connection manager. If false, this will default to the global fields
-	// provided in this struct.
-	UseMultiConnectionManagement bool
-
-	TradeFeed bool
-
-	// Fill data config values
-	FillsFeed bool
-
-	// MaxWebsocketSubscriptionsPerConnection defines the maximum number of
-	// subscriptions per connection that is allowed by the exchange.
-	MaxWebsocketSubscriptionsPerConnection int
+	OrderbookBufferConfig buffer.Config // Local orderbook buffer config values
+	TradeFeed             bool
+	FillsFeed             bool
 
 	// RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections for all endpoints.
 	// These rate limits take precedence over any rate limits specified in individual connection configurations.
@@ -136,8 +109,22 @@ type WebsocketSetup struct {
 	RateLimitDefinitions request.RateLimitDefinitions
 }
 
+// ConnectionSetup contains per connection configuration
+type ConnectionSetup struct {
+	URL                     string
+	Authenticated           bool
+	ConnectionLevelReporter Reporter
+	ResponseCheckTimeout    time.Duration
+	ResponseMaxLimit        time.Duration
+	RateLimit               *request.RateLimiterWithWeight
+	MessageFilter           any // MessageFilter defines the criteria used to match messages to a specific connection.
+	Features                *protocol.Features
+	MaxSubscriptions        int
+}
+
 // WebsocketConnection wraps a websocket.Conn with GCT fields required to send and receive websocket messages
 type WebsocketConnection struct {
+	*ConnectionSetup
 	Verbose   bool
 	connected int32
 
@@ -151,11 +138,11 @@ type WebsocketConnection struct {
 	// potential endpoints.
 	RateLimitDefinitions request.RateLimitDefinitions
 
-	ExchangeName string
-	URL          string
-	ProxyURL     string
-	Wg           *sync.WaitGroup
-	Connection   *websocket.Conn
+	ExchangeName         string
+	URL                  string
+	ProxyURL             string
+	Wg                   *sync.WaitGroup
+	UnderlyingConnection *websocket.Conn
 
 	// shutdown synchronises shutdown event across routines associated with this connection only e.g. ping handler
 	shutdown chan struct{}
@@ -173,3 +160,5 @@ type WebsocketConnection struct {
 
 	Reporter Reporter
 }
+
+type MessageHandler func(context.Context, Connection, []byte) error

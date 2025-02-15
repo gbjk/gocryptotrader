@@ -204,18 +204,21 @@ func (g *Gateio) Setup(exch *config.Exchange) error {
 
 	var errs error
 	for _, a := range g.GetAssetTypes(true) {
+		if !g.IsAssetWebsocketSupported(a) {
+			continue
+		}
 		if err := g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
 			URL:                   wsURLs[a],
+			MessageFilter:         a,
 			ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
 			ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
-			Handler:               func(ctx context.Context, msg []byte) error { return g.wsHandleData(ctx, a, msg) },
+			Handler:               g.wsHandleData,
 			GenerateSubscriptions: g.generateSubscriptions,
 			Subscriber:            g.Subscribe,
 			Unsubscriber:          g.Unsubscribe,
 			Connector:             g.wsConnect,
 			// TODO: Abstract auth spot
 			Authenticate:             g.authenticateSpot,
-			MessageFilter:            a,
 			BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
 		}); err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("%w: %s", err, a))

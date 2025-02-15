@@ -47,7 +47,7 @@ func (w *WebsocketConnection) DialContext(ctx context.Context, dialer *websocket
 
 	var err error
 	var conStatus *http.Response
-	w.Connection, conStatus, err = dialer.DialContext(ctx, w.URL, headers)
+	w.UnderlyingConnection, conStatus, err = dialer.DialContext(ctx, w.URL, headers)
 	if err != nil {
 		if conStatus != nil {
 			_ = conStatus.Body.Close()
@@ -76,7 +76,7 @@ func (w *WebsocketConnection) SendJSONMessage(ctx context.Context, epl request.E
 				log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %v", w.ExchangeName, removeURLQueryString(w.URL), string(msg))
 			}
 		}
-		return w.Connection.WriteJSON(data)
+		return w.UnderlyingConnection.WriteJSON(data)
 	})
 }
 
@@ -86,7 +86,7 @@ func (w *WebsocketConnection) SendRawMessage(ctx context.Context, epl request.En
 		if request.IsVerbose(ctx, w.Verbose) {
 			log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %v", w.ExchangeName, removeURLQueryString(w.URL), string(message))
 		}
-		return w.Connection.WriteMessage(messageType, message)
+		return w.UnderlyingConnection.WriteMessage(messageType, message)
 	})
 }
 
@@ -126,8 +126,8 @@ func (w *WebsocketConnection) writeToConn(ctx context.Context, epl request.Endpo
 // WebsocketPingHandler configuration
 func (w *WebsocketConnection) SetupPingHandler(epl request.EndpointLimit, handler PingHandler) {
 	if handler.UseGorillaHandler {
-		w.Connection.SetPingHandler(func(msg string) error {
-			err := w.Connection.WriteControl(handler.MessageType, []byte(msg), time.Now().Add(handler.Delay))
+		w.UnderlyingConnection.SetPingHandler(func(msg string) error {
+			err := w.UnderlyingConnection.WriteControl(handler.MessageType, []byte(msg), time.Now().Add(handler.Delay))
 			if err == websocket.ErrCloseSent {
 				return nil
 			} else if e, ok := err.(net.Error); ok && e.Timeout() {
@@ -173,7 +173,7 @@ func (w *WebsocketConnection) IsConnected() bool {
 
 // ReadMessage reads messages, can handle text, gzip and binary
 func (w *WebsocketConnection) ReadMessage() Response {
-	mType, resp, err := w.Connection.ReadMessage()
+	mType, resp, err := w.UnderlyingConnection.ReadMessage()
 	if err != nil {
 		// If any error occurs, a Response{Raw: nil, Type: 0} is returned, causing the
 		// reader routine to exit. This leaves the connection without an active reader,
@@ -268,13 +268,13 @@ func (w *WebsocketConnection) defaultGenerateMessageID(highPrec bool) int64 {
 
 // Shutdown shuts down and closes specific connection
 func (w *WebsocketConnection) Shutdown() error {
-	if w == nil || w.Connection == nil {
+	if w == nil || w.UnderlyingConnection == nil {
 		return nil
 	}
 	w.setConnectedStatus(false)
 	w.writeControl.Lock()
 	defer w.writeControl.Unlock()
-	return w.Connection.NetConn().Close()
+	return w.UnderlyingConnection.NetConn().Close()
 }
 
 // SetURL sets connection URL

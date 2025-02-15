@@ -201,7 +201,11 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (st
 }
 
 // wsHandleData handles websocket data
-func (g *Gateio) wsHandleData(ctx context.Context, a asset.Item, respRaw []byte) error {
+func (g *Gateio) wsHandleData(ctx context.Context, conn stream.Connection, respRaw []byte) error {
+	a, ok := conn.MessageFilter().(asset.Item)
+	if !ok {
+		return fmt.Errorf("%w: %w", common.GetTypeAssertError("asset.Item", conn.MessageFilter()), stream.ErrInvalidMessageFilter)
+	}
 	push, err := parseWSHeader(respRaw)
 	if err != nil {
 		return err
@@ -803,6 +807,40 @@ func (g *Gateio) GenerateWebsocketMessageID(bool) int64 {
 	return g.Counter.IncrementAndGet()
 }
 
+// GeneratePayload returns the payload for a websocket message
+type GeneratePayload func(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error)
+
+// handleSubscription sends a websocket message to receive data from the channel
+func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List, generatePayload GeneratePayload) error {
+	payloads, err := generatePayload(ctx, conn, event, channelsToSubscribe)
+	if err != nil {
+		return err
+	}
+	var errs error
+	for k := range payloads {
+		result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payloads[k].ID, payloads[k])
+		if err != nil {
+			errs = common.AppendError(errs, err)
+			continue
+		}
+		var resp WsEventResponse
+		if err = json.Unmarshal(result, &resp); err != nil {
+			errs = common.AppendError(errs, err)
+		} else {
+			if resp.Error != nil && resp.Error.Code != 0 {
+				errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
+				continue
+			}
+			if event == subscribeEvent {
+				errs = common.AppendError(errs, g.Websocket.AddSuccessfulSubscriptions(conn, channelsToSubscribe[k]))
+			} else {
+				errs = common.AppendError(errs, g.Websocket.RemoveSubscriptions(conn, channelsToSubscribe[k]))
+			}
+		}
+	}
+	return errs
+}
+
 // channelName converts global channel names to gateio specific channel names
 func channelName(s *subscription.Subscription) string {
 	if name, ok := subscriptionNames[s.Channel]; ok {
@@ -838,37 +876,3 @@ const subTplText = `
 	{{- end }}
 {{- end }}
 `
-
-// GeneratePayload returns the payload for a websocket message
-type GeneratePayload func(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error)
-
-// handleSubscription sends a websocket message to receive data from the channel
-func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List, generatePayload GeneratePayload) error {
-	payloads, err := generatePayload(ctx, conn, event, channelsToSubscribe)
-	if err != nil {
-		return err
-	}
-	var errs error
-	for k := range payloads {
-		result, err := conn.SendMessageReturnResponse(ctx, websocketRateLimitNotNeededEPL, payloads[k].ID, payloads[k])
-		if err != nil {
-			errs = common.AppendError(errs, err)
-			continue
-		}
-		var resp WsEventResponse
-		if err = json.Unmarshal(result, &resp); err != nil {
-			errs = common.AppendError(errs, err)
-		} else {
-			if resp.Error != nil && resp.Error.Code != 0 {
-				errs = common.AppendError(errs, fmt.Errorf("error while %s to channel %s error code: %d message: %s", payloads[k].Event, payloads[k].Channel, resp.Error.Code, resp.Error.Message))
-				continue
-			}
-			if event == subscribeEvent {
-				errs = common.AppendError(errs, g.Websocket.AddSuccessfulSubscriptions(conn, channelsToSubscribe[k]))
-			} else {
-				errs = common.AppendError(errs, g.Websocket.RemoveSubscriptions(conn, channelsToSubscribe[k]))
-			}
-		}
-	}
-	return errs
-}
