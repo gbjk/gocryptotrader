@@ -21,6 +21,7 @@ import (
 	"sync/atomic"
 	"time"
 	"unicode"
+	"unsafe"
 
 	"github.com/thrasher-corp/gocryptotrader/common/file"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -78,6 +79,16 @@ var (
 	errUserAgentInvalid        = errors.New("cannot set invalid user agent")
 	errHTTPClientInvalid       = errors.New("custom http client cannot be nil")
 )
+
+// NilGuard returns an ErrNilPointer with the type of the first nil argument
+func NilGuard(ptrs ...any) (errs error) {
+	for _, p := range ptrs {
+		if (*[2]uintptr)(unsafe.Pointer(&p))[1] == 0 {
+			errs = AppendError(errs, fmt.Errorf("%w: %T", ErrNilPointer, p))
+		}
+	}
+	return errs
+}
 
 // MatchesEmailPattern ensures that the string is an email address by regexp check
 func MatchesEmailPattern(value string) bool {
