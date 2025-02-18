@@ -38,7 +38,7 @@ type Exchange struct {
 
 // In the exchange wrapper this will set up the initial pointer field provided by exchange.Base
 func (e *Exchange) SetDefault() {
-    e.Websocket = websocket.NewWebsocket()
+    e.Websocket = websocket.NewManager()
 	e.WebsocketResponseMaxLimit = exchange.DefaultWebsocketResponseMaxLimit
 	e.WebsocketResponseCheckTimeout = exchange.DefaultWebsocketResponseCheckTimeout
 	e.WebsocketOrderbookBufferLimit = exchange.DefaultWebsocketOrderbookBufferLimit
@@ -47,7 +47,7 @@ func (e *Exchange) SetDefault() {
 // In the exchange wrapper this is the original setup pattern for the websocket services 
 func (e *Exchange) Setup(exch *config.Exchange) error {
     // This sets up global connection, sub, unsub and generate subscriptions for each connection defined below.
-    if err := e.Websocket.Setup(&websocket.WebsocketSetup{
+    if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:                         exch,
 		DefaultURL:                             connectionURLString,
 		RunningURL:                             connectionURLString,
@@ -89,7 +89,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 ```go
 func (e *Exchange) Setup(exch *config.Exchange) error {
     // This sets up global connection, sub, unsub and generate subscriptions for each connection defined below.
-    if err := e.Websocket.Setup(&websocket.WebsocketSetup{
+    if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:               exch,
 		Features:                     &e.Features.Supports.WebsocketCapabilities,
 		FillsFeed:                    e.Features.Enabled.FillsFeed,
