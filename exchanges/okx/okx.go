@@ -5924,9 +5924,5 @@ func (ok *Okx) SendHTTPRequest(ctx context.Context, ep exchange.URL, f request.E
 		}
 	}
 
-	if ptrTo := rv.Elem(); ptrTo.Kind() == reflect.Slice && ptrTo.Len() == 0 {
-		return common.ErrNoResponse
-	}
-
 	return nil
 }
