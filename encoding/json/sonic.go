@@ -3,11 +3,20 @@
 package json
 
 import (
+	"encoding/json" //nolint:depguard // Acceptable use in gct json wrapper
+
 	"github.com/bytedance/sonic"
 )
 
 // Implementation is a constant string that represents the current JSON implementation package
 const Implementation = "bytedance/sonic"
+
+type (
+	// An UnmarshalTypeError describes a JSON value that was not appropriate for a value of a specific Go type
+	UnmarshalTypeError = json.UnmarshalTypeError
+	// RawMessage is a raw encoded JSON value; It implements `Marshaler` and `Unmarshaler` and can be used to delay JSON decoding or precompute a JSON encoding
+	RawMessage = sonic.NoCopyRawMessage
+)
 
 var (
 	// Marshal returns the JSON encoding of v. See the "github.com/bytedance/sonic" documentation for Marshal
