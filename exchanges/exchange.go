@@ -1105,13 +1105,12 @@ func (b *Base) IsWebsocketEnabled() bool {
 	return b.Websocket.IsEnabled()
 }
 
-// FlushWebsocketChannels refreshes websocket channel subscriptions based on
-// websocket features. Used in the event of a pair/asset or subscription change.
-func (b *Base) FlushWebsocketChannels() error {
+// SyncSubscriptions refreshes websocket subscriptions; Use in event of pair, asset or subscription changes
+func (b *Base) SyncSubscriptions() error {
 	if b.Websocket == nil {
 		return nil
 	}
-	return b.Websocket.FlushChannels()
+	return b.Websocket.SyncSubscriptions()
 }
 
 // SubscribeToWebsocketChannels appends to ChannelsToSubscribe

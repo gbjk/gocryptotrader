@@ -326,8 +326,8 @@ func (c *CustomEx) IsAssetWebsocketSupported(_ asset.Item) bool {
 	return false
 }
 
-// FlushWebsocketChannels is a mock method for CustomEx
-func (c *CustomEx) FlushWebsocketChannels() error {
+// SyncSubscriptions is a mock method for CustomEx
+func (c *CustomEx) SyncSubscriptions() error {
 	return nil
 }
 

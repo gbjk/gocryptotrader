@@ -81,7 +81,7 @@ type IBotExchange interface {
 	UnsubscribeToWebsocketChannels(channels subscription.List) error
 	GetSubscriptions() (subscription.List, error)
 	GetSubscriptionTemplate(*subscription.Subscription) (*template.Template, error)
-	FlushWebsocketChannels() error
+	SyncSubscriptions() error
 	AuthenticateWebsocket(ctx context.Context) error
 	CanUseAuthenticatedWebsocketEndpoints() bool
 	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order.MinMaxLevel, error)

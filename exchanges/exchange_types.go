@@ -147,8 +147,7 @@ type WithdrawalHistory struct {
 	BankTo          string
 }
 
-// Features stores the supported and enabled features
-// for the exchange
+// Features stores the supported and enabled features for the exchange
 type Features struct {
 	Supports             FeaturesSupported
 	Enabled              FeaturesEnabled
