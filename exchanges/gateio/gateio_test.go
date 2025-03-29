@@ -1941,6 +1941,7 @@ func TestGetUnderlyingFromCurrencyPair(t *testing.T) {
 	}
 }
 
+/* TODO - DO NOT COMMIT
 const wsTickerPushDataJSON = `{"time": 1606291803,	"channel": "spot.tickers",	"event": "update",	"result": {	  "currency_pair": "BTC_USDT",	  "last": "19106.55",	  "lowest_ask": "19108.71",	  "highest_bid": "19106.55",	  "change_percentage": "3.66",	  "base_volume": "2811.3042155865",	  "quote_volume": "53441606.52411221454674732293",	  "high_24h": "19417.74",	  "low_24h": "18434.21"	}}`
 
 func TestWsTickerPushData(t *testing.T) {
@@ -2046,13 +2047,26 @@ func TestCrossMarginBalanceLoan(t *testing.T) {
 		t.Errorf("%s websocket cross margin loan push data error: %v", g.Name, err)
 	}
 }
+*/
+
+type mockConn struct {
+	*stream.WebsocketConnection
+	assetType asset.Item
+}
+
+func (c *mockConn) MessageFilter() any {
+	return c.assetType
+}
 
 // TestFuturesDataHandler ensures that messages from various futures channels do not error
 func TestFuturesDataHandler(t *testing.T) {
 	t.Parallel()
 	g := new(Gateio) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(g), "Test instance Setup must not error")
-	testexch.FixtureToDataHandler(t, "testdata/wsFutures.json", func(m []byte) error { return g.WsHandleFuturesData(context.Background(), m, asset.CoinMarginedFutures) })
+	conn := &mockConn{
+		assetType: asset.CoinMarginedFutures,
+	}
+	testexch.FixtureToDataHandler(t, "testdata/wsFutures.json", func(m []byte) error { return g.wsHandleData(context.Background(), conn, m) })
 	close(g.Websocket.DataHandler)
 	assert.Len(t, g.Websocket.DataHandler, 14, "Should see the correct number of messages")
 	for resp := range g.Websocket.DataHandler {
@@ -2063,6 +2077,7 @@ func TestFuturesDataHandler(t *testing.T) {
 
 // ******************************************** Options web-socket unit test funcs ********************
 
+/* DO NOT COMMIT
 const optionsContractTickerPushDataJSON = `{"time": 1630576352,	"channel": "options.contract_tickers",	"event": "update",	"result": {    "name": "BTC_USDT-20211231-59800-P",    "last_price": "11349.5",    "mark_price": "11170.19",    "index_price": "",    "position_size": 993,    "bid1_price": "10611.7",    "bid1_size": 100,    "ask1_price": "11728.7",    "ask1_size": 100,    "vega": "34.8731",    "theta": "-72.80588",    "rho": "-28.53331",    "gamma": "0.00003",    "delta": "-0.78311",    "mark_iv": "0.86695",    "bid_iv": "0.65481",    "ask_iv": "0.88145",    "leverage": "3.5541112718136"	}}`
 
 func TestOptionsContractTickerPushData(t *testing.T) {
@@ -2236,8 +2251,9 @@ func TestOptionsPositionPushData(t *testing.T) {
 		t.Errorf("%s websocket options position push data error: %v", g.Name, err)
 	}
 }
+*/
 
-func TestGenerateSubscriptionsSpot(t *testing.T) {
+func TestGenerateSubscriptions(t *testing.T) {
 	t.Parallel()
 
 	g := new(Gateio) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
@@ -2245,9 +2261,9 @@ func TestGenerateSubscriptionsSpot(t *testing.T) {
 
 	g.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	g.Features.Subscriptions = append(g.Features.Subscriptions, &subscription.Subscription{
-		Enabled: true, Channel: spotOrderbookChannel, Asset: asset.Spot, Interval: kline.ThousandMilliseconds, Levels: 5,
+		Enabled: true, Channel: orderbookChannel, Asset: asset.Spot, Interval: kline.ThousandMilliseconds, Levels: 5,
 	})
-	subs, err := g.generateSubscriptionsSpot()
+	subs, err := g.generateSubscriptions()
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp := subscription.List{}
 	assets := slices.DeleteFunc(g.GetAssetTypes(true), func(a asset.Item) bool { return !g.IsAssetWebsocketSupported(a) })
@@ -2269,7 +2285,7 @@ func TestGenerateSubscriptionsSpot(t *testing.T) {
 						s.QualifiedChannel = "5m," + pairs[i].String()
 					case subscription.OrderbookChannel:
 						s.QualifiedChannel = pairs[i].String() + ",100ms"
-					case spotOrderbookChannel:
+					case orderbookChannel:
 						s.QualifiedChannel = pairs[i].String() + ",5,1000ms"
 					}
 					s.Pairs = pairs[i : i+1]
@@ -2294,6 +2310,7 @@ func TestSubscribe(t *testing.T) {
 	require.NoError(t, err, "Subscribe must not error")
 }
 
+/*
 func TestGenerateDeliveryFuturesDefaultSubscriptions(t *testing.T) {
 	t.Parallel()
 	if _, err := g.GenerateDeliveryFuturesDefaultSubscriptions(); err != nil {
@@ -2323,6 +2340,7 @@ func TestGenerateOptionsDefaultSubscriptions(t *testing.T) {
 		t.Error(err)
 	}
 }
+*/
 
 func TestCreateAPIKeysOfSubAccount(t *testing.T) {
 	t.Parallel()

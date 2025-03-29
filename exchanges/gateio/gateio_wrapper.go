@@ -28,7 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/stream"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -168,7 +167,7 @@ func (g *Gateio) SetDefaults() {
 		exchange.RestSpot:              gateioTradeURL,
 		exchange.RestFutures:           gateioFuturesLiveTradingAlternative,
 		exchange.RestSpotSupplementary: gateioFuturesTestnetTrading,
-		exchange.WebsocketSpot:         gateioWebsocketEndpoint,
+		exchange.WebsocketSpot:         wsURLs[asset.Spot],
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -181,122 +180,51 @@ func (g *Gateio) SetDefaults() {
 
 // Setup sets user configuration
 func (g *Gateio) Setup(exch *config.Exchange) error {
-	err := exch.Validate()
-	if err != nil {
+	if err := exch.Validate(); err != nil {
 		return err
 	}
 	if !exch.Enabled {
 		g.SetEnabled(false)
 		return nil
 	}
-	err = g.SetupDefaults(exch)
-	if err != nil {
+	if err := g.SetupDefaults(exch); err != nil {
 		return err
 	}
 
-	err = g.Websocket.Setup(&stream.WebsocketSetup{
+	if err := g.Websocket.Setup(&stream.WebsocketSetup{
 		ExchangeConfig:               exch,
 		Features:                     &g.Features.Supports.WebsocketCapabilities,
 		FillsFeed:                    g.Features.Enabled.FillsFeed,
 		TradeFeed:                    g.Features.Enabled.TradeFeed,
 		UseMultiConnectionManagement: true,
 		RateLimitDefinitions:         packageRateLimits,
-	})
-	if err != nil {
-		return err
-	}
-	// Spot connection
-	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                      gateioWebsocketEndpoint,
-		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		Handler:                  g.WsHandleSpotData,
-		Subscriber:               g.Subscribe,
-		Unsubscriber:             g.Unsubscribe,
-		GenerateSubscriptions:    g.generateSubscriptionsSpot,
-		Connector:                g.WsConnectSpot,
-		Authenticate:             g.authenticateSpot,
-		MessageFilter:            asset.Spot,
-		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
-	})
-	if err != nil {
-		return err
-	}
-	// Futures connection - USDT margined
-	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                  usdtFuturesWebsocketURL,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Handler: func(ctx context.Context, incoming []byte) error {
-			return g.WsHandleFuturesData(ctx, incoming, asset.USDTMarginedFutures)
-		},
-		Subscriber:   g.FuturesSubscribe,
-		Unsubscriber: g.FuturesUnsubscribe,
-		GenerateSubscriptions: func() (subscription.List, error) {
-			return g.GenerateFuturesDefaultSubscriptions(asset.USDTMarginedFutures)
-		},
-		Connector:                g.WsFuturesConnect,
-		MessageFilter:            asset.USDTMarginedFutures,
-		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
-	})
-	if err != nil {
+	}); err != nil {
 		return err
 	}
 
-	// Futures connection - BTC margined
-	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                  btcFuturesWebsocketURL,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Handler: func(ctx context.Context, incoming []byte) error {
-			return g.WsHandleFuturesData(ctx, incoming, asset.CoinMarginedFutures)
-		},
-		Subscriber:   g.FuturesSubscribe,
-		Unsubscriber: g.FuturesUnsubscribe,
-		GenerateSubscriptions: func() (subscription.List, error) {
-			return g.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
-		},
-		Connector:                g.WsFuturesConnect,
-		MessageFilter:            asset.CoinMarginedFutures,
-		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
-	})
-	if err != nil {
-		return err
+	var errs error
+	for _, a := range g.GetAssetTypes(true) {
+		if !g.IsAssetWebsocketSupported(a) {
+			continue
+		}
+		if err := g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
+			URL:                   wsURLs[a],
+			MessageFilter:         a,
+			ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+			Handler:               g.wsHandleData,
+			GenerateSubscriptions: g.generateSubscriptions,
+			Subscriber:            g.Subscribe,
+			Unsubscriber:          g.Unsubscribe,
+			Connector:             g.wsConnect,
+			// TODO: Abstract auth spot
+			Authenticate:             g.authenticateSpot,
+			BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
+		}); err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("%w: %s", err, a))
+		}
 	}
-
-	// TODO: Add BTC margined delivery futures.
-	// Futures connection - Delivery - USDT margined
-	err = g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                  deliveryRealUSDTTradingURL,
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		Handler: func(ctx context.Context, incoming []byte) error {
-			return g.WsHandleFuturesData(ctx, incoming, asset.DeliveryFutures)
-		},
-		Subscriber:               g.DeliveryFuturesSubscribe,
-		Unsubscriber:             g.DeliveryFuturesUnsubscribe,
-		GenerateSubscriptions:    g.GenerateDeliveryFuturesDefaultSubscriptions,
-		Connector:                g.WsDeliveryFuturesConnect,
-		MessageFilter:            asset.DeliveryFutures,
-		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
-	})
-	if err != nil {
-		return err
-	}
-
-	// Futures connection - Options
-	return g.Websocket.SetupNewConnection(&stream.ConnectionSetup{
-		URL:                      optionsWebsocketURL,
-		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		Handler:                  g.WsHandleOptionsData,
-		Subscriber:               g.OptionsSubscribe,
-		Unsubscriber:             g.OptionsUnsubscribe,
-		GenerateSubscriptions:    g.GenerateOptionsDefaultSubscriptions,
-		Connector:                g.WsOptionsConnect,
-		MessageFilter:            asset.Options,
-		BespokeGenerateMessageID: g.GenerateWebsocketMessageID,
-	})
+	return errs
 }
 
 // UpdateTicker updates and returns the ticker for a currency pair

@@ -31,61 +31,96 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 )
 
-const (
-	gateioWebsocketEndpoint = "wss://api.gateio.ws/ws/v4/"
+var (
+	errParsingWSField      = errors.New("error parsing WS field")
+	errChannelParts        = errors.New("should contain asset and channel")
+	errMsgAssetTypeInvalid = errors.New("message AssetType prefix does not match connection AssetType")
+)
 
-	spotPingChannel            = "spot.ping"
-	spotPongChannel            = "spot.pong"
-	spotTickerChannel          = "spot.tickers"
-	spotTradesChannel          = "spot.trades"
-	spotCandlesticksChannel    = "spot.candlesticks"
-	spotOrderbookTickerChannel = "spot.book_ticker"       // Best bid or ask price
-	spotOrderbookUpdateChannel = "spot.order_book_update" // Changed order book levels
-	spotOrderbookChannel       = "spot.order_book"        // Limited-Level Full Order Book Snapshot
-	spotOrdersChannel          = "spot.orders"
-	spotUserTradesChannel      = "spot.usertrades"
-	spotBalancesChannel        = "spot.balances"
-	marginBalancesChannel      = "spot.margin_balances"
-	spotFundingBalanceChannel  = "spot.funding_balances"
-	crossMarginBalanceChannel  = "spot.cross_balances"
-	crossMarginLoanChannel     = "spot.cross_loan"
+var wsURLs = map[asset.Item]string{
+	asset.Spot:                "wss://api.gateio.ws/ws/v4/",
+	asset.CoinMarginedFutures: "wss://fx-ws.gateio.ws/v4/ws/btc",
+	asset.USDTMarginedFutures: "wss://fx-ws.gateio.ws/v4/ws/usdt",
+	asset.DeliveryFutures:     "wss://fx-ws.gateio.ws/v4/ws/delivery/usdt",
+	asset.Options:             "wss://op-ws.gateio.live/v4/ws",
+}
+
+/* Testnet urls
+"wss://fx-ws-testnet.gateio.ws/v4/ws/delivery/btc"
+deliveryTestNetUSDTTradingURL = "wss://fx-ws-testnet.gateio.ws/v4/ws/delivery/usdt"
+optionsWebsocketTestnetURL = "wss://op-ws-testnet.gateio.live/v4/ws"
+*/
+
+const (
+	// Public Channels
+	pingChannel            = "ping"
+	pongChannel            = "pong"
+	tickerChannel          = "tickers"
+	tradesChannel          = "trades"
+	candlesticksChannel    = "candlesticks"
+	orderbookTickerChannel = "book_ticker"       // Best bid or ask price
+	orderbookUpdateChannel = "order_book_update" // Changed order book levels
+	orderbookChannel       = "order_book"        // Limited-Level Full Order Book Snapshot
+	ordersChannel          = "orders"
+
+	// Private channels
+	userTradesChannel        = "usertrades"
+	balancesChannel          = "balances"
+	liquidatesChannel        = "liquidates"
+	positionsChannel         = "positions"
+	autoOrdersChannel        = "autoorders"
+	autoDeleveragesChannel   = "auto_deleverages"
+	autoPositionCloseChannel = "position_closes"
+	reduceRiskLimitsChannel  = "reduce_risk_limits"
+
+	// DO NOT COMMIT - Have these been checked? naming is weird AF
+	marginBalancesChannel = "margin_balances"
+	fundingBalanceChannel = "funding_balances"
+	// DO NOT COMMIT - Has this been tested?
+	crossMarginBalanceChannel = "cross_balances"
+	crossMarginLoanChannel    = "cross_loan"
 
 	subscribeEvent   = "subscribe"
 	unsubscribeEvent = "unsubscribe"
 )
 
 var defaultSubscriptions = subscription.List{
-	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.Spot},
-	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.Spot, Interval: kline.FiveMin},
-	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds},
-	{Enabled: true, Channel: spotBalancesChannel, Asset: asset.Spot, Authenticated: true},
+	{Enabled: true, Channel: subscription.TickerChannel, Asset: asset.All},
+	{Enabled: true, Channel: subscription.CandlesChannel, Asset: asset.All, Interval: kline.FiveMin},
+	{Enabled: true, Channel: subscription.OrderbookChannel, Asset: asset.All, Interval: kline.HundredMilliseconds},
+	{Enabled: false, Channel: subscription.AllTradesChannel, Asset: asset.All},
+	{Enabled: true, Channel: balancesChannel, Asset: asset.All, Authenticated: true},
 	{Enabled: true, Channel: crossMarginBalanceChannel, Asset: asset.CrossMargin, Authenticated: true},
 	{Enabled: true, Channel: marginBalancesChannel, Asset: asset.Margin, Authenticated: true},
-	{Enabled: false, Channel: subscription.AllTradesChannel, Asset: asset.Spot},
 }
 
 var fetchedCurrencyPairSnapshotOrderbook = make(map[string]bool)
 
 var subscriptionNames = map[string]string{
-	subscription.TickerChannel:    spotTickerChannel,
-	subscription.OrderbookChannel: spotOrderbookUpdateChannel,
-	subscription.CandlesChannel:   spotCandlesticksChannel,
-	subscription.AllTradesChannel: spotTradesChannel,
+	subscription.TickerChannel:    tickerChannel,
+	subscription.OrderbookChannel: orderbookUpdateChannel,
+	subscription.CandlesChannel:   candlesticksChannel,
+	subscription.AllTradesChannel: tradesChannel,
 }
 
 var standardMarginAssetTypes = []asset.Item{asset.Spot, asset.Margin, asset.CrossMargin}
 
-// WsConnectSpot initiates a websocket connection
-func (g *Gateio) WsConnectSpot(ctx context.Context, conn stream.Connection) error {
-	err := g.CurrencyPairs.IsAssetEnabled(asset.Spot)
-	if err != nil {
+// wsConnect connects a websocket connection
+func (g *Gateio) wsConnect(ctx context.Context, conn stream.Connection) error {
+	a, ok := conn.MessageFilter().(asset.Item)
+	if !ok {
+		return fmt.Errorf("%w: %w", common.GetTypeAssertError("asset.Item", conn.MessageFilter()), stream.ErrInvalidMessageFilter)
+	}
+	if err := g.CurrencyPairs.IsAssetEnabled(a); err != nil {
 		return err
 	}
-	err = conn.DialContext(ctx, &websocket.Dialer{}, http.Header{})
-	if err != nil {
+	if !g.IsAssetWebsocketSupported(a) {
+		return fmt.Errorf("%w: `%s`", asset.ErrNotSupported, a)
+	}
+	if err := conn.DialContext(ctx, &websocket.Dialer{}, http.Header{}); err != nil {
 		return err
 	}
-	pingMessage, err := json.Marshal(WsInput{Channel: spotPingChannel})
+	pingMessage, err := json.Marshal(WsInput{Channel: a.String() + "." + pingChannel})
 	if err != nil {
 		return err
 	}
@@ -165,49 +200,74 @@ func (g *Gateio) generateWsSignature(secret, event, channel string, t int64) (st
 	return hex.EncodeToString(mac.Sum(nil)), nil
 }
 
-// WsHandleSpotData handles spot data
-func (g *Gateio) WsHandleSpotData(_ context.Context, respRaw []byte) error {
+// wsHandleData handles websocket data
+func (g *Gateio) wsHandleData(ctx context.Context, conn stream.Connection, respRaw []byte) error {
+	a, ok := conn.MessageFilter().(asset.Item)
+	if !ok {
+		return fmt.Errorf("%w: %w", common.GetTypeAssertError("asset.Item", conn.MessageFilter()), stream.ErrInvalidMessageFilter)
+	}
 	push, err := parseWSHeader(respRaw)
 	if err != nil {
 		return err
 	}
 
-	if push.RequestID != "" {
-		return g.Websocket.Match.RequireMatchWithData(push.RequestID, respRaw)
+	if channelParts := strings.Split(push.Channel, "."); len(channelParts) != 2 {
+		return fmt.Errorf("%w `channel` (`%s`)", errParsingWSField, push.Channel)
+	} else {
+		if a.String() != channelParts[0] {
+			return fmt.Errorf("%w `channel`; %w: `%s`", errParsingWSField, asset.ErrInvalidAsset, channelParts[0])
+		}
+		push.Channel = channelParts[1]
 	}
 
-	if push.Event == subscribeEvent || push.Event == unsubscribeEvent {
-		return g.Websocket.Match.RequireMatchWithData(push.ID, respRaw)
+	assetHandlers, ok := wsHandlerFuncs[a]
+	if !ok {
+		return fmt.Errorf("%w `channel`; %w: `%s`", errParsingWSField, asset.ErrNotSupported, a)
 	}
 
+	handler, ok := assetHandlers[push.Channel]
+	if !ok {
+		g.Websocket.DataHandler <- stream.UnhandledMessageWarning{
+			Message: g.Name + ": " + stream.UnhandledMessage + ": " + string(respRaw),
+		}
+		return errors.New(stream.UnhandledMessage)
+	}
+
+	return handler(g, a, push)
+}
+
+// wsHandleSpotData handles spot data
+func (g *Gateio) wsHandleSpotData(ctx context.Context, push *WSResponse, respRaw []byte) error {
 	switch push.Channel { // TODO: Convert function params below to only use push.Result
-	case spotTickerChannel:
-		return g.processTicker(push.Result, push.Time)
-	case spotTradesChannel:
+	/*
+		case tickerChannel:
+			return g.processTicker(a, push)
+	*/
+	case tradesChannel:
 		return g.processTrades(push.Result)
-	case spotCandlesticksChannel:
+	case candlesticksChannel:
 		return g.processCandlestick(push.Result)
-	case spotOrderbookTickerChannel:
+	case orderbookTickerChannel:
 		return g.processOrderbookTicker(push.Result, push.Time)
-	case spotOrderbookUpdateChannel:
+	case orderbookUpdateChannel:
 		return g.processOrderbookUpdate(push.Result, push.Time)
-	case spotOrderbookChannel:
+	case orderbookChannel:
 		return g.processOrderbookSnapshot(push.Result, push.Time)
-	case spotOrdersChannel:
+	case ordersChannel:
 		return g.processSpotOrders(respRaw)
-	case spotUserTradesChannel:
+	case userTradesChannel:
 		return g.processUserPersonalTrades(respRaw)
-	case spotBalancesChannel:
+	case balancesChannel:
 		return g.processSpotBalances(respRaw)
 	case marginBalancesChannel:
 		return g.processMarginBalances(respRaw)
-	case spotFundingBalanceChannel:
+	case fundingBalanceChannel:
 		return g.processFundingBalances(respRaw)
 	case crossMarginBalanceChannel:
 		return g.processCrossMarginBalance(respRaw)
 	case crossMarginLoanChannel:
 		return g.processCrossMarginLoans(respRaw)
-	case spotPongChannel:
+	case pongChannel:
 	default:
 		g.Websocket.DataHandler <- stream.UnhandledMessageWarning{
 			Message: g.Name + stream.UnhandledMessage + string(respRaw),
@@ -256,9 +316,9 @@ func parseWSHeader(msg []byte) (r *WSResponse, errs error) {
 	return r, errs
 }
 
-func (g *Gateio) processTicker(incoming []byte, pushTime time.Time) error {
+func (g *Gateio) processTicker(_ asset.Item, msg *WSResponse) error {
 	var data WsTicker
-	if err := json.Unmarshal(incoming, &data); err != nil {
+	if err := json.Unmarshal(msg.Result, &data); err != nil {
 		return err
 	}
 	out := make([]ticker.Price, 0, len(standardMarginAssetTypes))
@@ -275,7 +335,7 @@ func (g *Gateio) processTicker(incoming []byte, pushTime time.Time) error {
 				Ask:          data.LowestAsk.Float64(),
 				AssetType:    a,
 				Pair:         data.CurrencyPair,
-				LastUpdated:  pushTime,
+				LastUpdated:  msg.Time,
 			})
 		}
 	}
@@ -652,8 +712,8 @@ func (g *Gateio) processCrossMarginLoans(data []byte) error {
 	return nil
 }
 
-// generateSubscriptionsSpot returns configured subscriptions
-func (g *Gateio) generateSubscriptionsSpot() (subscription.List, error) {
+// generateSubscriptions returns configured subscriptions
+func (g *Gateio) generateSubscriptions() (subscription.List, error) {
 	return g.Features.Subscriptions.ExpandTemplates(g)
 }
 
@@ -747,42 +807,6 @@ func (g *Gateio) GenerateWebsocketMessageID(bool) int64 {
 	return g.Counter.IncrementAndGet()
 }
 
-// channelName converts global channel names to gateio specific channel names
-func channelName(s *subscription.Subscription) string {
-	if name, ok := subscriptionNames[s.Channel]; ok {
-		return name
-	}
-	return s.Channel
-}
-
-// singleSymbolChannel returns if the channel should be fanned out into single symbol requests
-func singleSymbolChannel(name string) bool {
-	switch name {
-	case spotCandlesticksChannel, spotOrderbookUpdateChannel, spotOrderbookChannel:
-		return true
-	}
-	return false
-}
-
-const subTplText = `
-{{- with $name := channelName $.S }}
-	{{- range $asset, $pairs := $.AssetPairs }}
-		{{- if singleSymbolChannel $name }}
-			{{- range $i, $p := $pairs -}}
-				{{- if eq $name "spot.candlesticks" }}{{ interval $.S.Interval -}} , {{- end }}
-				{{- $p }}
-				{{- if eq "spot.order_book" $name -}} , {{- $.S.Levels }}{{ end }}
-				{{- if hasPrefix "spot.order_book" $name -}} , {{- interval $.S.Interval }}{{ end }}
-				{{- $.PairSeparator }}
-			{{- end }}
-			{{- $.AssetSeparator }}
-		{{- else }}
-			{{- $pairs.Join }}
-		{{- end }}
-	{{- end }}
-{{- end }}
-`
-
 // GeneratePayload returns the payload for a websocket message
 type GeneratePayload func(ctx context.Context, conn stream.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error)
 
@@ -816,3 +840,39 @@ func (g *Gateio) handleSubscription(ctx context.Context, conn stream.Connection,
 	}
 	return errs
 }
+
+// channelName converts global channel names to gateio specific channel names
+func channelName(s *subscription.Subscription) string {
+	if name, ok := subscriptionNames[s.Channel]; ok {
+		return name
+	}
+	return s.Channel
+}
+
+// singleSymbolChannel returns if the channel should be fanned out into single symbol requests
+func singleSymbolChannel(name string) bool {
+	switch name {
+	case candlesticksChannel, orderbookUpdateChannel, orderbookChannel:
+		return true
+	}
+	return false
+}
+
+const subTplText = `
+{{- with $name := channelName $.S }}
+	{{- range $asset, $pairs := $.AssetPairs }}
+		{{- if singleSymbolChannel $name }}
+			{{- range $i, $p := $pairs -}}
+				{{- if eq $name "spot.candlesticks" }}{{ interval $.S.Interval -}} , {{- end }}
+				{{- $p }}
+				{{- if eq "spot.order_book" $name -}} , {{- $.S.Levels }}{{ end }}
+				{{- if hasPrefix "spot.order_book" $name -}} , {{- interval $.S.Interval }}{{ end }}
+				{{- $.PairSeparator }}
+			{{- end }}
+		{{- else }}
+			{{- $pairs.Join }}
+		{{- end }}
+		{{- $.AssetSeparator }}
+	{{- end }}
+{{- end }}
+`
