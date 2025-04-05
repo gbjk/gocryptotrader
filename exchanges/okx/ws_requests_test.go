@@ -233,26 +233,15 @@ func (s *SillyElement) Error() error {
 	return errElement
 }
 
-func TestMergeErrorDetails(t *testing.T) {
+func TestSingleElement(t *testing.T) {
 	t.Parallel()
 
-	require.NoError(t, mergeErrorDetails(nil, []interface{ Error() error }(nil)))
-	sillyErr := errors.New("silly error")
-	require.ErrorIs(t, mergeErrorDetails(sillyErr, []interface{ Error() error }(nil)), sillyErr)
-	require.ErrorIs(t, mergeErrorDetails(nil, []*SillyElement{{}}), errElement)
-	require.ErrorIs(t, mergeErrorDetails(sillyErr, []*SillyElement{{}}), errElement)
-	require.ErrorIs(t, mergeErrorDetails(sillyErr, []*SillyElement{{}}), sillyErr)
-}
-
-func TestExtractSingleItem(t *testing.T) {
-	t.Parallel()
-
-	_, err := extractSingleItem([]*any(nil))
+	_, err := singleElement([]*any(nil))
 	require.ErrorIs(t, err, common.ErrNoResponse)
-	_, err = extractSingleItem([]*SillyElement{{}, {}})
+	_, err = singleElement([]*SillyElement{{}, {}})
 	require.ErrorIs(t, err, errMultipleItemsReturned)
 
-	got, err := extractSingleItem([]*SillyElement{{}})
+	got, err := singleElement([]*SillyElement{{}})
 	require.NoError(t, err)
 	require.NotNil(t, got)
 }
