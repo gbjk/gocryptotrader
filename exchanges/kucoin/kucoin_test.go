@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
-	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -2444,39 +2443,6 @@ func TestGenerateMarginSubscriptions(t *testing.T) {
 	subs, err = ku.Features.Subscriptions.ExpandTemplates(ku)
 	require.NoError(t, err, "mergeMarginPairs must not cause errAssetRecords by adding an empty asset when Spot is disabled")
 	require.NotEmpty(t, subs, "ExpandTemplates must return some subs")
-}
-
-// TestCheckSubscriptions ensures checkSubscriptions upgrades user config correctly
-func TestCheckSubscriptions(t *testing.T) {
-	t.Parallel()
-
-	ku := &Kucoin{ //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
-		Base: exchange.Base{
-			Config: &config.Exchange{
-				Features: &config.FeaturesConfig{
-					Subscriptions: subscription.List{
-						{Enabled: true, Channel: "ticker"},
-						{Enabled: true, Channel: "allTrades"},
-						{Enabled: true, Channel: "orderbook", Interval: kline.HundredMilliseconds},
-						{Enabled: true, Channel: "/contractMarket/tickerV2:%s"},
-						{Enabled: true, Channel: "/contractMarket/level2Depth50:%s"},
-						{Enabled: true, Channel: "/margin/fundingBook:%s", Authenticated: true},
-						{Enabled: true, Channel: "/account/balance", Authenticated: true},
-						{Enabled: true, Channel: "/margin/position", Authenticated: true},
-						{Enabled: true, Channel: "/margin/loan:%s", Authenticated: true},
-						{Enabled: true, Channel: "/contractMarket/tradeOrders", Authenticated: true},
-						{Enabled: true, Channel: "/contractMarket/advancedOrders", Authenticated: true},
-						{Enabled: true, Channel: "/contractAccount/wallet", Authenticated: true},
-					},
-				},
-			},
-			Features: exchange.Features{},
-		},
-	}
-
-	ku.checkSubscriptions()
-	testsubs.EqualLists(t, defaultSubscriptions, ku.Features.Subscriptions)
-	testsubs.EqualLists(t, defaultSubscriptions, ku.Config.Features.Subscriptions)
 }
 
 func TestGetAvailableTransferChains(t *testing.T) {
