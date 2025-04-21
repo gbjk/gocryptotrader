@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strconv"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -322,10 +323,17 @@ func (ok *Okx) SendAuthenticatedWebsocketRequest(ctx context.Context, epl reques
 	default:
 		err = getStatusError(intermediary.Code, intermediary.Message)
 	}
-	if errGroup, ok := result.([]hasError); ok {
-		for i := range errGroup {
-			if subErr := errGroup[i].Error(); err != nil {
-				err = common.AppendError(err, fmt.Errorf("%T[%d]: %w", errGroup[i], i+1, subErr))
+	rv := reflect.ValueOf(result)
+	if rv.Kind() == reflect.Pointer && rv.Elem().Kind() == reflect.Slice {
+		s := rv.Elem()
+		// If we have a slice pointer we can see if elements have their own errors
+		for i := range s.Len() {
+			v := s.Index(i)
+			if v.Kind() == reflect.Interface {
+				v = v.Elem()
+			}
+			if subErr, ok := v.Interface().(hasError); ok && subErr.Error() != nil {
+				err = common.AppendError(err, fmt.Errorf("%s[%d]: %w", v.Type(), i+1, subErr.Error()))
 			}
 		}
 	}
