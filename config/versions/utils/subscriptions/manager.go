@@ -23,18 +23,21 @@ var (
 type Mutator func(subs subscription.List) (subscription.List, error)
 
 func Upgrade(e []byte, oldDefaults subscription.List, newDefaults subscription.List, fn Mutator, desc string) ([]byte, error) {
-	s, _, _, err := jsonparser.Get(e, "features", "subscriptions")
-	if err != nil {
-		// TODO: No subscriptions configured
-		return e, err
-	}
-	userSubs := subscription.List{}
-	err = json.Unmarshal(s, &userSubs)
+	newSubsJSON, err := json.Marshal(newDefaults)
 	if err != nil {
 		return e, err
 	}
 
-	newSubsJSON, err := json.Marshal(newDefaults)
+	s, _, _, err := jsonparser.Get(e, "features", "subscriptions")
+	if err != nil {
+		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
+			return jsonparser.Set(e, newSubsJSON, "features", "subscriptions")
+		}
+		return e, err
+	}
+
+	userSubs := subscription.List{}
+	err = json.Unmarshal(s, &userSubs)
 	if err != nil {
 		return e, err
 	}
