@@ -20,7 +20,9 @@ var (
 	errMaxRetries = errors.New("max input retries exceeded")
 )
 
-func Upgrade(e []byte, oldDefaults subscription.List, newDefaults subscription.List, desc string) ([]byte, error) {
+type Mutator func(subs subscription.List) (subscription.List, error)
+
+func Upgrade(e []byte, oldDefaults subscription.List, newDefaults subscription.List, fn Mutator, desc string) ([]byte, error) {
 	s, _, _, err := jsonparser.Get(e, "features", "subscriptions")
 	if err != nil {
 		// TODO: No subscriptions configured
@@ -40,6 +42,8 @@ func Upgrade(e []byte, oldDefaults subscription.List, newDefaults subscription.L
 	if len(userSubs) == 0 {
 		return jsonparser.Set(e, newSubsJSON, "features", "subscriptions")
 	}
+
+	fmt.Println("Subscription Update Summary:", "---------------------------", desc)
 
 	oldDefaultsStore, err := subscription.NewStoreFromList(oldDefaults)
 	if err != nil {
@@ -64,6 +68,8 @@ func Upgrade(e []byte, oldDefaults subscription.List, newDefaults subscription.L
 		return e, nil
 	}
 
+	// TODO: Invoke mutator; DO NOT COMMIT
+
 	eName, err := jsonparser.GetString(e, "name")
 	if err != nil {
 		return e, err
@@ -71,9 +77,6 @@ func Upgrade(e []byte, oldDefaults subscription.List, newDefaults subscription.L
 
 	fmt.Printf(`Conflict during subscription upgrade for %s.
 Default subscriptions have changed, but also editted in config.
-Update Summary:
---------------
-%s
 
 Differences in config from old defaults:
 ---------------------------------------
@@ -81,7 +84,7 @@ Differences in config from old defaults:
 Differences from new default subscriptions:
 ------------------------------------------
 %s
-`, eName, desc, listDiff(userAdded, userRemoved), listDiff(added, removed))
+`, eName, listDiff(userAdded, userRemoved), listDiff(added, removed))
 
 	action, err := promptForAction()
 	if err != nil {
