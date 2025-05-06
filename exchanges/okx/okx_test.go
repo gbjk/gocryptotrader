@@ -4036,8 +4036,6 @@ func TestPushData(t *testing.T) {
 	var err error
 	ok := new(Okx) //nolint:govet // Intentional shadow
 	require.NoError(t, testexch.Setup(ok), "Test instance Setup must not error")
-	ok.API.AuthenticatedSupport = true
-	ok.API.AuthenticatedWebsocketSupport = true
 	ok.SetCredentials("test", "test", "test", "", "", "")
 
 	for x := range pushDataMap {
