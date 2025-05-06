@@ -524,7 +524,7 @@ func (bi *Bitget) GetSpotWhaleNetFlow(ctx context.Context, pair currency.Pair) (
 	}
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
-	path := bitgetSpot + bitgetMarket + bitgetWhaleNetFlow
+	const path = bitgetSpot + bitgetMarket + bitgetWhaleNetFlow
 	var resp []WhaleNetFlowResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
 }
@@ -537,7 +537,7 @@ func (bi *Bitget) GetFuturesActiveVolume(ctx context.Context, pair currency.Pair
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
 	vals.Set("period", period)
-	path := bitgetMix + bitgetMarket + bitgetTakerBuySell
+	const path = bitgetMix + bitgetMarket + bitgetTakerBuySell
 	var resp []ActiveVolumeResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
 }
@@ -550,7 +550,7 @@ func (bi *Bitget) GetFuturesPositionRatios(ctx context.Context, pair currency.Pa
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
 	vals.Set("period", period)
-	path := bitgetMix + bitgetMarket + bitgetPositionLongShort
+	const path = bitgetMix + bitgetMarket + bitgetPositionLongShort
 	var resp []PosRatFutureResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
 }
@@ -566,7 +566,7 @@ func (bi *Bitget) GetMarginPositionRatios(ctx context.Context, pair currency.Pai
 		vals.Set("period", period)
 	}
 	vals.Set("coin", cur.String())
-	path := bitgetMargin + bitgetMarket + bitgetLongShortRatio
+	const path = bitgetMargin + bitgetMarket + bitgetLongShortRatio
 	var resp []PosRatMarginResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
 }
@@ -582,7 +582,7 @@ func (bi *Bitget) GetMarginLoanGrowth(ctx context.Context, pair currency.Pair, p
 		vals.Set("period", period)
 	}
 	vals.Set("coin", cur.String())
-	path := bitgetMargin + bitgetMarket + bitgetLoanGrowth
+	const path = bitgetMargin + bitgetMarket + bitgetLoanGrowth
 	var resp []LoanGrowthResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
 }
@@ -597,7 +597,7 @@ func (bi *Bitget) GetIsolatedBorrowingRatio(ctx context.Context, pair currency.P
 	if period != "" {
 		vals.Set("period", period)
 	}
-	path := bitgetMargin + bitgetMarket + bitgetIsolatedBorrowRate
+	const path = bitgetMargin + bitgetMarket + bitgetIsolatedBorrowRate
 	var resp []BorrowRatioResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
 }
@@ -610,7 +610,7 @@ func (bi *Bitget) GetFuturesRatios(ctx context.Context, pair currency.Pair, peri
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
 	vals.Set("period", period)
-	path := bitgetMix + bitgetMarket + bitgetLongShort
+	const path = bitgetMix + bitgetMarket + bitgetLongShort
 	var resp []RatioResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
 }
@@ -625,14 +625,14 @@ func (bi *Bitget) GetSpotFundFlows(ctx context.Context, pair currency.Pair, peri
 	if period != "" {
 		vals.Set("period", period)
 	}
-	path := bitgetSpot + bitgetMarket + bitgetFundFlow
+	const path = bitgetSpot + bitgetMarket + bitgetFundFlow
 	var resp FundFlowResp
 	return &resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
 }
 
 // GetTradeSupportSymbols returns a list of supported symbols
 func (bi *Bitget) GetTradeSupportSymbols(ctx context.Context) (*SymbolsResp, error) {
-	path := bitgetSpot + bitgetMarket + bitgetSupportSymbols
+	const path = bitgetSpot + bitgetMarket + bitgetSupportSymbols
 	var resp SymbolsResp
 	return &resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, nil, &resp)
 }
@@ -644,7 +644,7 @@ func (bi *Bitget) GetSpotWhaleFundFlows(ctx context.Context, pair currency.Pair)
 	}
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
-	path := bitgetSpot + bitgetMarket + bitgetFundNetFlow
+	const path = bitgetSpot + bitgetMarket + bitgetFundNetFlow
 	var resp []WhaleFundFlowResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
 }
@@ -657,7 +657,7 @@ func (bi *Bitget) GetFuturesAccountRatios(ctx context.Context, pair currency.Pai
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
 	vals.Set("period", period)
-	path := bitgetMix + bitgetMarket + bitgetAccountLongShort
+	const path = bitgetMix + bitgetMarket + bitgetAccountLongShort
 	var resp []AccountRatioResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate1, path, vals, &resp)
 }
@@ -667,7 +667,7 @@ func (bi *Bitget) CreateVirtualSubaccounts(ctx context.Context, subaccounts []st
 	if len(subaccounts) == 0 {
 		return nil, errSubaccountEmpty
 	}
-	path := bitgetUser + bitgetCreate + bitgetVirtualSubaccount
+	const path = bitgetUser + bitgetCreate + bitgetVirtualSubaccount
 	req := map[string]any{
 		"subAccountList": subaccounts,
 	}
@@ -686,7 +686,7 @@ func (bi *Bitget) ModifyVirtualSubaccount(ctx context.Context, subaccountID, new
 	if len(newPerms) == 0 {
 		return nil, errNewPermsEmpty
 	}
-	path := bitgetUser + bitgetModify + bitgetVirtualSubaccount
+	const path = bitgetUser + bitgetModify + bitgetVirtualSubaccount
 	req := map[string]any{
 		"subAccountUid": subaccountID,
 		"status":        newStatus,
@@ -722,7 +722,7 @@ func (bi *Bitget) GetVirtualSubaccounts(ctx context.Context, limit, pagination i
 		vals.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
 	vals.Set("status", status)
-	path := bitgetUser + bitgetVirtualSubaccount + "-" + bitgetList
+	const path = bitgetUser + bitgetVirtualSubaccount + "-" + bitgetList
 	var resp GetVirSubResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -738,7 +738,7 @@ func (bi *Bitget) CreateAPIKey(ctx context.Context, subaccountID, passphrase, la
 	if label == "" {
 		return nil, errLabelEmpty
 	}
-	path := bitgetUser + bitgetCreate + bitgetVirtualSubaccount + "-" + bitgetAPIKey
+	const path = bitgetUser + bitgetCreate + bitgetVirtualSubaccount + "-" + bitgetAPIKey
 	req := map[string]any{
 		"subAccountUid": subaccountID,
 		"passphrase":    passphrase,
@@ -764,7 +764,7 @@ func (bi *Bitget) ModifyAPIKey(ctx context.Context, subaccountID, passphrase, la
 	if subaccountID == "" {
 		return nil, errSubaccountEmpty
 	}
-	path := bitgetUser + bitgetModify + bitgetVirtualSubaccount + "-" + bitgetAPIKey
+	const path = bitgetUser + bitgetModify + bitgetVirtualSubaccount + "-" + bitgetAPIKey
 	req := map[string]any{
 		"subAccountUid":    subaccountID,
 		"passphrase":       passphrase,
@@ -784,7 +784,7 @@ func (bi *Bitget) GetAPIKeys(ctx context.Context, subaccountID string) ([]GetAPI
 	}
 	vals := url.Values{}
 	vals.Set("subAccountUid", subaccountID)
-	path := bitgetUser + bitgetVirtualSubaccount + "-" + bitgetAPIKey + "-" + bitgetList
+	const path = bitgetUser + bitgetVirtualSubaccount + "-" + bitgetAPIKey + "-" + bitgetList
 	var resp []GetAPIKeyResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, vals, nil, &resp)
 }
@@ -932,7 +932,7 @@ func (bi *Bitget) GetCoinInfo(ctx context.Context, currency currency.Code) ([]Co
 	if !currency.IsEmpty() {
 		vals.Set("coin", currency.String())
 	}
-	path := bitgetSpot + bitgetPublic + bitgetCoins
+	const path = bitgetSpot + bitgetPublic + bitgetCoins
 	var resp []CoinInfoResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate3, path, vals, &resp)
 }
@@ -941,14 +941,14 @@ func (bi *Bitget) GetCoinInfo(ctx context.Context, currency currency.Code) ([]Co
 func (bi *Bitget) GetSymbolInfo(ctx context.Context, pair currency.Pair) ([]SymbolInfoResp, error) {
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
-	path := bitgetSpot + bitgetPublic + bitgetSymbols
+	const path = bitgetSpot + bitgetPublic + bitgetSymbols
 	var resp []SymbolInfoResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
 }
 
 // GetSpotVIPFeeRate returns the different levels of VIP fee rates for spot trading
 func (bi *Bitget) GetSpotVIPFeeRate(ctx context.Context) ([]VIPFeeRateResp, error) {
-	path := bitgetSpot + bitgetMarket + bitgetVIPFeeRate
+	const path = bitgetSpot + bitgetMarket + bitgetVIPFeeRate
 	var resp []VIPFeeRateResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate10, path, nil, &resp)
 }
@@ -957,7 +957,7 @@ func (bi *Bitget) GetSpotVIPFeeRate(ctx context.Context) ([]VIPFeeRateResp, erro
 func (bi *Bitget) GetSpotTickerInformation(ctx context.Context, pair currency.Pair) ([]TickerResp, error) {
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
-	path := bitgetSpot + bitgetMarket + bitgetTickers
+	const path = bitgetSpot + bitgetMarket + bitgetTickers
 	var resp []TickerResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
 }
@@ -971,7 +971,7 @@ func (bi *Bitget) GetSpotMergeDepth(ctx context.Context, pair currency.Pair, pre
 	vals.Set("symbol", pair.String())
 	vals.Set("precision", precision)
 	vals.Set("limit", limit)
-	path := bitgetSpot + bitgetMarket + bitgetMergeDepth
+	const path = bitgetSpot + bitgetMarket + bitgetMergeDepth
 	var resp DepthResp
 	return &resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
 }
@@ -984,7 +984,7 @@ func (bi *Bitget) GetOrderbookDepth(ctx context.Context, pair currency.Pair, ste
 		vals.Set("type", step)
 	}
 	vals.Set("limit", strconv.FormatUint(uint64(limit), 10))
-	path := bitgetSpot + bitgetMarket + bitgetOrderbook
+	const path = bitgetSpot + bitgetMarket + bitgetOrderbook
 	var resp OrderbookResp
 	return &resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
 }
@@ -1024,7 +1024,7 @@ func (bi *Bitget) GetRecentSpotFills(ctx context.Context, pair currency.Pair, li
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
 	vals.Set("limit", strconv.FormatInt(int64(limit), 10))
-	path := bitgetSpot + bitgetMarket + bitgetFills
+	const path = bitgetSpot + bitgetMarket + bitgetFills
 	var resp []MarketFillsResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate10, path, vals, &resp)
 }
@@ -1047,7 +1047,7 @@ func (bi *Bitget) GetSpotMarketTrades(ctx context.Context, pair currency.Pair, s
 	if pagination != 0 {
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
-	path := bitgetSpot + bitgetMarket + bitgetFillsHistory
+	const path = bitgetSpot + bitgetMarket + bitgetFillsHistory
 	var resp []MarketFillsResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate10, path, params.Values, &resp)
 }
@@ -1099,7 +1099,7 @@ func (bi *Bitget) PlaceSpotOrder(ctx context.Context, pair currency.Pair, side, 
 		req["presetStopLossPrice"] = strconv.FormatFloat(presetSLPrice, 'f', -1, 64)
 		req["executeStopLossPrice"] = strconv.FormatFloat(executeSLPrice, 'f', -1, 64)
 	}
-	path := bitgetSpot + bitgetTrade + bitgetPlaceOrder
+	const path = bitgetSpot + bitgetTrade + bitgetPlaceOrder
 	var resp OrderIDStruct
 	// I suspect the two rate limits have to do with distinguishing ordinary traders, and traders who are also copy trade leaders. Since this isn't detectable, it'll be handled in the relevant functions through a bool
 	rLim := Rate10
@@ -1142,7 +1142,7 @@ func (bi *Bitget) CancelAndPlaceSpotOrder(ctx context.Context, pair currency.Pai
 		req["presetStopLossPrice"] = strconv.FormatFloat(presetSLPrice, 'f', -1, 64)
 		req["executeStopLossPrice"] = strconv.FormatFloat(executeSLPrice, 'f', -1, 64)
 	}
-	path := bitgetSpot + bitgetTrade + bitgetCancelReplaceOrder
+	const path = bitgetSpot + bitgetTrade + bitgetCancelReplaceOrder
 	var resp CancelAndPlaceResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, &resp)
 }
@@ -1155,7 +1155,7 @@ func (bi *Bitget) BatchCancelAndPlaceSpotOrders(ctx context.Context, orders []Re
 	req := map[string]any{
 		"orderList": orders,
 	}
-	path := bitgetSpot + bitgetTrade + bitgetBatchCancelReplaceOrder
+	const path = bitgetSpot + bitgetTrade + bitgetBatchCancelReplaceOrder
 	var resp []CancelAndPlaceResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, &resp)
 }
@@ -1178,7 +1178,7 @@ func (bi *Bitget) CancelSpotOrderByID(ctx context.Context, pair currency.Pair, t
 	if clientOrderID != "" {
 		req["clientOid"] = clientOrderID
 	}
-	path := bitgetSpot + bitgetTrade + bitgetCancelOrder
+	const path = bitgetSpot + bitgetTrade + bitgetCancelOrder
 	var resp OrderIDStruct
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -1198,7 +1198,7 @@ func (bi *Bitget) BatchPlaceSpotOrders(ctx context.Context, pair currency.Pair, 
 	if multiCurrencyMode {
 		req["batchMode"] = "multiple"
 	}
-	path := bitgetSpot + bitgetTrade + bitgetBatchOrders
+	const path = bitgetSpot + bitgetTrade + bitgetBatchOrders
 	var resp BatchOrderResp
 	rLim := Rate5
 	if isCopyTradeLeader {
@@ -1222,7 +1222,7 @@ func (bi *Bitget) BatchCancelOrders(ctx context.Context, pair currency.Pair, mul
 	if multiCurrencyMode {
 		req["batchMode"] = "multiple"
 	}
-	path := bitgetSpot + bitgetTrade + bitgetBatchCancel
+	const path = bitgetSpot + bitgetTrade + bitgetBatchCancel
 	var resp *BatchOrderResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -1235,7 +1235,7 @@ func (bi *Bitget) CancelOrdersBySymbol(ctx context.Context, pair currency.Pair) 
 	req := map[string]any{
 		"symbol": pair,
 	}
-	path := bitgetSpot + bitgetTrade + bitgetCancelSymbolOrder
+	const path = bitgetSpot + bitgetTrade + bitgetCancelSymbolOrder
 	var resp struct {
 		Symbol string `json:"symbol"`
 	}
@@ -1256,7 +1256,7 @@ func (bi *Bitget) GetSpotOrderDetails(ctx context.Context, orderID int64, client
 	}
 	vals.Set("requestTime", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	vals.Set("receiveWindow", strconv.FormatInt(acceptableDelay.Milliseconds(), 10))
-	path := bitgetSpot + bitgetTrade + bitgetOrderInfo
+	const path = bitgetSpot + bitgetTrade + bitgetOrderInfo
 	return bi.spotOrderHelper(ctx, path, vals)
 }
 
@@ -1279,7 +1279,7 @@ func (bi *Bitget) GetUnfilledOrders(ctx context.Context, pair currency.Pair, tps
 	params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
 	params.Values.Set("requestTime", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	params.Values.Set("receiveWindow", strconv.FormatInt(acceptableDelay.Milliseconds(), 10))
-	path := bitgetSpot + bitgetTrade + bitgetUnfilledOrders
+	const path = bitgetSpot + bitgetTrade + bitgetUnfilledOrders
 	var resp []UnfilledOrdersResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -1303,7 +1303,7 @@ func (bi *Bitget) GetHistoricalSpotOrders(ctx context.Context, pair currency.Pai
 	params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
 	params.Values.Set("requestTime", strconv.FormatInt(time.Now().UnixMilli(), 10))
 	params.Values.Set("receiveWindow", strconv.FormatInt(acceptableDelay.Milliseconds(), 10))
-	path := bitgetSpot + bitgetTrade + bitgetHistoryOrders
+	const path = bitgetSpot + bitgetTrade + bitgetHistoryOrders
 	return bi.spotOrderHelper(ctx, path, params.Values)
 }
 
@@ -1326,7 +1326,7 @@ func (bi *Bitget) GetSpotFills(ctx context.Context, pair currency.Pair, startTim
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
 	params.Values.Set("orderId", strconv.FormatInt(orderID, 10))
-	path := bitgetSpot + bitgetTrade + "/" + bitgetFills
+	const path = bitgetSpot + bitgetTrade + "/" + bitgetFills
 	var resp []SpotFillsResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -1369,7 +1369,7 @@ func (bi *Bitget) PlacePlanSpotOrder(ctx context.Context, pair currency.Pair, si
 	if clientOrderID != "" {
 		req["clientOid"] = clientOrderID
 	}
-	path := bitgetSpot + bitgetTrade + bitgetPlacePlanOrder
+	const path = bitgetSpot + bitgetTrade + bitgetPlacePlanOrder
 	var resp OrderIDStruct
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodPost, path, nil, req, &resp)
 }
@@ -1403,7 +1403,7 @@ func (bi *Bitget) ModifyPlanSpotOrder(ctx context.Context, orderID int64, client
 	if orderID != 0 {
 		req["orderId"] = strconv.FormatInt(orderID, 10)
 	}
-	path := bitgetSpot + bitgetTrade + bitgetModifyPlanOrder
+	const path = bitgetSpot + bitgetTrade + bitgetModifyPlanOrder
 	var resp OrderIDStruct
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodPost, path, nil, req, &resp)
 }
@@ -1420,7 +1420,7 @@ func (bi *Bitget) CancelPlanSpotOrder(ctx context.Context, orderID int64, client
 	if orderID != 0 {
 		req["orderId"] = strconv.FormatInt(orderID, 10)
 	}
-	path := bitgetSpot + bitgetTrade + bitgetCancelPlanOrder
+	const path = bitgetSpot + bitgetTrade + bitgetCancelPlanOrder
 	var resp SuccessBool
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodPost, path, nil, req, &ResultWrapper{Result: &resp})
 }
@@ -1443,7 +1443,7 @@ func (bi *Bitget) GetCurrentSpotPlanOrders(ctx context.Context, pair currency.Pa
 	if limit != 0 {
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	path := bitgetSpot + bitgetTrade + bitgetCurrentPlanOrder
+	const path = bitgetSpot + bitgetTrade + bitgetCurrentPlanOrder
 	var resp PlanSpotOrderResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -1455,7 +1455,7 @@ func (bi *Bitget) GetSpotPlanSubOrder(ctx context.Context, orderID int64) (*SubO
 	}
 	vals := url.Values{}
 	vals.Set("planOrderId", strconv.FormatInt(orderID, 10))
-	path := bitgetSpot + bitgetTrade + bitgetPlanSubOrder
+	const path = bitgetSpot + bitgetTrade + bitgetPlanSubOrder
 	var resp SubOrderResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodGet, path, vals, nil, &resp)
 }
@@ -1479,7 +1479,7 @@ func (bi *Bitget) GetSpotPlanOrderHistory(ctx context.Context, pair currency.Pai
 	if limit != 0 {
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	path := bitgetSpot + bitgetTrade + bitgetPlanOrderHistory
+	const path = bitgetSpot + bitgetTrade + bitgetPlanOrderHistory
 	var resp PlanSpotOrderResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -1490,14 +1490,14 @@ func (bi *Bitget) BatchCancelSpotPlanOrders(ctx context.Context, pairs currency.
 	if len(pairs) > 0 {
 		req["symbolList"] = pairs.Strings()
 	}
-	path := bitgetSpot + bitgetTrade + bitgetBatchCancelPlanOrder
+	const path = bitgetSpot + bitgetTrade + bitgetBatchCancelPlanOrder
 	var resp *BatchOrderResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, &resp)
 }
 
 // GetAccountInfo returns the user's account information
 func (bi *Bitget) GetAccountInfo(ctx context.Context) (*AccountInfoResp, error) {
-	path := bitgetSpot + bitgetAccount + bitgetInfo
+	const path = bitgetSpot + bitgetAccount + bitgetInfo
 	var resp AccountInfoResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodGet, path, nil, nil, &resp)
 }
@@ -1511,14 +1511,14 @@ func (bi *Bitget) GetAccountAssets(ctx context.Context, currency currency.Code, 
 	if assetType != "" {
 		vals.Set("assetType", assetType)
 	}
-	path := bitgetSpot + bitgetAccount + bitgetAssets
+	const path = bitgetSpot + bitgetAccount + bitgetAssets
 	var resp []AssetData
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
 
 // GetSpotSubaccountAssets returns information on assets in the user's sub-accounts
 func (bi *Bitget) GetSpotSubaccountAssets(ctx context.Context) ([]SubaccountAssetsResp, error) {
-	path := bitgetSpot + bitgetAccount + bitgetSubaccountAssets
+	const path = bitgetSpot + bitgetAccount + bitgetSubaccountAssets
 	var resp []SubaccountAssetsResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, nil, nil, &resp)
 }
@@ -1535,7 +1535,7 @@ func (bi *Bitget) ModifyDepositAccount(ctx context.Context, accountType string, 
 		"coin":        currency,
 		"accountType": accountType,
 	}
-	path := bitgetSpot + bitgetWallet + bitgetModifyDepositAccount
+	const path = bitgetSpot + bitgetWallet + bitgetModifyDepositAccount
 	var resp SuccessBool
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -1559,7 +1559,7 @@ func (bi *Bitget) GetSpotAccountBills(ctx context.Context, currency currency.Cod
 	if pagination != 0 {
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
-	path := bitgetSpot + bitgetAccount + bitgetBills
+	const path = bitgetSpot + bitgetAccount + bitgetBills
 	var resp []SpotAccBillResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -1588,7 +1588,7 @@ func (bi *Bitget) TransferAsset(ctx context.Context, fromType, toType, clientOrd
 	if clientOrderID != "" {
 		req["clientOid"] = clientOrderID
 	}
-	path := bitgetSpot + bitgetWallet + bitgetTransfer
+	const path = bitgetSpot + bitgetWallet + bitgetTransfer
 	var resp TransferResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -1604,7 +1604,7 @@ func (bi *Bitget) GetTransferableCoinList(ctx context.Context, fromType, toType 
 	vals := url.Values{}
 	vals.Set("fromType", fromType)
 	vals.Set("toType", toType)
-	path := bitgetSpot + bitgetWallet + bitgetTransferCoinInfo
+	const path = bitgetSpot + bitgetWallet + bitgetTransferCoinInfo
 	var resp []string
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -1641,7 +1641,7 @@ func (bi *Bitget) SubaccountTransfer(ctx context.Context, fromType, toType, clie
 	if clientOrderID != "" {
 		req["clientOid"] = clientOrderID
 	}
-	path := bitgetSpot + bitgetWallet + bitgetSubaccountTransfer
+	const path = bitgetSpot + bitgetWallet + bitgetSubaccountTransfer
 	var resp TransferResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -1679,7 +1679,7 @@ func (bi *Bitget) WithdrawFunds(ctx context.Context, currency currency.Code, tra
 	if clientOrderID != "" {
 		req["clientOid"] = clientOrderID
 	}
-	path := bitgetSpot + bitgetWallet + bitgetWithdrawal
+	const path = bitgetSpot + bitgetWallet + bitgetWithdrawal
 	var resp OrderIDStruct
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, &resp)
 }
@@ -1708,7 +1708,7 @@ func (bi *Bitget) GetSubaccountTransferRecord(ctx context.Context, currency curr
 	if pagination != 0 {
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
-	path := bitgetSpot + bitgetAccount + bitgetSubaccountTransferRecord
+	const path = bitgetSpot + bitgetAccount + bitgetSubaccountTransferRecord
 	var resp []SubaccTfrRecResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -1741,7 +1741,7 @@ func (bi *Bitget) GetTransferRecord(ctx context.Context, currency currency.Code,
 	if page != 0 {
 		params.Values.Set("pageNum", strconv.FormatInt(page, 10))
 	}
-	path := bitgetSpot + bitgetAccount + bitgetTransferRecord
+	const path = bitgetSpot + bitgetAccount + bitgetTransferRecord
 	var resp []TransferRecResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -1754,7 +1754,7 @@ func (bi *Bitget) SwitchBGBDeductionStatus(ctx context.Context, deduct bool) (bo
 	} else {
 		req["deduct"] = "off"
 	}
-	path := bitgetSpot + bitgetAccount + bitgetSwitchDeduct
+	const path = bitgetSpot + bitgetAccount + bitgetSwitchDeduct
 	var resp bool
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodPost, path, nil, req, &resp)
 }
@@ -1768,7 +1768,7 @@ func (bi *Bitget) GetDepositAddressForCurrency(ctx context.Context, currency cur
 	vals.Set("coin", currency.String())
 	vals.Set("chain", chain)
 	vals.Set("size", strconv.FormatFloat(amount, 'f', -1, 64))
-	path := bitgetSpot + bitgetWallet + bitgetDepositAddress
+	const path = bitgetSpot + bitgetWallet + bitgetDepositAddress
 	var resp DepositAddressResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -1786,14 +1786,14 @@ func (bi *Bitget) GetSubaccountDepositAddress(ctx context.Context, subaccountID,
 	vals.Set("coin", currency.String())
 	vals.Set("chain", chain)
 	vals.Set("size", strconv.FormatFloat(amount, 'f', -1, 64))
-	path := bitgetSpot + bitgetWallet + bitgetSubaccountDepositAddress
+	const path = bitgetSpot + bitgetWallet + bitgetSubaccountDepositAddress
 	var resp DepositAddressResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
 
 // GetBGBDeductionStatus returns the user's current BGB deduction status
 func (bi *Bitget) GetBGBDeductionStatus(ctx context.Context) (bool, error) {
-	path := bitgetSpot + bitgetAccount + bitgetDeductInfo
+	const path = bitgetSpot + bitgetAccount + bitgetDeductInfo
 	var resp struct {
 		Deduct OnOffBool `json:"deduct"`
 	}
@@ -1808,7 +1808,7 @@ func (bi *Bitget) CancelWithdrawal(ctx context.Context, orderID int64) (*Success
 	req := map[string]any{
 		"orderId": strconv.FormatInt(orderID, 10),
 	}
-	path := bitgetSpot + bitgetWallet + bitgetCancelWithdrawal
+	const path = bitgetSpot + bitgetWallet + bitgetCancelWithdrawal
 	var resp *SuccessBool
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -1834,7 +1834,7 @@ func (bi *Bitget) GetSubaccountDepositRecords(ctx context.Context, subaccountID 
 	if limit != 0 {
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	path := bitgetSpot + bitgetWallet + bitgetSubaccountDepositRecord
+	const path = bitgetSpot + bitgetWallet + bitgetSubaccountDepositRecord
 	var resp []SubaccDepRecResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -1858,7 +1858,7 @@ func (bi *Bitget) GetWithdrawalRecords(ctx context.Context, currency currency.Co
 	if limit != 0 {
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	path := bitgetSpot + bitgetWallet + bitgetWithdrawalRecord
+	const path = bitgetSpot + bitgetWallet + bitgetWithdrawalRecord
 	var resp []WithdrawRecordsResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -1881,14 +1881,14 @@ func (bi *Bitget) GetDepositRecords(ctx context.Context, crypto currency.Code, o
 	if limit != 0 {
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	path := bitgetSpot + bitgetWallet + bitgetDepositRecord
+	const path = bitgetSpot + bitgetWallet + bitgetDepositRecord
 	var resp []CryptoDepRecResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
 
 // GetFuturesVIPFeeRate returns the different levels of VIP fee rates for futures trading
 func (bi *Bitget) GetFuturesVIPFeeRate(ctx context.Context) ([]VIPFeeRateResp, error) {
-	path := bitgetMix + bitgetMarket + bitgetVIPFeeRate
+	const path = bitgetMix + bitgetMarket + bitgetVIPFeeRate
 	var resp []VIPFeeRateResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate10, path, nil, &resp)
 }
@@ -1900,21 +1900,21 @@ func (bi *Bitget) GetInterestRateHistory(ctx context.Context, currency currency.
 	}
 	vals := url.Values{}
 	vals.Set("coin", currency.String())
-	path := bitgetMix + bitgetMarket + bitgetUnionInterestRateHistory
+	const path = bitgetMix + bitgetMarket + bitgetUnionInterestRateHistory
 	var resp InterestRateResp
 	return &resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate5, path, vals, &resp)
 }
 
 // GetInterestExchangeRate returns the interest exchange rate for all currencies
 func (bi *Bitget) GetInterestExchangeRate(ctx context.Context) ([]ExchangeRateResp, error) {
-	path := bitgetMix + bitgetMarket + bitgetExchangeRate
+	const path = bitgetMix + bitgetMarket + bitgetExchangeRate
 	var resp []ExchangeRateResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate5, path, nil, &resp)
 }
 
 // GetDiscountRate returns the discount rate for all currencies
 func (bi *Bitget) GetDiscountRate(ctx context.Context) ([]DiscountRateResp, error) {
-	path := bitgetMix + bitgetMarket + bitgetDiscountRate
+	const path = bitgetMix + bitgetMarket + bitgetDiscountRate
 	var resp []DiscountRateResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate5, path, nil, &resp)
 }
@@ -1932,7 +1932,7 @@ func (bi *Bitget) GetFuturesMergeDepth(ctx context.Context, pair currency.Pair, 
 	vals.Set("productType", productType)
 	vals.Set("precision", precision)
 	vals.Set("limit", limit)
-	path := bitgetMix + bitgetMarket + bitgetMergeDepth
+	const path = bitgetMix + bitgetMarket + bitgetMergeDepth
 	var resp DepthResp
 	return &resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
 }
@@ -1948,7 +1948,7 @@ func (bi *Bitget) GetFuturesTicker(ctx context.Context, pair currency.Pair, prod
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
 	vals.Set("productType", productType)
-	path := bitgetMix + bitgetMarket + bitgetTicker
+	const path = bitgetMix + bitgetMarket + bitgetTicker
 	var resp []FutureTickerResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
 }
@@ -1960,7 +1960,7 @@ func (bi *Bitget) GetAllFuturesTickers(ctx context.Context, productType string) 
 	}
 	vals := url.Values{}
 	vals.Set("productType", productType)
-	path := bitgetMix + bitgetMarket + bitgetTickers
+	const path = bitgetMix + bitgetMarket + bitgetTickers
 	var resp []FutureTickerResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
 }
@@ -1979,7 +1979,7 @@ func (bi *Bitget) GetRecentFuturesFills(ctx context.Context, pair currency.Pair,
 	if limit != 0 {
 		vals.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	path := bitgetMix + bitgetMarket + bitgetFills
+	const path = bitgetMix + bitgetMarket + bitgetFills
 	var resp []MarketFillsResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
 }
@@ -2006,7 +2006,7 @@ func (bi *Bitget) GetFuturesMarketTrades(ctx context.Context, pair currency.Pair
 	if pagination != 0 {
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
-	path := bitgetMix + bitgetMarket + bitgetFillsHistory
+	const path = bitgetMix + bitgetMarket + bitgetFillsHistory
 	var resp []MarketFillsResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate10, path, params.Values, &resp)
 }
@@ -2055,7 +2055,7 @@ func (bi *Bitget) GetOpenPositions(ctx context.Context, pair currency.Pair, prod
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
 	vals.Set("productType", productType)
-	path := bitgetMix + bitgetMarket + bitgetOpenInterest
+	const path = bitgetMix + bitgetMarket + bitgetOpenInterest
 	var resp OpenPositionsResp
 	return &resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
 }
@@ -2071,7 +2071,7 @@ func (bi *Bitget) GetNextFundingTime(ctx context.Context, pair currency.Pair, pr
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
 	vals.Set("productType", productType)
-	path := bitgetMix + bitgetMarket + bitgetFundingTime
+	const path = bitgetMix + bitgetMarket + bitgetFundingTime
 	var resp []FundingTimeResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
 }
@@ -2087,7 +2087,7 @@ func (bi *Bitget) GetFuturesPrices(ctx context.Context, pair currency.Pair, prod
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
 	vals.Set("productType", productType)
-	path := bitgetMix + bitgetMarket + bitgetSymbolPrice
+	const path = bitgetMix + bitgetMarket + bitgetSymbolPrice
 	var resp []FuturesPriceResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
 }
@@ -2109,7 +2109,7 @@ func (bi *Bitget) GetFundingHistorical(ctx context.Context, pair currency.Pair, 
 	if pagination != 0 {
 		vals.Set("pageNo", strconv.FormatInt(pagination, 10))
 	}
-	path := bitgetMix + bitgetMarket + bitgetHistoryFundRate
+	const path = bitgetMix + bitgetMarket + bitgetHistoryFundRate
 	var resp []FundingHistoryResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
 }
@@ -2125,7 +2125,7 @@ func (bi *Bitget) GetFundingCurrent(ctx context.Context, pair currency.Pair, pro
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
 	vals.Set("productType", productType)
-	path := bitgetMix + bitgetMarket + bitgetCurrentFundRate
+	const path = bitgetMix + bitgetMarket + bitgetCurrentFundRate
 	var resp []FundingCurrentResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
 }
@@ -2138,7 +2138,7 @@ func (bi *Bitget) GetContractConfig(ctx context.Context, pair currency.Pair, pro
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
 	vals.Set("productType", productType)
-	path := bitgetMix + bitgetMarket + bitgetContracts
+	const path = bitgetMix + bitgetMarket + bitgetContracts
 	var resp []ContractConfigResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate20, path, vals, &resp)
 }
@@ -2158,7 +2158,7 @@ func (bi *Bitget) GetOneFuturesAccount(ctx context.Context, pair currency.Pair, 
 	vals.Set("symbol", pair.String())
 	vals.Set("productType", productType)
 	vals.Set("marginCoin", marginCoin.String())
-	path := bitgetMix + bitgetAccount + "/" + bitgetAccount
+	const path = bitgetMix + bitgetAccount + "/" + bitgetAccount
 	var resp OneAccResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -2170,7 +2170,7 @@ func (bi *Bitget) GetAllFuturesAccounts(ctx context.Context, productType string)
 	}
 	vals := url.Values{}
 	vals.Set("productType", productType)
-	path := bitgetMix + bitgetAccount + bitgetAccounts
+	const path = bitgetMix + bitgetAccount + bitgetAccounts
 	var resp []FutureAccDetails
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -2182,7 +2182,7 @@ func (bi *Bitget) GetFuturesSubaccountAssets(ctx context.Context, productType st
 	}
 	vals := url.Values{}
 	vals.Set("productType", productType)
-	path := bitgetMix + bitgetAccount + bitgetSubaccountAssets2
+	const path = bitgetMix + bitgetAccount + bitgetSubaccountAssets2
 	var resp []SubaccountFuturesResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodGet, path, vals, nil, &resp)
 }
@@ -2206,7 +2206,7 @@ func (bi *Bitget) GetUSDTInterestHistory(ctx context.Context, currency currency.
 	if limit != 0 {
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	path := bitgetMix + bitgetAccount + bitgetInterestHistory
+	const path = bitgetMix + bitgetAccount + bitgetInterestHistory
 	var resp USDTInterestHistory
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -2237,7 +2237,7 @@ func (bi *Bitget) GetEstimatedOpenCount(ctx context.Context, pair currency.Pair,
 	if leverage != 0 {
 		vals.Set("leverage", strconv.FormatFloat(leverage, 'f', -1, 64))
 	}
-	path := bitgetMix + bitgetAccount + bitgetOpenCount
+	const path = bitgetMix + bitgetAccount + bitgetOpenCount
 	var resp struct {
 		Size float64 `json:"size,string"`
 	}
@@ -2261,7 +2261,7 @@ func (bi *Bitget) SetIsolatedAutoMargin(ctx context.Context, pair currency.Pair,
 		"marginCoin": marginCoin,
 		"holdSide":   holdSide,
 	}
-	path := bitgetMix + bitgetAccount + bitgetSetAutoMargin
+	const path = bitgetMix + bitgetAccount + bitgetSetAutoMargin
 	var resp SuccessBool
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, &resp)
 }
@@ -2287,7 +2287,7 @@ func (bi *Bitget) ChangeLeverage(ctx context.Context, pair currency.Pair, produc
 		"holdSide":    holdSide,
 		"leverage":    strconv.FormatFloat(leverage, 'f', -1, 64),
 	}
-	path := bitgetMix + bitgetAccount + bitgetSetLeverage
+	const path = bitgetMix + bitgetAccount + bitgetSetLeverage
 	var resp ChangeLeverageResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, &resp)
 }
@@ -2316,7 +2316,7 @@ func (bi *Bitget) AdjustMargin(ctx context.Context, pair currency.Pair, productT
 		"amount":      strconv.FormatFloat(amount, 'f', -1, 64),
 		"holdSide":    holdSide,
 	}
-	path := bitgetMix + bitgetAccount + bitgetSetMargin
+	const path = bitgetMix + bitgetAccount + bitgetSetMargin
 	return bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, nil)
 }
 
@@ -2332,7 +2332,7 @@ func (bi *Bitget) SetUSDTAssetMode(ctx context.Context, productType, assetMode s
 		"productType": productType,
 		"assetMode":   assetMode,
 	}
-	path := bitgetMix + bitgetAccount + bitgetSetAssetMode
+	const path = bitgetMix + bitgetAccount + bitgetSetAssetMode
 	var resp SuccessBool
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate2, http.MethodPost, path, nil, req, &resp)
 }
@@ -2357,7 +2357,7 @@ func (bi *Bitget) ChangeMarginMode(ctx context.Context, pair currency.Pair, prod
 		"marginCoin":  marginCoin,
 		"marginMode":  marginMode,
 	}
-	path := bitgetMix + bitgetAccount + bitgetSetMarginMode
+	const path = bitgetMix + bitgetAccount + bitgetSetMarginMode
 	var resp ChangeMarginModeResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodPost, path, nil, req, &resp)
 }
@@ -2374,7 +2374,7 @@ func (bi *Bitget) ChangePositionMode(ctx context.Context, productType, positionM
 		"productType": productType,
 		"posMode":     positionMode,
 	}
-	path := bitgetMix + bitgetAccount + bitgetSetPositionMode
+	const path = bitgetMix + bitgetAccount + bitgetSetPositionMode
 	var resp struct {
 		PosMode string `json:"posMode"`
 	}
@@ -2404,7 +2404,7 @@ func (bi *Bitget) GetFuturesAccountBills(ctx context.Context, productType, busin
 	if limit != 0 {
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	path := bitgetMix + bitgetAccount + bitgetBill
+	const path = bitgetMix + bitgetAccount + bitgetBill
 	var resp FutureAccBillResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -2420,7 +2420,7 @@ func (bi *Bitget) GetPositionTier(ctx context.Context, productType string, pair 
 	vals := url.Values{}
 	vals.Set("productType", productType)
 	vals.Set("symbol", pair.String())
-	path := bitgetMix + bitgetMarket + bitgetQueryPositionLever
+	const path = bitgetMix + bitgetMarket + bitgetQueryPositionLever
 	var resp []PositionTierResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate10, path, vals, &resp)
 }
@@ -2440,7 +2440,7 @@ func (bi *Bitget) GetSinglePosition(ctx context.Context, productType string, pai
 	vals.Set("productType", productType)
 	vals.Set("symbol", pair.String())
 	vals.Set("marginCoin", marginCoin.String())
-	path := bitgetMix + bitgetPosition + bitgetSinglePosition
+	const path = bitgetMix + bitgetPosition + bitgetSinglePosition
 	var resp []SinglePositionResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -2456,7 +2456,7 @@ func (bi *Bitget) GetAllPositions(ctx context.Context, productType string, margi
 	vals := url.Values{}
 	vals.Set("productType", productType)
 	vals.Set("marginCoin", marginCoin.String())
-	path := bitgetMix + bitgetPosition + bitgetAllPositions
+	const path = bitgetMix + bitgetPosition + bitgetAllPositions
 	var resp []AllPositionResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, vals, nil, &resp)
 }
@@ -2480,7 +2480,7 @@ func (bi *Bitget) GetHistoricalPositions(ctx context.Context, pair currency.Pair
 	if limit != 0 {
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	path := bitgetMix + bitgetPosition + bitgetHistoryPosition
+	const path = bitgetMix + bitgetPosition + bitgetHistoryPosition
 	var resp HistPositionResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate20, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -2536,7 +2536,7 @@ func (bi *Bitget) PlaceFuturesOrder(ctx context.Context, pair currency.Pair, pro
 	if stopLossPrice != 0 {
 		req["presetStopLossPrice"] = strconv.FormatFloat(stopLossPrice, 'f', -1, 64)
 	}
-	path := bitgetMix + bitgetOrder + bitgetPlaceOrder
+	const path = bitgetMix + bitgetOrder + bitgetPlaceOrder
 	rLim := Rate10
 	if isCopyTradeLeader {
 		rLim = Rate1
@@ -2570,7 +2570,7 @@ func (bi *Bitget) PlaceReversal(ctx context.Context, pair currency.Pair, marginC
 	if clientOID != "" {
 		req["clientOid"] = clientOID
 	}
-	path := bitgetMix + bitgetOrder + bitgetClickBackhand
+	const path = bitgetMix + bitgetOrder + bitgetClickBackhand
 	rLim := Rate10
 	if isCopyTradeLeader {
 		rLim = Rate1
@@ -2603,7 +2603,7 @@ func (bi *Bitget) BatchPlaceFuturesOrders(ctx context.Context, pair currency.Pai
 		"marginMode":  marginMode,
 		"orderList":   orders,
 	}
-	path := bitgetMix + bitgetOrder + bitgetBatchPlaceOrder
+	const path = bitgetMix + bitgetOrder + bitgetBatchPlaceOrder
 	rLim := Rate5
 	if isCopyTradeLeader {
 		rLim = Rate1
@@ -2645,7 +2645,7 @@ func (bi *Bitget) ModifyFuturesOrder(ctx context.Context, orderID int64, clientO
 	if newPrice != 0 {
 		req["newPrice"] = strconv.FormatFloat(newPrice, 'f', -1, 64)
 	}
-	path := bitgetMix + bitgetOrder + bitgetModifyOrder
+	const path = bitgetMix + bitgetOrder + bitgetModifyOrder
 	var resp OrderIDStruct
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -2674,7 +2674,7 @@ func (bi *Bitget) CancelFuturesOrder(ctx context.Context, pair currency.Pair, pr
 	if !marginCoin.IsEmpty() {
 		req["marginCoin"] = marginCoin
 	}
-	path := bitgetMix + bitgetOrder + bitgetCancelOrder
+	const path = bitgetMix + bitgetOrder + bitgetCancelOrder
 	var resp OrderIDStruct
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -2692,7 +2692,7 @@ func (bi *Bitget) BatchCancelFuturesOrders(ctx context.Context, orderIDs []Order
 	if !marginCoin.IsEmpty() {
 		req["marginCoin"] = marginCoin
 	}
-	path := bitgetMix + bitgetOrder + bitgetBatchCancelOrders
+	const path = bitgetMix + bitgetOrder + bitgetBatchCancelOrders
 	var resp *BatchOrderResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -2707,7 +2707,7 @@ func (bi *Bitget) FlashClosePosition(ctx context.Context, pair currency.Pair, ho
 		"holdSide":    holdSide,
 		"productType": productType,
 	}
-	path := bitgetMix + bitgetOrder + bitgetClosePositions
+	const path = bitgetMix + bitgetOrder + bitgetClosePositions
 	var resp *BatchOrderResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate1, http.MethodPost, path, nil, req, &resp)
 }
@@ -2732,7 +2732,7 @@ func (bi *Bitget) GetFuturesOrderDetails(ctx context.Context, pair currency.Pair
 	if orderID != 0 {
 		vals.Set("orderId", strconv.FormatInt(orderID, 10))
 	}
-	path := bitgetMix + bitgetOrder + bitgetDetail
+	const path = bitgetMix + bitgetOrder + bitgetDetail
 	var resp *FuturesOrderDetailResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -2757,7 +2757,7 @@ func (bi *Bitget) GetFuturesFills(ctx context.Context, orderID, pagination, limi
 	if limit != 0 {
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	path := bitgetMix + bitgetOrder + "/" + bitgetFills
+	const path = bitgetMix + bitgetOrder + "/" + bitgetFills
 	var resp FuturesFillsResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -2784,7 +2784,7 @@ func (bi *Bitget) GetFuturesOrderFillHistory(ctx context.Context, pair currency.
 	if limit != 0 {
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	path := bitgetMix + bitgetOrder + bitgetFillHistory
+	const path = bitgetMix + bitgetOrder + bitgetFillHistory
 	var resp FuturesFillsResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -2813,7 +2813,7 @@ func (bi *Bitget) GetPendingFuturesOrders(ctx context.Context, orderID, paginati
 	if limit != 0 {
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	path := bitgetMix + bitgetOrder + bitgetOrdersPending
+	const path = bitgetMix + bitgetOrder + bitgetOrdersPending
 	var resp FuturesOrdResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -2842,7 +2842,7 @@ func (bi *Bitget) GetHistoricalFuturesOrders(ctx context.Context, orderID, pagin
 	if limit != 0 {
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	path := bitgetMix + bitgetOrder + bitgetOrdersHistory
+	const path = bitgetMix + bitgetOrder + bitgetOrdersHistory
 	var resp HistFuturesOrdResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -2861,7 +2861,7 @@ func (bi *Bitget) CancelAllFuturesOrders(ctx context.Context, pair currency.Pair
 	if !marginCoin.IsEmpty() {
 		req["marginCoin"] = marginCoin
 	}
-	path := bitgetMix + bitgetOrder + bitgetCancelAllOrders
+	const path = bitgetMix + bitgetOrder + bitgetCancelAllOrders
 	var resp *BatchOrderResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -2881,7 +2881,7 @@ func (bi *Bitget) GetFuturesTriggerOrderByID(ctx context.Context, planType, prod
 	vals.Set("planType", planType)
 	vals.Set("planOrderId", strconv.FormatInt(planOrderID, 10))
 	vals.Set("productType", productType)
-	path := bitgetMix + bitgetOrder + bitgetPlanSubOrder
+	const path = bitgetMix + bitgetOrder + bitgetPlanSubOrder
 	var resp []SubOrderResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -2925,7 +2925,7 @@ func (bi *Bitget) PlaceTPSLFuturesOrder(ctx context.Context, marginCoin currency
 	if clientOrderID != "" {
 		req["clientOid"] = clientOrderID
 	}
-	path := bitgetMix + bitgetOrder + bitgetPlaceTPSLOrder
+	const path = bitgetMix + bitgetOrder + bitgetPlaceTPSLOrder
 	var resp OrderIDStruct
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -2963,7 +2963,7 @@ func (bi *Bitget) PlaceTPAndSLFuturesOrder(ctx context.Context, marginCoin curre
 		"holdSide":                holdSide,
 		"stpMode":                 stpMode,
 	}
-	path := bitgetMix + bitgetOrder + bitgetPlacePOSTPSL
+	const path = bitgetMix + bitgetOrder + bitgetPlacePOSTPSL
 	var resp struct {
 		OrderIDs []int64 `json:"orderIds"`
 	}
@@ -3037,7 +3037,7 @@ func (bi *Bitget) PlaceTriggerFuturesOrder(ctx context.Context, planType, produc
 		req["stopLossExecutePrice"] = strconv.FormatFloat(stopLossExecutePrice, 'f', -1, 64)
 		req["stopLossTriggerType"] = stopLossTriggerType
 	}
-	path := bitgetMix + bitgetOrder + bitgetPlacePlanOrder
+	const path = bitgetMix + bitgetOrder + bitgetPlacePlanOrder
 	var resp OrderIDStruct
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -3076,7 +3076,7 @@ func (bi *Bitget) ModifyTPSLFuturesOrder(ctx context.Context, orderID int64, cli
 	if rangeRate != 0 {
 		req["rangeRate"] = strconv.FormatFloat(rangeRate, 'f', -1, 64)
 	}
-	path := bitgetMix + bitgetOrder + bitgetModifyTPSLOrder
+	const path = bitgetMix + bitgetOrder + bitgetModifyTPSLOrder
 	var resp OrderIDStruct
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -3115,7 +3115,7 @@ func (bi *Bitget) ModifyTriggerFuturesOrder(ctx context.Context, orderID int64, 
 	if stopLossExecutePrice >= 0 {
 		req["newStopLossExecutePrice"] = strconv.FormatFloat(stopLossExecutePrice, 'f', -1, 64)
 	}
-	path := bitgetMix + bitgetOrder + bitgetModifyPlanOrder
+	const path = bitgetMix + bitgetOrder + bitgetModifyPlanOrder
 	var resp OrderIDStruct
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -3147,7 +3147,7 @@ func (bi *Bitget) GetPendingTriggerFuturesOrders(ctx context.Context, orderID, p
 	if limit != 0 {
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	path := bitgetMix + bitgetOrder + bitgetOrdersPlanPending
+	const path = bitgetMix + bitgetOrder + bitgetOrdersPlanPending
 	var resp PlanFuturesOrdResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -3164,7 +3164,7 @@ func (bi *Bitget) CancelTriggerFuturesOrders(ctx context.Context, orderIDList []
 		"orderIdList": orderIDList,
 		"marginCoin":  marginCoin,
 	}
-	path := bitgetMix + bitgetOrder + bitgetCancelPlanOrder
+	const path = bitgetMix + bitgetOrder + bitgetCancelPlanOrder
 	var resp *BatchOrderResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -3197,14 +3197,14 @@ func (bi *Bitget) GetHistoricalTriggerFuturesOrders(ctx context.Context, orderID
 	if limit != 0 {
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	path := bitgetMix + bitgetOrder + bitgetOrdersPlanHistory
+	const path = bitgetMix + bitgetOrder + bitgetOrdersPlanHistory
 	var resp HistTriggerFuturesOrdResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
 
 // GetSupportedCurrencies returns information on the currencies supported by the exchange
 func (bi *Bitget) GetSupportedCurrencies(ctx context.Context) ([]SupCurrencyResp, error) {
-	path := bitgetMargin + bitgetCurrencies
+	const path = bitgetMargin + bitgetCurrencies
 	var resp []SupCurrencyResp
 	return resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate10, path, nil, &resp)
 }
@@ -3229,7 +3229,7 @@ func (bi *Bitget) GetCrossBorrowHistory(ctx context.Context, loanID, limit, pagi
 	if !currency.IsEmpty() {
 		params.Values.Set("coin", currency.String())
 	}
-	path := bitgetMargin + bitgetCrossed + bitgetBorrowHistory
+	const path = bitgetMargin + bitgetCrossed + bitgetBorrowHistory
 	var resp BorrowHistCross
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -3254,7 +3254,7 @@ func (bi *Bitget) GetCrossRepayHistory(ctx context.Context, repayID, limit, pagi
 	if !currency.IsEmpty() {
 		params.Values.Set("coin", currency.String())
 	}
-	path := bitgetMargin + bitgetCrossed + bitgetRepayHistory
+	const path = bitgetMargin + bitgetCrossed + bitgetRepayHistory
 	var resp CrossRepayHistResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -3276,7 +3276,7 @@ func (bi *Bitget) GetCrossInterestHistory(ctx context.Context, currency currency
 	if !currency.IsEmpty() {
 		params.Values.Set("coin", currency.String())
 	}
-	path := bitgetMargin + bitgetCrossed + bitgetInterestHistory
+	const path = bitgetMargin + bitgetCrossed + bitgetInterestHistory
 	var resp InterHistCross
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -3295,7 +3295,7 @@ func (bi *Bitget) GetCrossLiquidationHistory(ctx context.Context, startTime, end
 	if pagination != 0 {
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
-	path := bitgetMargin + bitgetCrossed + bitgetLiquidationHistory
+	const path = bitgetMargin + bitgetCrossed + bitgetLiquidationHistory
 	var resp LiquidHistCross
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -3318,7 +3318,7 @@ func (bi *Bitget) GetCrossFinancialHistory(ctx context.Context, marginType strin
 	if !currency.IsEmpty() {
 		params.Values.Set("coin", currency.String())
 	}
-	path := bitgetMargin + bitgetCrossed + bitgetFinancialRecords
+	const path = bitgetMargin + bitgetCrossed + bitgetFinancialRecords
 	var resp FinHistCrossResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -3329,7 +3329,7 @@ func (bi *Bitget) GetCrossAccountAssets(ctx context.Context, currency currency.C
 	if !currency.IsEmpty() {
 		vals.Set("coin", currency.String())
 	}
-	path := bitgetMargin + bitgetCrossed + "/" + bitgetAccount + bitgetAssets
+	const path = bitgetMargin + bitgetCrossed + "/" + bitgetAccount + bitgetAssets
 	var resp []CrossAssetResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -3347,7 +3347,7 @@ func (bi *Bitget) CrossBorrow(ctx context.Context, currency currency.Code, clien
 		"borrowAmount": strconv.FormatFloat(amount, 'f', -1, 64),
 		"clientOid":    clientOrderID,
 	}
-	path := bitgetMargin + bitgetCrossed + "/" + bitgetAccount + bitgetBorrow
+	const path = bitgetMargin + bitgetCrossed + "/" + bitgetAccount + bitgetBorrow
 	var resp BorrowCross
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -3364,14 +3364,14 @@ func (bi *Bitget) CrossRepay(ctx context.Context, currency currency.Code, amount
 		"coin":        currency,
 		"repayAmount": strconv.FormatFloat(amount, 'f', -1, 64),
 	}
-	path := bitgetMargin + bitgetCrossed + "/" + bitgetAccount + bitgetRepay
+	const path = bitgetMargin + bitgetCrossed + "/" + bitgetAccount + bitgetRepay
 	var resp RepayCross
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
 
 // GetCrossRiskRate returns the risk rate for cross margin
 func (bi *Bitget) GetCrossRiskRate(ctx context.Context) (float64, error) {
-	path := bitgetMargin + bitgetCrossed + "/" + bitgetAccount + bitgetRiskRate
+	const path = bitgetMargin + bitgetCrossed + "/" + bitgetAccount + bitgetRiskRate
 	var resp struct {
 		RiskRateRatio float64 `json:"riskRateRatio,string"`
 	}
@@ -3385,7 +3385,7 @@ func (bi *Bitget) GetCrossMaxBorrowable(ctx context.Context, currency currency.C
 	}
 	vals := url.Values{}
 	vals.Set("coin", currency.String())
-	path := bitgetMargin + bitgetCrossed + "/" + bitgetAccount + bitgetMaxBorrowableAmount
+	const path = bitgetMargin + bitgetCrossed + "/" + bitgetAccount + bitgetMaxBorrowableAmount
 	var resp MaxBorrowCross
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -3397,7 +3397,7 @@ func (bi *Bitget) GetCrossMaxTransferable(ctx context.Context, currency currency
 	}
 	vals := url.Values{}
 	vals.Set("coin", currency.String())
-	path := bitgetMargin + bitgetCrossed + "/" + bitgetAccount + bitgetMaxTransferOutAmount
+	const path = bitgetMargin + bitgetCrossed + "/" + bitgetAccount + bitgetMaxTransferOutAmount
 	var resp MaxTransferCross
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -3409,7 +3409,7 @@ func (bi *Bitget) GetCrossInterestRateAndMaxBorrowable(ctx context.Context, curr
 	}
 	vals := url.Values{}
 	vals.Set("coin", currency.String())
-	path := bitgetMargin + bitgetCrossed + bitgetInterestRateAndLimit
+	const path = bitgetMargin + bitgetCrossed + bitgetInterestRateAndLimit
 	var resp []IntRateMaxBorrowCross
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -3421,7 +3421,7 @@ func (bi *Bitget) GetCrossTierConfiguration(ctx context.Context, currency curren
 	}
 	vals := url.Values{}
 	vals.Set("coin", currency.String())
-	path := bitgetMargin + bitgetCrossed + bitgetTierData
+	const path = bitgetMargin + bitgetCrossed + bitgetTierData
 	var resp []TierConfigCross
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -3431,7 +3431,7 @@ func (bi *Bitget) CrossFlashRepay(ctx context.Context, currency currency.Code) (
 	req := map[string]any{
 		"coin": currency,
 	}
-	path := bitgetMargin + bitgetCrossed + "/" + bitgetAccount + bitgetFlashRepay
+	const path = bitgetMargin + bitgetCrossed + "/" + bitgetAccount + bitgetFlashRepay
 	var resp FlashRepayCross
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -3444,7 +3444,7 @@ func (bi *Bitget) GetCrossFlashRepayResult(ctx context.Context, idList []int64) 
 	req := map[string]any{
 		"repayIdList": idList,
 	}
-	path := bitgetMargin + bitgetCrossed + "/" + bitgetAccount + bitgetQueryFlashRepayStatus
+	const path = bitgetMargin + bitgetCrossed + "/" + bitgetAccount + bitgetQueryFlashRepayStatus
 	var resp []FlashRepayResult
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -3485,7 +3485,7 @@ func (bi *Bitget) PlaceCrossOrder(ctx context.Context, pair currency.Pair, order
 	if quoteAmount != 0 {
 		req["quoteSize"] = strconv.FormatFloat(quoteAmount, 'f', -1, 64)
 	}
-	path := bitgetMargin + bitgetCrossed + bitgetPlaceOrder
+	const path = bitgetMargin + bitgetCrossed + bitgetPlaceOrder
 	var resp OrderIDStruct
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -3502,7 +3502,7 @@ func (bi *Bitget) BatchPlaceCrossOrders(ctx context.Context, pair currency.Pair,
 		"symbol":    pair,
 		"orderList": orders,
 	}
-	path := bitgetMargin + bitgetCrossed + bitgetBatchPlaceOrder
+	const path = bitgetMargin + bitgetCrossed + bitgetBatchPlaceOrder
 	var resp *BatchOrderResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -3524,7 +3524,7 @@ func (bi *Bitget) CancelCrossOrder(ctx context.Context, pair currency.Pair, clie
 	if orderID != 0 {
 		req["orderId"] = strconv.FormatInt(orderID, 10)
 	}
-	path := bitgetMargin + bitgetCrossed + bitgetCancelOrder
+	const path = bitgetMargin + bitgetCrossed + bitgetCancelOrder
 	var resp OrderIDStruct
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -3541,7 +3541,7 @@ func (bi *Bitget) BatchCancelCrossOrders(ctx context.Context, pair currency.Pair
 		"symbol":      pair,
 		"orderIdList": orders,
 	}
-	path := bitgetMargin + bitgetCrossed + bitgetBatchCancelOrder
+	const path = bitgetMargin + bitgetCrossed + bitgetBatchCancelOrder
 	var resp *BatchOrderResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -3568,7 +3568,7 @@ func (bi *Bitget) GetCrossOpenOrders(ctx context.Context, pair currency.Pair, cl
 	if pagination != 0 {
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
-	path := bitgetMargin + bitgetCrossed + bitgetOpenOrders
+	const path = bitgetMargin + bitgetCrossed + bitgetOpenOrders
 	var resp MarginOrders
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -3596,7 +3596,7 @@ func (bi *Bitget) GetCrossHistoricalOrders(ctx context.Context, pair currency.Pa
 	if pagination != 0 {
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
-	path := bitgetMargin + bitgetCrossed + bitgetHistoryOrders
+	const path = bitgetMargin + bitgetCrossed + bitgetHistoryOrders
 	var resp MarginOrders
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -3622,7 +3622,7 @@ func (bi *Bitget) GetCrossOrderFills(ctx context.Context, pair currency.Pair, or
 	if limit != 0 {
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	path := bitgetMargin + bitgetCrossed + "/" + bitgetFills
+	const path = bitgetMargin + bitgetCrossed + "/" + bitgetFills
 	var resp MarginOrderFills
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -3647,7 +3647,7 @@ func (bi *Bitget) GetCrossLiquidationOrders(ctx context.Context, orderType, from
 	if pagination != 0 {
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
-	path := bitgetMargin + bitgetCrossed + bitgetLiquidationOrder
+	const path = bitgetMargin + bitgetCrossed + bitgetLiquidationOrder
 	var resp LiquidationResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -3676,7 +3676,7 @@ func (bi *Bitget) GetIsolatedRepayHistory(ctx context.Context, pair currency.Pai
 	if !cur.IsEmpty() {
 		params.Values.Set("coin", cur.String())
 	}
-	path := bitgetMargin + bitgetIsolated + bitgetRepayHistory
+	const path = bitgetMargin + bitgetIsolated + bitgetRepayHistory
 	var resp IsoRepayHistResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -3701,7 +3701,7 @@ func (bi *Bitget) GetIsolatedBorrowHistory(ctx context.Context, pair currency.Pa
 	}
 	params.Values.Set("symbol", pair.String())
 	params.Values.Set("coin", cur.String())
-	path := bitgetMargin + bitgetIsolated + bitgetBorrowHistory
+	const path = bitgetMargin + bitgetIsolated + bitgetBorrowHistory
 	var resp BorrowHistIso
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -3727,7 +3727,7 @@ func (bi *Bitget) GetIsolatedInterestHistory(ctx context.Context, pair currency.
 	if !cur.IsEmpty() {
 		params.Values.Set("coin", cur.String())
 	}
-	path := bitgetMargin + bitgetIsolated + bitgetInterestHistory
+	const path = bitgetMargin + bitgetIsolated + bitgetInterestHistory
 	var resp InterHistIso
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -3750,7 +3750,7 @@ func (bi *Bitget) GetIsolatedLiquidationHistory(ctx context.Context, pair curren
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
 	params.Values.Set("symbol", pair.String())
-	path := bitgetMargin + bitgetIsolated + bitgetLiquidationHistory
+	const path = bitgetMargin + bitgetIsolated + bitgetLiquidationHistory
 	var resp LiquidHistIso
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -3777,7 +3777,7 @@ func (bi *Bitget) GetIsolatedFinancialHistory(ctx context.Context, pair currency
 	if !cur.IsEmpty() {
 		params.Values.Set("coin", cur.String())
 	}
-	path := bitgetMargin + bitgetIsolated + bitgetFinancialRecords
+	const path = bitgetMargin + bitgetIsolated + bitgetFinancialRecords
 	var resp FinHistIsoResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -3786,7 +3786,7 @@ func (bi *Bitget) GetIsolatedFinancialHistory(ctx context.Context, pair currency
 func (bi *Bitget) GetIsolatedAccountAssets(ctx context.Context, pair currency.Pair) ([]IsoAssetResp, error) {
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
-	path := bitgetMargin + bitgetIsolated + "/" + bitgetAccount + bitgetAssets
+	const path = bitgetMargin + bitgetIsolated + "/" + bitgetAccount + bitgetAssets
 	var resp []IsoAssetResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -3808,7 +3808,7 @@ func (bi *Bitget) IsolatedBorrow(ctx context.Context, pair currency.Pair, cur cu
 		"borrowAmount": strconv.FormatFloat(amount, 'f', -1, 64),
 		"clientOid":    clientOrderID,
 	}
-	path := bitgetMargin + bitgetIsolated + "/" + bitgetAccount + bitgetBorrow
+	const path = bitgetMargin + bitgetIsolated + "/" + bitgetAccount + bitgetBorrow
 	var resp BorrowIso
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -3830,7 +3830,7 @@ func (bi *Bitget) IsolatedRepay(ctx context.Context, amount float64, cur currenc
 		"symbol":      pair,
 		"clientOid":   clientOrderID,
 	}
-	path := bitgetMargin + bitgetIsolated + "/" + bitgetAccount + bitgetRepay
+	const path = bitgetMargin + bitgetIsolated + "/" + bitgetAccount + bitgetRepay
 	var resp RepayIso
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -3845,7 +3845,7 @@ func (bi *Bitget) GetIsolatedRiskRate(ctx context.Context, pair currency.Pair, p
 	if pagination != 0 {
 		vals.Set("pageNum", strconv.FormatInt(pagination, 10))
 	}
-	path := bitgetMargin + bitgetIsolated + "/" + bitgetAccount + bitgetRiskRate
+	const path = bitgetMargin + bitgetIsolated + "/" + bitgetAccount + bitgetRiskRate
 	var resp []RiskRateIso
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -3857,7 +3857,7 @@ func (bi *Bitget) GetIsolatedInterestRateAndMaxBorrowable(ctx context.Context, p
 	}
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
-	path := bitgetMargin + bitgetIsolated + bitgetInterestRateAndLimit
+	const path = bitgetMargin + bitgetIsolated + bitgetInterestRateAndLimit
 	var resp []IntRateMaxBorrowIso
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -3869,7 +3869,7 @@ func (bi *Bitget) GetIsolatedTierConfiguration(ctx context.Context, pair currenc
 	}
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
-	path := bitgetMargin + bitgetIsolated + bitgetTierData
+	const path = bitgetMargin + bitgetIsolated + bitgetTierData
 	var resp []TierConfigIso
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -3881,7 +3881,7 @@ func (bi *Bitget) GetIsolatedMaxBorrowable(ctx context.Context, pair currency.Pa
 	}
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
-	path := bitgetMargin + bitgetIsolated + "/" + bitgetAccount + bitgetMaxBorrowableAmount
+	const path = bitgetMargin + bitgetIsolated + "/" + bitgetAccount + bitgetMaxBorrowableAmount
 	var resp MaxBorrowIso
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -3893,7 +3893,7 @@ func (bi *Bitget) GetIsolatedMaxTransferable(ctx context.Context, pair currency.
 	}
 	vals := url.Values{}
 	vals.Set("symbol", pair.String())
-	path := bitgetMargin + bitgetIsolated + "/" + bitgetAccount + bitgetMaxTransferOutAmount
+	const path = bitgetMargin + bitgetIsolated + "/" + bitgetAccount + bitgetMaxTransferOutAmount
 	var resp MaxTransferIso
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -3903,7 +3903,7 @@ func (bi *Bitget) IsolatedFlashRepay(ctx context.Context, pairs currency.Pairs) 
 	req := map[string]any{
 		"symbolList": pairs.Strings(),
 	}
-	path := bitgetMargin + bitgetIsolated + "/" + bitgetAccount + bitgetFlashRepay
+	const path = bitgetMargin + bitgetIsolated + "/" + bitgetAccount + bitgetFlashRepay
 	var resp []FlashRepayIso
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -3916,7 +3916,7 @@ func (bi *Bitget) GetIsolatedFlashRepayResult(ctx context.Context, idList []int6
 	req := map[string]any{
 		"repayIdList": idList,
 	}
-	path := bitgetMargin + bitgetIsolated + "/" + bitgetAccount + bitgetQueryFlashRepayStatus
+	const path = bitgetMargin + bitgetIsolated + "/" + bitgetAccount + bitgetQueryFlashRepayStatus
 	var resp []FlashRepayResult
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -3957,7 +3957,7 @@ func (bi *Bitget) PlaceIsolatedOrder(ctx context.Context, pair currency.Pair, or
 	if quoteAmount != 0 {
 		req["quoteSize"] = strconv.FormatFloat(quoteAmount, 'f', -1, 64)
 	}
-	path := bitgetMargin + bitgetIsolated + bitgetPlaceOrder
+	const path = bitgetMargin + bitgetIsolated + bitgetPlaceOrder
 	var resp OrderIDStruct
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -3974,7 +3974,7 @@ func (bi *Bitget) BatchPlaceIsolatedOrders(ctx context.Context, pair currency.Pa
 		"symbol":    pair,
 		"orderList": orders,
 	}
-	path := bitgetMargin + bitgetIsolated + bitgetBatchPlaceOrder
+	const path = bitgetMargin + bitgetIsolated + bitgetBatchPlaceOrder
 	var resp *BatchOrderResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -3996,7 +3996,7 @@ func (bi *Bitget) CancelIsolatedOrder(ctx context.Context, pair currency.Pair, c
 	if orderID != 0 {
 		req["orderId"] = orderID
 	}
-	path := bitgetMargin + bitgetIsolated + bitgetCancelOrder
+	const path = bitgetMargin + bitgetIsolated + bitgetCancelOrder
 	var resp OrderIDStruct
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -4013,7 +4013,7 @@ func (bi *Bitget) BatchCancelIsolatedOrders(ctx context.Context, pair currency.P
 		"symbol":      pair,
 		"orderIdList": orders,
 	}
-	path := bitgetMargin + bitgetIsolated + bitgetBatchCancelOrder
+	const path = bitgetMargin + bitgetIsolated + bitgetBatchCancelOrder
 	var resp *BatchOrderResp
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -4040,7 +4040,7 @@ func (bi *Bitget) GetIsolatedOpenOrders(ctx context.Context, pair currency.Pair,
 	if pagination != 0 {
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
-	path := bitgetMargin + bitgetIsolated + bitgetOpenOrders
+	const path = bitgetMargin + bitgetIsolated + bitgetOpenOrders
 	var resp MarginOrders
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -4068,7 +4068,7 @@ func (bi *Bitget) GetIsolatedHistoricalOrders(ctx context.Context, pair currency
 	if pagination != 0 {
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
-	path := bitgetMargin + bitgetIsolated + bitgetHistoryOrders
+	const path = bitgetMargin + bitgetIsolated + bitgetHistoryOrders
 	var resp MarginOrders
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -4094,7 +4094,7 @@ func (bi *Bitget) GetIsolatedOrderFills(ctx context.Context, pair currency.Pair,
 	if limit != 0 {
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	path := bitgetMargin + bitgetIsolated + "/" + bitgetFills
+	const path = bitgetMargin + bitgetIsolated + "/" + bitgetFills
 	var resp MarginOrderFills
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -4119,7 +4119,7 @@ func (bi *Bitget) GetIsolatedLiquidationOrders(ctx context.Context, orderType, f
 	if pagination != 0 {
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
-	path := bitgetMargin + bitgetIsolated + bitgetLiquidationOrder
+	const path = bitgetMargin + bitgetIsolated + bitgetLiquidationOrder
 	var resp LiquidationResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -4132,14 +4132,14 @@ func (bi *Bitget) GetSavingsProductList(ctx context.Context, currency currency.C
 	vals := url.Values{}
 	vals.Set("coin", currency.String())
 	vals.Set("filter", filter)
-	path := bitgetEarn + bitgetSavings + bitgetProduct
+	const path = bitgetEarn + bitgetSavings + bitgetProduct
 	var resp []SavingsProductList
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
 
 // GetSavingsBalance returns the savings balance and amount earned in BTC and USDT
 func (bi *Bitget) GetSavingsBalance(ctx context.Context) (*SavingsBalance, error) {
-	path := bitgetEarn + bitgetSavings + "/" + bitgetAccount
+	const path = bitgetEarn + bitgetSavings + "/" + bitgetAccount
 	var resp SavingsBalance
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, nil, nil, &resp)
 }
@@ -4159,7 +4159,7 @@ func (bi *Bitget) GetSavingsAssets(ctx context.Context, periodType string, start
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
 	params.Values.Set("periodType", periodType)
-	path := bitgetEarn + bitgetSavings + bitgetAssets
+	const path = bitgetEarn + bitgetSavings + bitgetAssets
 	var resp SavingsAssetsResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -4183,7 +4183,7 @@ func (bi *Bitget) GetSavingsRecords(ctx context.Context, currency currency.Code,
 	}
 	params.Values.Set("periodType", periodType)
 	params.Values.Set("orderType", orderType)
-	path := bitgetEarn + bitgetSavings + bitgetRecords
+	const path = bitgetEarn + bitgetSavings + bitgetRecords
 	var resp SavingsRecords
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -4199,7 +4199,7 @@ func (bi *Bitget) GetSavingsSubscriptionDetail(ctx context.Context, productID in
 	vals := url.Values{}
 	vals.Set("productId", strconv.FormatInt(productID, 10))
 	vals.Set("periodType", periodType)
-	path := bitgetEarn + bitgetSavings + bitgetSubscribeInfo
+	const path = bitgetEarn + bitgetSavings + bitgetSubscribeInfo
 	var resp SavingsSubDetail
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -4220,7 +4220,7 @@ func (bi *Bitget) SubscribeSavings(ctx context.Context, productID int64, periodT
 		"periodType": periodType,
 		"amount":     strconv.FormatFloat(amount, 'f', -1, 64),
 	}
-	path := bitgetEarn + bitgetSavings + bitgetSubscribe
+	const path = bitgetEarn + bitgetSavings + bitgetSubscribe
 	var resp SaveResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -4236,7 +4236,7 @@ func (bi *Bitget) GetSavingsSubscriptionResult(ctx context.Context, productID in
 	vals := url.Values{}
 	vals.Set("productId", strconv.FormatInt(productID, 10))
 	vals.Set("periodType", periodType)
-	path := bitgetEarn + bitgetSavings + bitgetSubscribeResult
+	const path = bitgetEarn + bitgetSavings + bitgetSubscribeResult
 	var resp SaveResult
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -4258,7 +4258,7 @@ func (bi *Bitget) RedeemSavings(ctx context.Context, productID, orderID int64, p
 		"periodType": periodType,
 		"amount":     strconv.FormatFloat(amount, 'f', -1, 64),
 	}
-	path := bitgetEarn + bitgetSavings + bitgetRedeem
+	const path = bitgetEarn + bitgetSavings + bitgetRedeem
 	var resp SaveResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -4274,7 +4274,7 @@ func (bi *Bitget) GetSavingsRedemptionResult(ctx context.Context, orderID int64,
 	vals := url.Values{}
 	vals.Set("orderId", strconv.FormatInt(orderID, 10))
 	vals.Set("periodType", periodType)
-	path := bitgetEarn + bitgetSavings + bitgetRedeemResult
+	const path = bitgetEarn + bitgetSavings + bitgetRedeemResult
 	var resp SaveResult
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -4285,7 +4285,7 @@ func (bi *Bitget) GetEarnAccountAssets(ctx context.Context, currency currency.Co
 	if currency.IsEmpty() {
 		vals.Set("coin", currency.String())
 	}
-	path := bitgetEarn + bitgetAccount + bitgetAssets
+	const path = bitgetEarn + bitgetAccount + bitgetAssets
 	var resp []EarnAssets
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -4303,14 +4303,14 @@ func (bi *Bitget) GetSharkFinProducts(ctx context.Context, currency currency.Cod
 	if pagination != 0 {
 		vals.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
-	path := bitgetEarn + bitgetSharkFin + bitgetProduct
+	const path = bitgetEarn + bitgetSharkFin + bitgetProduct
 	var resp SharkFinProductResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
 
 // GetSharkFinBalance returns the balance and amount earned in BTC and USDT for Shark Fin products
 func (bi *Bitget) GetSharkFinBalance(ctx context.Context) (*SharkFinBalance, error) {
-	path := bitgetEarn + bitgetSharkFin + "/" + bitgetAccount
+	const path = bitgetEarn + bitgetSharkFin + "/" + bitgetAccount
 	var resp SharkFinBalance
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, nil, nil, &resp)
 }
@@ -4330,7 +4330,7 @@ func (bi *Bitget) GetSharkFinAssets(ctx context.Context, status string, startTim
 		params.Values.Set("idLessThan", strconv.FormatInt(pagination, 10))
 	}
 	params.Values.Set("status", status)
-	path := bitgetEarn + bitgetSharkFin + bitgetAssets
+	const path = bitgetEarn + bitgetSharkFin + bitgetAssets
 	var resp SharkFinAssetsResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -4353,7 +4353,7 @@ func (bi *Bitget) GetSharkFinRecords(ctx context.Context, currency currency.Code
 		params.Values.Set("coin", currency.String())
 	}
 	params.Values.Set("type", transactionType)
-	path := bitgetEarn + bitgetSharkFin + bitgetRecords
+	const path = bitgetEarn + bitgetSharkFin + bitgetRecords
 	var resp struct {
 		ResultList []SharkFinRecords `json:"resultList"`
 	}
@@ -4367,7 +4367,7 @@ func (bi *Bitget) GetSharkFinSubscriptionDetail(ctx context.Context, productID i
 	}
 	vals := url.Values{}
 	vals.Set("productId", strconv.FormatInt(productID, 10))
-	path := bitgetEarn + bitgetSharkFin + bitgetSubscribeInfo
+	const path = bitgetEarn + bitgetSharkFin + bitgetSubscribeInfo
 	var resp SharkFinSubDetail
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -4384,7 +4384,7 @@ func (bi *Bitget) SubscribeSharkFin(ctx context.Context, productID int64, amount
 		"productId": productID,
 		"amount":    strconv.FormatFloat(amount, 'f', -1, 64),
 	}
-	path := bitgetEarn + bitgetSharkFin + bitgetSubscribe
+	const path = bitgetEarn + bitgetSharkFin + bitgetSubscribe
 	var resp SaveResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -4396,7 +4396,7 @@ func (bi *Bitget) GetSharkFinSubscriptionResult(ctx context.Context, orderID int
 	}
 	vals := url.Values{}
 	vals.Set("orderId", strconv.FormatInt(orderID, 10))
-	path := bitgetEarn + bitgetSharkFin + bitgetSubscribeResult
+	const path = bitgetEarn + bitgetSharkFin + bitgetSubscribeResult
 	var resp SaveResult
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, vals, nil, &resp)
 }
@@ -4408,7 +4408,7 @@ func (bi *Bitget) GetLoanCurrencyList(ctx context.Context, currency currency.Cod
 	}
 	vals := url.Values{}
 	vals.Set("coin", currency.String())
-	path := bitgetEarn + bitgetLoan + "/" + bitgetPublic + bitgetCoinInfos
+	const path = bitgetEarn + bitgetLoan + "/" + bitgetPublic + bitgetCoinInfos
 	var resp LoanCurList
 	return &resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate10, path, vals, &resp)
 }
@@ -4432,7 +4432,7 @@ func (bi *Bitget) GetEstimatedInterestAndBorrowable(ctx context.Context, loanCoi
 	vals.Set("pledgeCoin", collateralCoin.String())
 	vals.Set("daily", term)
 	vals.Set("pledgeAmount", strconv.FormatFloat(collateralAmount, 'f', -1, 64))
-	path := bitgetEarn + bitgetLoan + "/" + bitgetPublic + bitgetHourInterest
+	const path = bitgetEarn + bitgetLoan + "/" + bitgetPublic + bitgetHourInterest
 	var resp EstimateInterest
 	return &resp, bi.SendHTTPRequest(ctx, exchange.RestSpot, Rate10, path, vals, &resp)
 }
@@ -4458,7 +4458,7 @@ func (bi *Bitget) BorrowFunds(ctx context.Context, loanCoin, collateralCoin curr
 		"pledgeAmount": strconv.FormatFloat(collateralAmount, 'f', -1, 64),
 		"loanAmount":   strconv.FormatFloat(loanAmount, 'f', -1, 64),
 	}
-	path := bitgetEarn + bitgetLoan + bitgetBorrow
+	const path = bitgetEarn + bitgetLoan + bitgetBorrow
 	var resp struct {
 		OrderID int64 `json:"orderId"`
 	}
@@ -4473,7 +4473,7 @@ func (bi *Bitget) GetOngoingLoans(ctx context.Context, orderID int64, loanCoin, 
 	}
 	vals.Set("loanCoin", loanCoin.String())
 	vals.Set("pledgeCoin", collateralCoin.String())
-	path := bitgetEarn + bitgetLoan + bitgetOngoingOrders
+	const path = bitgetEarn + bitgetLoan + bitgetOngoingOrders
 	var resp []OngoingLoans
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, vals, nil, &resp)
 }
@@ -4500,7 +4500,7 @@ func (bi *Bitget) RepayLoan(ctx context.Context, orderID int64, amount float64, 
 	} else {
 		req["repayAll"] = "no"
 	}
-	path := bitgetEarn + bitgetLoan + bitgetRepay
+	const path = bitgetEarn + bitgetLoan + bitgetRepay
 	var resp RepayResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -4522,7 +4522,7 @@ func (bi *Bitget) GetLoanRepayHistory(ctx context.Context, orderID, pagination, 
 	if limit != 0 {
 		params.Values.Set("pageSize", strconv.FormatInt(limit, 10))
 	}
-	path := bitgetEarn + bitgetLoan + bitgetRepayHistory
+	const path = bitgetEarn + bitgetLoan + bitgetRepayHistory
 	var resp []RepayRecords
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -4547,7 +4547,7 @@ func (bi *Bitget) ModifyPledgeRate(ctx context.Context, orderID int64, amount fl
 		"pledgeCoin": pledgeCoin,
 		"reviseType": reviseType,
 	}
-	path := bitgetEarn + bitgetLoan + bitgetRevisePledge
+	const path = bitgetEarn + bitgetLoan + bitgetRevisePledge
 	var resp ModPledgeResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodPost, path, nil, req, &resp)
 }
@@ -4569,7 +4569,7 @@ func (bi *Bitget) GetPledgeRateHistory(ctx context.Context, orderID, pagination,
 	if limit != 0 {
 		params.Values.Set("pageSize", strconv.FormatInt(limit, 10))
 	}
-	path := bitgetEarn + bitgetLoan + bitgetReviseHistory
+	const path = bitgetEarn + bitgetLoan + bitgetReviseHistory
 	var resp []PledgeRateHist
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -4592,14 +4592,14 @@ func (bi *Bitget) GetLoanHistory(ctx context.Context, orderID, pagination, limit
 	if limit != 0 {
 		params.Values.Set("pageSize", strconv.FormatInt(limit, 10))
 	}
-	path := bitgetEarn + bitgetLoan + bitgetBorrowHistory
+	const path = bitgetEarn + bitgetLoan + bitgetBorrowHistory
 	var resp []LoanHistory
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
 
 // GetDebts returns information on current outstanding pledges and loans
 func (bi *Bitget) GetDebts(ctx context.Context) (*DebtsResp, error) {
-	path := bitgetEarn + bitgetLoan + bitgetDebts
+	const path = bitgetEarn + bitgetLoan + bitgetDebts
 	var resp DebtsResp
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, nil, nil, &resp)
 }
@@ -4622,7 +4622,7 @@ func (bi *Bitget) GetLiquidationRecords(ctx context.Context, orderID, pagination
 	if limit != 0 {
 		params.Values.Set("pageSize", strconv.FormatInt(limit, 10))
 	}
-	path := bitgetEarn + bitgetLoan + bitgetReduces
+	const path = bitgetEarn + bitgetLoan + bitgetReduces
 	var resp []LiquidRecs
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate10, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -4634,7 +4634,7 @@ func (bi *Bitget) GetLoanInfo(ctx context.Context, productID string) (*LoanInfo,
 	}
 	vals := url.Values{}
 	vals.Set("productId", productID)
-	path := bitgetSpot + bitgetInsLoan + bitgetProductInfos
+	const path = bitgetSpot + bitgetInsLoan + bitgetProductInfos
 	var resp LoanInfo
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, vals, nil, &resp)
 }
@@ -4646,7 +4646,7 @@ func (bi *Bitget) GetMarginCoinRatio(ctx context.Context, productID string) (*Ma
 	}
 	vals := url.Values{}
 	vals.Set("productId", productID)
-	path := bitgetSpot + bitgetInsLoan + bitgetEnsureCoinsConvert
+	const path = bitgetSpot + bitgetInsLoan + bitgetEnsureCoinsConvert
 	var resp MarginCoinRatio
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, vals, nil, &resp)
 }
@@ -4658,7 +4658,7 @@ func (bi *Bitget) GetSpotSymbols(ctx context.Context, productID string) (*SpotSy
 	}
 	vals := url.Values{}
 	vals.Set("productId", productID)
-	path := bitgetSpot + bitgetInsLoan + bitgetSymbols
+	const path = bitgetSpot + bitgetInsLoan + bitgetSymbols
 	var resp SpotSymbols
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, vals, nil, &resp)
 }
@@ -4667,7 +4667,7 @@ func (bi *Bitget) GetSpotSymbols(ctx context.Context, productID string) (*SpotSy
 func (bi *Bitget) GetLoanToValue(ctx context.Context, riskUnitID string) (*LoanToValue, error) {
 	vals := url.Values{}
 	vals.Set("riskUnitId", riskUnitID)
-	path := bitgetSpot + bitgetInsLoan + bitgetLTVConvert
+	const path = bitgetSpot + bitgetInsLoan + bitgetLTVConvert
 	var resp LoanToValue
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, vals, nil, &resp)
 }
@@ -4680,14 +4680,14 @@ func (bi *Bitget) GetTransferableAmount(ctx context.Context, accountID string, c
 	vals := url.Values{}
 	vals.Set("userId", accountID)
 	vals.Set("coin", coin.String())
-	path := bitgetSpot + bitgetInsLoan + bitgetTransferred
+	const path = bitgetSpot + bitgetInsLoan + bitgetTransferred
 	var resp TransferableAmount
 	return &resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, vals, nil, &resp)
 }
 
 // GetRiskUnit returns the IDs for all risk unit accounts
 func (bi *Bitget) GetRiskUnit(ctx context.Context) ([]string, error) {
-	path := bitgetSpot + bitgetInsLoan + bitgetRiskUnit
+	const path = bitgetSpot + bitgetInsLoan + bitgetRiskUnit
 	var resp struct {
 		RiskUnitID []string `json:"riskUnitId"`
 	}
@@ -4708,7 +4708,7 @@ func (bi *Bitget) SubaccountRiskUnitBinding(ctx context.Context, subaccountID, r
 	} else {
 		req["operate"] = "unbind"
 	}
-	path := bitgetSpot + bitgetInsLoan + bitgetBindUID
+	const path = bitgetSpot + bitgetInsLoan + bitgetBindUID
 	var resp struct {
 		RiskUnitID []string `json:"riskUnitId"`
 	}
@@ -4724,7 +4724,7 @@ func (bi *Bitget) GetLoanOrders(ctx context.Context, orderID string, startTime, 
 	if err != nil {
 		return nil, err
 	}
-	path := bitgetSpot + bitgetInsLoan + bitgetLoanOrder
+	const path = bitgetSpot + bitgetInsLoan + bitgetLoanOrder
 	var resp []LoanOrders
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, params.Values, nil, &resp)
 }
@@ -4740,7 +4740,7 @@ func (bi *Bitget) GetRepaymentOrders(ctx context.Context, limit int64, startTime
 	if limit != 0 {
 		params.Values.Set("limit", strconv.FormatInt(limit, 10))
 	}
-	path := bitgetSpot + bitgetInsLoan + bitgetRepaidHistory
+	const path = bitgetSpot + bitgetInsLoan + bitgetRepaidHistory
 	var resp []RepaymentOrders
 	return resp, bi.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, Rate5, http.MethodGet, path, params.Values, nil, &resp)
 }
