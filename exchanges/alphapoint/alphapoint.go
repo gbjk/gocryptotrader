@@ -166,7 +166,7 @@ func (e *Exchange) CreateAccount(ctx context.Context, firstName, lastName, email
 	err := e.SendAuthenticatedHTTPRequest(ctx,
 		exchange.RestSpot, http.MethodPost, alphapointCreateAccount, req, &response)
 	if err != nil {
-		return fmt.Errorf("unable to create account. Reason: %s", err)
+		return fmt.Errorf("unable to create accounts. Reason: %s", err)
 	}
 	if !response.IsAccepted {
 		return errors.New(response.RejectReason)
@@ -271,7 +271,7 @@ func (e *Exchange) GetAccountInformation(ctx context.Context) (AccountInfo, erro
 	return response, nil
 }
 
-// GetAccountTrades returns the trades executed on the account.
+// GetAccountTrades returns the trades executed on the accounts.
 // CurrencyPair - Instrument code (ex: “BTCUSD”)
 // StartIndex - Starting index, if less than 0 then start from the beginning
 // Count - Returns last trade, (Default: 30)
