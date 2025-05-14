@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -849,11 +850,14 @@ func TestSetupDefaults(t *testing.T) {
 	require.NoError(t, err, "CurrencyPairs.Get must not error")
 	assert.True(t, ps.Enabled.Contains(btcusdPair, true), "default pair should be stored in the configs pair store")
 
-	assert.Same(t, account.GetService(), b.accounts, "SetDefualts should should default accounts to the service singleton")
-	a := &account.Service{}
-	b.accounts = a
+	exp, err := account.GetStore().GetExchangeAccounts(b.Name)
+	require.NoError(t, err, "GetExchangeAccounts must not error")
+	assert.Same(t, exp, b.Accounts, "SetupDefaults should default accounts from the global accounts store")
+	b.Accounts = account.MustNewAccounts(b.Name, dispatch.GetNewMux(nil))
+	a := b.Accounts
+	require.NoError(t, err, "NewAccounts must not error")
 	require.NoError(t, b.SetupDefaults(&cfg))
-	assert.Same(t, a, b.accounts, "SetDefaults should respect accounts override")
+	assert.Same(t, a, b.Accounts, "SetDefaults should not overwrite Accounts override")
 }
 
 func TestSetPairs(t *testing.T) {
@@ -2892,7 +2896,7 @@ func TestGetCachedOrderbook(t *testing.T) {
 	assert.Equal(t, pair, ob.Pair)
 }
 
-func TestGetCachedAccountInfo(t *testing.T) {
+func TestGetCachedAccountHoldings(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
 
@@ -2904,15 +2908,19 @@ func TestGetCachedAccountInfo(t *testing.T) {
 		Key:    "test",
 		Secret: "test",
 	})
-	_, err := b.GetCachedAccountInfo(ctx, asset.Spot)
+	_, err := b.GetCachedAccountHoldings(ctx, asset.Spot)
+	assert.ErrorIs(t, err, common.ErrNilPointer)
+
+	b.Accounts = account.MustNewAccounts(b.Name, dispatch.GetNewMux(nil))
+	_, err = b.GetCachedAccountHoldings(ctx, asset.Spot)
 	assert.ErrorIs(t, err, account.ErrExchangeHoldingsNotFound)
 
-	err = account.Process(&account.Holdings{Exchange: "test", Accounts: []account.SubAccount{
+	err = b.Accounts.Save(&account.Holdings{Exchange: "test", Accounts: []account.SubAccount{
 		{AssetType: asset.Spot, Currencies: []account.Balance{{Currency: currency.BTC, Total: 1}}},
 	}}, creds)
-	require.NoError(t, err, "account.Process must not error")
+	require.NoError(t, err, "b.Accounts.Save must not error")
 
-	_, err = b.GetCachedAccountInfo(ctx, asset.Spot)
+	_, err = b.GetCachedAccountHoldings(ctx, asset.Spot)
 	assert.NoError(t, err)
 }
 
@@ -2956,7 +2964,7 @@ func (f *FakeBase) CancelOrder(context.Context, *order.Cancel) error {
 	return nil
 }
 
-func (f *FakeBase) GetCachedAccountInfo(context.Context, asset.Item) (account.Holdings, error) {
+func (f *FakeBase) GetCachedAccountHoldings(context.Context, asset.Item) (account.Holdings, error) {
 	return account.Holdings{}, nil
 }
 

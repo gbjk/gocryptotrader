@@ -573,7 +573,7 @@ func (g *Gateio) processSpotBalances(ctx context.Context, data []byte) error {
 		}
 	}
 	g.Websocket.DataHandler <- changes
-	return account.ProcessChange(g.Name, changes, creds)
+	return g.Accounts.Update(changes, creds)
 }
 
 func (g *Gateio) processMarginBalances(ctx context.Context, data []byte) error {
@@ -605,7 +605,7 @@ func (g *Gateio) processMarginBalances(ctx context.Context, data []byte) error {
 		}
 	}
 	g.Websocket.DataHandler <- changes
-	return account.ProcessChange(g.Name, changes, creds)
+	return g.Accounts.Update(changes, creds)
 }
 
 func (g *Gateio) processFundingBalances(data []byte) error {
@@ -652,7 +652,7 @@ func (g *Gateio) processCrossMarginBalance(ctx context.Context, data []byte) err
 		}
 	}
 	g.Websocket.DataHandler <- changes
-	return account.ProcessChange(g.Name, changes, creds)
+	return g.Accounts.Update(changes, creds)
 }
 
 func (g *Gateio) processCrossMarginLoans(data []byte) error {

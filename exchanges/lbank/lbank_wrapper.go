@@ -295,7 +295,7 @@ func (l *Lbank) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (ac
 	if err != nil {
 		return account.Holdings{}, err
 	}
-	err = account.Process(&info, creds)
+	err = l.Accounts.Save(&info, creds)
 	if err != nil {
 		return account.Holdings{}, err
 	}

@@ -12,31 +12,46 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// Service holds ticker information for each individual exchange
-type Service struct {
+// Store holds ticker information for each individual exchange
+type Store struct {
 	exchangeAccounts map[string]*Accounts
-	mux              *dispatch.Mux
 	mu               sync.Mutex
+	mux              *dispatch.Mux
 }
 
 // Accounts holds a stream ID and a map to the exchange holdings
 type Accounts struct {
-	ID uuid.UUID
-	// NOTE: Credentials is a place holder for a future interface type, which
-	// will need -
-	// TODO: Credential tracker to match to keys that are managed and return
-	// pointer.
+	Exchange string
+	ID       uuid.UUID
+	// NOTE: Credentials is a place holder for a future interface type, which will need -
+	// TODO: Credential tracker to match to keys that are managed and return pointer.
 	// TODO: Have different cred struct for centralized verse DEFI exchanges.
 	subAccounts map[Credentials]map[key.SubAccountAsset]currencyBalances
+	mu          sync.Mutex
+	mux         *dispatch.Mux
+}
+
+// Holdings is a generic type to hold each exchange's holdings for all enabled currencies
+type Holdings struct {
+	Exchange string
+	Accounts []SubAccount
 }
 
 type currencyBalances = map[*currency.Item]*ProtectedBalance
 
-// Holdings is a generic type to hold each exchange's holdings for all enabled
-// currencies
-type Holdings struct {
-	Exchange string
-	Accounts []SubAccount
+// ProtectedBalance stores the full balance information for that specific asset
+type ProtectedBalance struct {
+	total                  float64
+	hold                   float64
+	free                   float64
+	availableWithoutBorrow float64
+	borrowed               float64
+	m                      sync.Mutex
+	updatedAt              time.Time
+
+	// notice alerts for when the balance changes for strategy inspection and
+	// usage.
+	notice alert.Notice
 }
 
 // SubAccount defines a singular account type with associated currency balances
@@ -65,23 +80,7 @@ type Change struct {
 	Balance   *Balance
 }
 
-// ProtectedBalance stores the full balance information for that specific asset
-type ProtectedBalance struct {
-	total                  float64
-	hold                   float64
-	free                   float64
-	availableWithoutBorrow float64
-	borrowed               float64
-	m                      sync.Mutex
-	updatedAt              time.Time
-
-	// notice alerts for when the balance changes for strategy inspection and
-	// usage.
-	notice alert.Notice
-}
-
-// Protected limits the access to the underlying credentials outside of this
-// package.
+// Protected limits the access to the underlying credentials outside of this package
 type Protected struct {
 	creds Credentials
 }
