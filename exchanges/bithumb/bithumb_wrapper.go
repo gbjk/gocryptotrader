@@ -13,9 +13,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -299,52 +299,34 @@ func (b *Bithumb) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	return orderbook.Get(b.Name, p, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountBalances retrieves balances for all enabled currencies for the
 // Bithumb exchange
-func (b *Bithumb) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var info account.Holdings
+func (b *Bithumb) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	bal, err := b.GetAccountBalance(ctx, "ALL")
 	if err != nil {
-		return info, err
+		return nil, err
 	}
-
-	exchangeBalances := make([]account.Balance, 0, len(bal.Total))
-	for key, totalAmount := range bal.Total {
-		hold, ok := bal.InUse[key]
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+	for k, totalAmount := range bal.Total {
+		hold, ok := bal.InUse[k]
 		if !ok {
-			return info, fmt.Errorf("getAccountInfo error - in use item not found for currency %s",
-				key)
+			return subAccts, fmt.Errorf("getAccountInfo error - in use item not found for currency %s", k)
 		}
-
-		avail, ok := bal.Available[key]
+		avail, ok := bal.Available[k]
 		if !ok {
 			avail = totalAmount - hold
 		}
-
-		exchangeBalances = append(exchangeBalances, account.Balance{
-			Currency: currency.NewCode(key),
-			Total:    totalAmount,
-			Hold:     hold,
-			Free:     avail,
+		subAccts[0].Balances.Set(k, accounts.Balance{
+			Total: totalAmount,
+			Hold:  hold,
+			Free:  avail,
 		})
 	}
-
-	info.Accounts = append(info.Accounts, account.SubAccount{
-		Currencies: exchangeBalances,
-		AssetType:  assetType,
-	})
-
-	info.Exchange = b.Name
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return subAccts, err
 	}
-	err = account.Process(&info, creds)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-
-	return info, nil
+	return subAccts, b.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -740,7 +722,7 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (b *Bithumb) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := b.UpdateAccountInfo(ctx, assetType)
+	_, err := b.UpdateAccountBalances(ctx, assetType)
 	return b.CheckTransientError(err)
 }
 

@@ -779,7 +779,7 @@ func (bi *Binanceus) QuickDisableCryptoWithdrawal(ctx context.Context) error {
 		accountDisableCryptoWithdrawalEndpoint, params, spotDefaultRate, nil)
 }
 
-// GetUsersSpotAssetSnapshot retrieves a snapshot of list of assets in the account.
+// GetUsersSpotAssetSnapshot retrieves a snapshot of list of assets in the accounts.
 func (bi *Binanceus) GetUsersSpotAssetSnapshot(ctx context.Context, startTime, endTime time.Time, limit, offset uint64) (*SpotAssetsSnapshotResponse, error) {
 	params := url.Values{}
 	params.Set("type", "SPOT")

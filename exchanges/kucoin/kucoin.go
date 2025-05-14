@@ -1570,7 +1570,7 @@ func (ku *Kucoin) GetMarginHFTradeFills(ctx context.Context, orderID, symbol, tr
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, getMarginHFTradeFillsEPL, http.MethodGet, common.EncodeURLValues("/v3/hf/margin/fills", params), nil, &resp)
 }
 
-// CreateSubUser creates a new sub-user for the account.
+// CreateSubUser creates a new sub-user for the accounts.
 func (ku *Kucoin) CreateSubUser(ctx context.Context, subAccountName, password, remarks, access string) (*SubAccount, error) {
 	if subAccountName == "" {
 		return nil, fmt.Errorf("%w, subaccount name is required", errInvalidSubAccountName)
@@ -1593,7 +1593,7 @@ func (ku *Kucoin) CreateSubUser(ctx context.Context, subAccountName, password, r
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, createSubUserEPL, http.MethodPost, "/v2/sub/user/created", arg, &resp)
 }
 
-// GetSubAccountSpotAPIList used to obtain a list of Spot APIs pertaining to a sub-account.
+// GetSubAccountSpotAPIList used to obtain a list of Spot APIs pertaining to a sub-accounts.
 func (ku *Kucoin) GetSubAccountSpotAPIList(ctx context.Context, subAccountName, apiKeys string) ([]SpotAPISubAccount, error) {
 	if subAccountName == "" {
 		return nil, errInvalidSubAccountName
@@ -1698,7 +1698,7 @@ func (ku *Kucoin) GetAccountDetail(ctx context.Context, accountID string) (*Acco
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, accountDetailEPL, http.MethodGet, "/v1/accounts/"+accountID, nil, &resp)
 }
 
-// GetCrossMarginAccountsDetail retrieves the info of the cross margin account.
+// GetCrossMarginAccountsDetail retrieves the info of the cross margin accounts.
 func (ku *Kucoin) GetCrossMarginAccountsDetail(ctx context.Context, quoteCurrency, queryType string) (*CrossMarginAccountDetail, error) {
 	params := url.Values{}
 	if quoteCurrency != "" {
@@ -1711,7 +1711,7 @@ func (ku *Kucoin) GetCrossMarginAccountsDetail(ctx context.Context, quoteCurrenc
 	return resp, ku.SendAuthHTTPRequest(ctx, exchange.RestSpot, crossMarginAccountsDetailEPL, http.MethodGet, common.EncodeURLValues("/v3/margin/accounts", params), nil, &resp)
 }
 
-// GetIsolatedMarginAccountDetail to get the info of the isolated margin account.
+// GetIsolatedMarginAccountDetail to get the info of the isolated margin accounts.
 func (ku *Kucoin) GetIsolatedMarginAccountDetail(ctx context.Context, symbol, queryCurrency, queryType string) (*IsolatedMarginAccountDetail, error) {
 	params := url.Values{}
 	if symbol != "" {

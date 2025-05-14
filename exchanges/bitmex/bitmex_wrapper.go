@@ -15,9 +15,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -444,49 +444,28 @@ func (b *Bitmex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 	return orderbook.Get(b.Name, p, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
-// Bitmex exchange
-func (b *Bitmex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var info account.Holdings
-
+// UpdateAccountBalances retrieves balances for all enabled currencies for the Bitmex exchange
+func (b *Bitmex) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	var subAccts accounts.SubAccounts
 	userMargins, err := b.GetAllUserMargin(ctx)
 	if err != nil {
-		return info, err
+		return subAccts, err
 	}
-
-	accountBalances := make(map[string][]account.Balance)
 	// Need to update to add Margin/Liquidity availability
 	for i := range userMargins {
-		accountID := strconv.FormatInt(userMargins[i].Account, 10)
-
-		var wallet WalletInfo
-		wallet, err = b.GetWalletInfo(ctx, userMargins[i].Currency)
+		wallet, err := b.GetWalletInfo(ctx, userMargins[i].Currency)
 		if err != nil {
 			continue
 		}
-
-		accountBalances[accountID] = append(
-			accountBalances[accountID], account.Balance{
-				Currency: currency.NewCode(wallet.Currency),
-				Total:    wallet.Amount,
-			},
-		)
+		a := accounts.NewSubAccount(assetType, strconv.FormatInt(userMargins[i].Account, 10))
+		a.Balances.Set(wallet.Currency, accounts.Balance{Total: wallet.Amount})
+		subAccts = subAccts.Merge(a)
 	}
-
-	if info.Accounts, err = account.CollectBalances(accountBalances, assetType); err != nil {
-		return account.Holdings{}, err
-	}
-	info.Exchange = b.Name
-
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
-	if err := account.Process(&info, creds); err != nil {
-		return account.Holdings{}, err
-	}
-
-	return info, nil
+	return subAccts, b.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -982,7 +961,7 @@ func (b *Bitmex) AuthenticateWebsocket(ctx context.Context) error {
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (b *Bitmex) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := b.UpdateAccountInfo(ctx, assetType)
+	_, err := b.UpdateAccountBalances(ctx, assetType)
 	return b.CheckTransientError(err)
 }
 

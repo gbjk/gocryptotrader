@@ -17,9 +17,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -363,10 +363,10 @@ func (ku *Kucoin) processFuturesAccountBalanceEvent(ctx context.Context, respDat
 	if err != nil {
 		return err
 	}
-	changes := []account.Change{
+	changes := []accounts.Change{
 		{
 			AssetType: asset.Futures,
-			Balance: &account.Balance{
+			Balance: accounts.Balance{
 				Currency:  currency.NewCode(resp.Currency),
 				Total:     resp.AvailableBalance + resp.HoldBalance,
 				Hold:      resp.HoldBalance,
@@ -376,7 +376,7 @@ func (ku *Kucoin) processFuturesAccountBalanceEvent(ctx context.Context, respDat
 		},
 	}
 	ku.Websocket.DataHandler <- changes
-	return account.ProcessChange(ku.Name, changes, creds)
+	return ku.Accounts.Update(changes, creds)
 }
 
 // processFuturesStopOrderLifecycleEvent processes futures stop orders lifecycle events.
@@ -698,10 +698,10 @@ func (ku *Kucoin) processAccountBalanceChange(ctx context.Context, respData []by
 	if err != nil {
 		return err
 	}
-	changes := []account.Change{
+	changes := []accounts.Change{
 		{
 			AssetType: asset.Futures,
-			Balance: &account.Balance{
+			Balance: accounts.Balance{
 				Currency:  currency.NewCode(response.Currency),
 				Total:     response.Total,
 				Hold:      response.Hold,
@@ -711,7 +711,7 @@ func (ku *Kucoin) processAccountBalanceChange(ctx context.Context, respData []by
 		},
 	}
 	ku.Websocket.DataHandler <- changes
-	return account.ProcessChange(ku.Name, changes, creds)
+	return ku.Accounts.Update(changes, creds)
 }
 
 // processOrderChangeEvent processes order update events.

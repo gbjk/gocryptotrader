@@ -14,10 +14,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -336,34 +336,33 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	return orderbook.Get(d.Name, p, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies
-func (d *Deribit) UpdateAccountInfo(ctx context.Context, _ asset.Item) (account.Holdings, error) {
-	var resp account.Holdings
-	resp.Exchange = d.Name
+// UpdateAccountBalances retrieves balances for all enabled currencies
+func (d *Deribit) UpdateAccountBalances(ctx context.Context, _ asset.Item) (accounts.SubAccounts, error) {
 	currencies, err := d.GetCurrencies(ctx)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	resp.Accounts = make([]account.SubAccount, len(currencies))
-	for x := range currencies {
-		var data *AccountSummaryData
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.All, "")}
+	for i := range currencies {
+		var resp *AccountSummaryData
 		if d.Websocket.IsConnected() && d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			data, err = d.WSRetrieveAccountSummary(ctx, currency.NewCode(currencies[x].Currency), false)
+			resp, err = d.WSRetrieveAccountSummary(ctx, currency.NewCode(currencies[i].Currency), false)
 		} else {
-			data, err = d.GetAccountSummary(ctx, currency.NewCode(currencies[x].Currency), false)
+			resp, err = d.GetAccountSummary(ctx, currency.NewCode(currencies[i].Currency), false)
 		}
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
-		var subAcc account.SubAccount
-		subAcc.Currencies = append(subAcc.Currencies, account.Balance{
-			Currency: currency.NewCode(currencies[x].Currency),
-			Total:    data.Balance,
-			Hold:     data.Balance - data.AvailableFunds,
+		subAccts[0].Balances.Set(currencies[i].Currency, accounts.Balance{
+			Total: resp.Balance,
+			Hold:  resp.Balance - resp.AvailableFunds,
 		})
-		resp.Accounts[x] = subAcc
 	}
-	return resp, nil
+	creds, err := d.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return subAccts, d.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and withdrawals
@@ -1031,7 +1030,7 @@ func (d *Deribit) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (d *Deribit) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := d.UpdateAccountInfo(ctx, assetType)
+	_, err := d.UpdateAccountBalances(ctx, assetType)
 	return d.CheckTransientError(err)
 }
 

@@ -34,8 +34,8 @@ import (
 	dbexchange "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -321,16 +321,16 @@ func (f fExchange) GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Price
 	}, nil
 }
 
-// GetCachedAccountInfo overrides testExchange's fetch account info function
+// GetCachedAccountBalances overrides testExchange's fetch account info function
 // to do the bare minimum required with no API calls or credentials required
-func (f fExchange) GetCachedAccountInfo(_ context.Context, a asset.Item) (account.Holdings, error) {
-	return account.Holdings{
+func (f fExchange) GetCachedAccountBalances(_ context.Context, a asset.Item) (accounts.SubAccounts, error) {
+	return accounts.SubAccounts{
 		Exchange: f.GetName(),
-		Accounts: []account.SubAccount{
+		Accounts: accounts.SubAccounts{
 			{
 				ID:        "1337",
 				AssetType: a,
-				Currencies: []account.Balance{
+				Currencies: []accounts.Balance{
 					{
 						Currency: currency.USD,
 						Total:    1337,
@@ -391,15 +391,15 @@ func (f fExchange) CalculateTotalCollateral(context.Context, *futures.TotalColla
 	}, nil
 }
 
-// UpdateAccountInfo overrides testExchange's update account info function
+// UpdateAccountBalances overrides testExchange's update account info function
 // to do the bare minimum required with no API calls or credentials required
-func (f fExchange) UpdateAccountInfo(_ context.Context, a asset.Item) (account.Holdings, error) {
+func (f fExchange) UpdateAccountBalances(_ context.Context, a asset.Item) (accounts.SubAccounts, error) {
 	if a == asset.Futures {
-		return account.Holdings{}, asset.ErrNotSupported
+		return accounts.SubAccounts{}, asset.ErrNotSupported
 	}
-	return account.Holdings{
+	return accounts.SubAccounts{
 		Exchange: f.GetName(),
-		Accounts: []account.SubAccount{
+		Accounts: accounts.SubAccounts{
 			{
 				ID:         "1337",
 				AssetType:  a,
@@ -1254,7 +1254,7 @@ func TestGetAccountInfo(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
@@ -1279,10 +1279,10 @@ func TestUpdateAccountInfo(t *testing.T) {
 	_, err = s.GetAccountInfo(t.Context(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Spot.String()})
 	assert.NoError(t, err)
 
-	_, err = s.UpdateAccountInfo(t.Context(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Futures.String()})
+	_, err = s.UpdateAccountBalances(t.Context(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Futures.String()})
 	assert.ErrorIs(t, err, currency.ErrAssetNotFound)
 
-	_, err = s.UpdateAccountInfo(t.Context(), &gctrpc.GetAccountInfoRequest{
+	_, err = s.UpdateAccountBalances(t.Context(), &gctrpc.GetAccountInfoRequest{
 		Exchange:  fakeExchangeName,
 		AssetType: asset.Spot.String(),
 	})
@@ -2248,8 +2248,8 @@ func TestGetCollateral(t *testing.T) {
 	})
 	require.ErrorIs(t, err, exchange.ErrCredentialsAreEmpty)
 
-	ctx := account.DeployCredentialsToContext(t.Context(),
-		&account.Credentials{Key: "fakerino", Secret: "supafake"})
+	ctx := accounts.DeployCredentialsToContext(t.Context(),
+		&accounts.Credentials{Key: "fakerino", Secret: "supafake"})
 
 	_, err = s.GetCollateral(ctx, &gctrpc.GetCollateralRequest{
 		Exchange: fakeExchangeName,
@@ -2257,8 +2257,8 @@ func TestGetCollateral(t *testing.T) {
 	})
 	require.ErrorIs(t, err, errNoAccountInformation)
 
-	ctx = account.DeployCredentialsToContext(t.Context(),
-		&account.Credentials{Key: "fakerino", Secret: "supafake", SubAccount: "1337"})
+	ctx = accounts.DeployCredentialsToContext(t.Context(),
+		&accounts.Credentials{Key: "fakerino", Secret: "supafake", SubAccount: "1337"})
 
 	r, err := s.GetCollateral(ctx, &gctrpc.GetCollateralRequest{
 		Exchange:         fakeExchangeName,

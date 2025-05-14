@@ -21,8 +21,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -525,12 +525,12 @@ func (g *Gateio) processSpotBalances(ctx context.Context, data []byte) error {
 	if err != nil {
 		return err
 	}
-	changes := make([]account.Change, len(resp.Result))
+	changes := make([]accounts.Change, len(resp.Result))
 	for i := range resp.Result {
-		changes[i] = account.Change{
+		changes[i] = accounts.Change{
 			Account:   resp.Result[i].User,
 			AssetType: asset.Spot,
-			Balance: &account.Balance{
+			Balance: accounts.Balance{
 				Currency:  currency.NewCode(resp.Result[i].Currency),
 				Total:     resp.Result[i].Total.Float64(),
 				Free:      resp.Result[i].Available.Float64(),
@@ -540,7 +540,7 @@ func (g *Gateio) processSpotBalances(ctx context.Context, data []byte) error {
 		}
 	}
 	g.Websocket.DataHandler <- changes
-	return account.ProcessChange(g.Name, changes, creds)
+	return g.Accounts.Update(changes, creds)
 }
 
 func (g *Gateio) processMarginBalances(ctx context.Context, data []byte) error {
@@ -558,11 +558,11 @@ func (g *Gateio) processMarginBalances(ctx context.Context, data []byte) error {
 	if err != nil {
 		return err
 	}
-	changes := make([]account.Change, len(resp.Result))
+	changes := make([]accounts.Change, len(resp.Result))
 	for x := range resp.Result {
-		changes[x] = account.Change{
+		changes[x] = accounts.Change{
 			AssetType: asset.Margin,
-			Balance: &account.Balance{
+			Balance: accounts.Balance{
 				Currency:  currency.NewCode(resp.Result[x].Currency),
 				Total:     resp.Result[x].Available.Float64() + resp.Result[x].Freeze.Float64(),
 				Free:      resp.Result[x].Available.Float64(),
@@ -572,7 +572,7 @@ func (g *Gateio) processMarginBalances(ctx context.Context, data []byte) error {
 		}
 	}
 	g.Websocket.DataHandler <- changes
-	return account.ProcessChange(g.Name, changes, creds)
+	return g.Accounts.Update(changes, creds)
 }
 
 func (g *Gateio) processFundingBalances(data []byte) error {
@@ -605,12 +605,12 @@ func (g *Gateio) processCrossMarginBalance(ctx context.Context, data []byte) err
 	if err != nil {
 		return err
 	}
-	changes := make([]account.Change, len(resp.Result))
+	changes := make([]accounts.Change, len(resp.Result))
 	for x := range resp.Result {
-		changes[x] = account.Change{
+		changes[x] = accounts.Change{
 			Account:   resp.Result[x].User,
 			AssetType: asset.Margin,
-			Balance: &account.Balance{
+			Balance: accounts.Balance{
 				Currency:  currency.NewCode(resp.Result[x].Currency),
 				Total:     resp.Result[x].Total.Float64(),
 				Free:      resp.Result[x].Available.Float64(),
@@ -619,7 +619,7 @@ func (g *Gateio) processCrossMarginBalance(ctx context.Context, data []byte) err
 		}
 	}
 	g.Websocket.DataHandler <- changes
-	return account.ProcessChange(g.Name, changes, creds)
+	return g.Accounts.Update(changes, creds)
 }
 
 func (g *Gateio) processCrossMarginLoans(data []byte) error {

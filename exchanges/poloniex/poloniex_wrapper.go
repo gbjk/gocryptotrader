@@ -13,10 +13,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -340,39 +340,26 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	return orderbook.Get(p.Name, pair, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountBalances retrieves balances for all enabled currencies for the
 // Poloniex exchange
-func (p *Poloniex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var response account.Holdings
-	response.Exchange = p.Name
-	accountBalance, err := p.GetBalances(ctx)
+func (p *Poloniex) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	resp, err := p.GetBalances(ctx)
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 
-	currencies := make([]account.Balance, 0, len(accountBalance.Currency))
-	for x, y := range accountBalance.Currency {
-		currencies = append(currencies, account.Balance{
-			Currency: currency.NewCode(x),
-			Total:    y,
-		})
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+	for curr, bal := range resp.Currency {
+		subAccts[0].Balances.Set(curr, accounts.Balance{Total: bal})
 	}
-
-	response.Accounts = append(response.Accounts, account.SubAccount{
-		AssetType:  assetType,
-		Currencies: currencies,
-	})
-
 	creds, err := p.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
-	err = account.Process(&response, creds)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
-
-	return response, nil
+	return subAccts, p.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -937,7 +924,7 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (p *Poloniex) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := p.UpdateAccountInfo(ctx, assetType)
+	_, err := p.UpdateAccountBalances(ctx, assetType)
 	return p.CheckTransientError(err)
 }
 

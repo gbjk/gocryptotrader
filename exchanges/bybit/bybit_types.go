@@ -902,7 +902,7 @@ type WalletBalance struct {
 	} `json:"list"`
 }
 
-// UnifiedAccountUpgradeResponse represents a response parameter for update to unified account.
+// UnifiedAccountUpgradeResponse represents a response parameter for update to unified accounts.
 type UnifiedAccountUpgradeResponse struct {
 	UnifiedUpdateStatus string `json:"unifiedUpdateStatus"`
 	UnifiedUpdateMsg    struct {
@@ -926,7 +926,7 @@ type BorrowHistory struct {
 	} `json:"list"`
 }
 
-// CollateralInfo represents collateral information of the current unified margin account.
+// CollateralInfo represents collateral information of the current unified margin accounts.
 type CollateralInfo struct {
 	List []struct {
 		Currency            string       `json:"currency"`
@@ -1293,8 +1293,8 @@ type SubUIDAPIResponse struct {
 	DeadlineDay           int64     `json:"deadlineDay"`
 	ExpiredAt             time.Time `json:"expiredAt"`
 	CreatedAt             time.Time `json:"createdAt"`
-	IsMarginUnified       int64     `json:"unified"` // Whether the account to which the account upgrade to unified margin account.
-	IsUnifiedTradeAccount uint8     `json:"uta"`     // Whether the account to which the account upgrade to unified trade account.
+	IsMarginUnified       int64     `json:"unified"` // Whether the account to which the account upgrade to unified margin accounts.
+	IsUnifiedTradeAccount uint8     `json:"uta"`     // Whether the account to which the account upgrade to unified trade accounts.
 	UserID                int64     `json:"userID"`
 	InviterID             int64     `json:"inviterID"`
 	VipLevel              string    `json:"vipLevel"`

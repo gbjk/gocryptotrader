@@ -11,10 +11,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -353,41 +353,30 @@ func (bi *Binanceus) UpdateOrderbook(ctx context.Context, pair currency.Pair, as
 	return orderbook.Get(bi.Name, pair, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies
-func (bi *Binanceus) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var info account.Holdings
-	var acc account.SubAccount
-	info.Exchange = bi.Name
+// UpdateAccountBalances retrieves balances for all enabled currencies
+func (bi *Binanceus) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	if assetType != asset.Spot {
-		return info, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	theAccount, err := bi.GetAccount(ctx)
+	resp, err := bi.GetAccount(ctx)
 	if err != nil {
-		return info, err
+		return nil, err
 	}
-	currencyBalance := make([]account.Balance, len(theAccount.Balances))
-	for i := range theAccount.Balances {
-		freeBalance := theAccount.Balances[i].Free.InexactFloat64()
-		locked := theAccount.Balances[i].Locked.InexactFloat64()
-
-		currencyBalance[i] = account.Balance{
-			Currency: currency.NewCode(theAccount.Balances[i].Asset),
-			Total:    freeBalance + locked,
-			Hold:     locked,
-			Free:     freeBalance,
-		}
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+	for i := range resp.Balances {
+		freeBalance := resp.Balances[i].Free.InexactFloat64()
+		locked := resp.Balances[i].Locked.InexactFloat64()
+		subAccts[0].Balances.Set(resp.Balances[i].Asset, accounts.Balance{
+			Total: freeBalance + locked,
+			Hold:  locked,
+			Free:  freeBalance,
+		})
 	}
-	acc.Currencies = currencyBalance
-	acc.AssetType = assetType
-	info.Accounts = append(info.Accounts, acc)
 	creds, err := bi.GetCredentials(ctx)
 	if err != nil {
-		return info, err
+		return nil, err
 	}
-	if err := account.Process(&info, creds); err != nil {
-		return account.Holdings{}, err
-	}
-	return info, nil
+	return subAccts, bi.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and withdrawals
@@ -800,7 +789,7 @@ func (bi *Binanceus) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeB
 
 // ValidateAPICredentials validates current credentials used for wrapper
 func (bi *Binanceus) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := bi.UpdateAccountInfo(ctx, assetType)
+	_, err := bi.UpdateAccountBalances(ctx, assetType)
 	return bi.CheckTransientError(err)
 }
 

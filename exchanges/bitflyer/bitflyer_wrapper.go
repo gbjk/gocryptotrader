@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -241,10 +241,10 @@ func (b *Bitflyer) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	return orderbook.Get(b.Name, fPair, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies on the
+// UpdateAccountBalances retrieves balances for all enabled currencies on the
 // Bitflyer exchange
-func (b *Bitflyer) UpdateAccountInfo(_ context.Context, _ asset.Item) (account.Holdings, error) {
-	return account.Holdings{}, common.ErrNotYetImplemented
+func (b *Bitflyer) UpdateAccountBalances(_ context.Context, _ asset.Item) (accounts.SubAccounts, error) {
+	return accounts.SubAccounts{}, common.ErrNotYetImplemented
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -389,7 +389,7 @@ func (b *Bitflyer) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (b *Bitflyer) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := b.UpdateAccountInfo(ctx, assetType)
+	_, err := b.UpdateAccountBalances(ctx, assetType)
 	return b.CheckTransientError(err)
 }
 

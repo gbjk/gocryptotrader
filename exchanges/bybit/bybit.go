@@ -794,7 +794,7 @@ func (by *Bybit) CancelBatchOrder(ctx context.Context, arg *CancelBatchOrder) ([
 	return resp.List, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/order/cancel-batch", nil, arg, &resp, cancelBatchOrderEPL)
 }
 
-// GetBorrowQuota retrieves the qty and amount of borrowable coins in spot account.
+// GetBorrowQuota retrieves the qty and amount of borrowable coins in spot accounts.
 func (by *Bybit) GetBorrowQuota(ctx context.Context, category, symbol, side string) (*BorrowQuota, error) {
 	if category == "" {
 		return nil, errCategoryNotSet
@@ -1199,7 +1199,7 @@ func (by *Bybit) GetPreUpgradeTradeHistory(ctx context.Context, category, symbol
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/execution/list", params, nil, &resp, defaultEPL)
 }
 
-// GetPreUpgradeClosedPnL retrieves user's closed profit and loss records from before you upgraded the account to a Unified account. The results are sorted by createdTime in descending order.
+// GetPreUpgradeClosedPnL retrieves user's closed profit and loss records from before you upgraded the account to a Unified accounts. The results are sorted by createdTime in descending order.
 func (by *Bybit) GetPreUpgradeClosedPnL(ctx context.Context, category, symbol, cursor string, startTime, endTime time.Time, limit int64) (*ClosedProfitAndLossResponse, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true, Inverse: true, MandatorySymbol: true}, category, symbol, "", "", "", "", "", cursor, startTime, endTime, limit)
 	if err != nil {
@@ -1213,7 +1213,7 @@ func (by *Bybit) GetPreUpgradeClosedPnL(ctx context.Context, category, symbol, c
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/position/closed-pnl", params, nil, &resp, defaultEPL)
 }
 
-// GetPreUpgradeTransactionLog retrieves transaction logs which occurred in the USDC Derivatives wallet before the account was upgraded to a Unified account.
+// GetPreUpgradeTransactionLog retrieves transaction logs which occurred in the USDC Derivatives wallet before the account was upgraded to a Unified accounts.
 func (by *Bybit) GetPreUpgradeTransactionLog(ctx context.Context, category, baseCoin, transactionType, cursor string, startTime, endTime time.Time, limit int64) (*TransactionLog, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true, Inverse: true}, category, "", baseCoin, "", "", "", "", cursor, startTime, endTime, limit)
 	if err != nil {
@@ -1247,7 +1247,7 @@ func (by *Bybit) GetPreUpgradeOptionDeliveryRecord(ctx context.Context, category
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/pre-upgrade/asset/delivery-record", params, nil, &resp, defaultEPL)
 }
 
-// GetPreUpgradeUSDCSessionSettlement retrieves session settlement records of USDC perpetual before you upgrade the account to Unified account.
+// GetPreUpgradeUSDCSessionSettlement retrieves session settlement records of USDC perpetual before you upgrade the account to Unified accounts.
 func (by *Bybit) GetPreUpgradeUSDCSessionSettlement(ctx context.Context, category, symbol, cursor string, limit int64) (*SettlementSession, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{Linear: true}, category, symbol, "", "", "", "", "", cursor, time.Time{}, time.Time{}, limit)
 	if err != nil {
@@ -1278,7 +1278,7 @@ func (by *Bybit) GetWalletBalance(ctx context.Context, accountType, coin string)
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/wallet-balance", params, nil, &resp, getAccountWalletBalanceEPL)
 }
 
-// UpgradeToUnifiedAccount upgrades the account to unified account.
+// UpgradeToUnifiedAccount upgrades the account to unified accounts.
 func (by *Bybit) UpgradeToUnifiedAccount(ctx context.Context) (*UnifiedAccountUpgradeResponse, error) {
 	var resp *UnifiedAccountUpgradeResponse
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/upgrade-to-uta", nil, nil, &resp, defaultEPL)
@@ -1364,14 +1364,14 @@ func (by *Bybit) GetFeeRate(ctx context.Context, category, symbol, baseCoin stri
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/fee-rate", params, nil, &resp, getAccountFeeEPL)
 }
 
-// GetAccountInfo retrieves the margin mode configuration of the account.
+// GetAccountInfo retrieves the margin mode configuration of the accounts.
 // query the margin mode and the upgraded status of account
 func (by *Bybit) GetAccountInfo(ctx context.Context) (*AccountInfo, error) {
 	var resp *AccountInfo
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/account/info", nil, nil, &resp, defaultEPL)
 }
 
-// GetTransactionLog retrieves transaction logs in Unified account.
+// GetTransactionLog retrieves transaction logs in Unified accounts.
 func (by *Bybit) GetTransactionLog(ctx context.Context, category, baseCoin, transactionType, cursor string, startTime, endTime time.Time, limit int64) (*TransactionLog, error) {
 	params, err := fillOrderAndExecutionFetchParams(paramsConfig{OptionalBaseCoin: true, OptionalCategory: true, Linear: true, Option: true, Spot: true}, category, "", baseCoin, "", "", "", "", cursor, startTime, endTime, limit)
 	if err != nil {
@@ -1397,7 +1397,7 @@ func (by *Bybit) SetMarginMode(ctx context.Context, marginMode string) (*SetMarg
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/account/set-margin-mode", nil, arg, &resp, defaultEPL)
 }
 
-// SetSpotHedging to turn on/off Spot hedging feature in Portfolio margin for Unified account.
+// SetSpotHedging to turn on/off Spot hedging feature in Portfolio margin for Unified accounts.
 func (by *Bybit) SetSpotHedging(ctx context.Context, setHedgingModeOn bool) error {
 	resp := struct{}{}
 	setHedgingMode := "OFF"
@@ -1551,7 +1551,7 @@ func fillCoinBalanceFetchParams(accountType, memberID, coin string, withBonus in
 	return params, nil
 }
 
-// GetAllCoinBalance retrieves all coin balance of all account types under the master account, and sub account.
+// GetAllCoinBalance retrieves all coin balance of all account types under the master account, and sub accounts.
 // It is not allowed to get master account coin balance via sub account api key.
 func (by *Bybit) GetAllCoinBalance(ctx context.Context, accountType, memberID, coin string, withBonus int64) (*CoinBalances, error) {
 	params, err := fillCoinBalanceFetchParams(accountType, memberID, coin, withBonus, false)
@@ -1795,7 +1795,7 @@ func (by *Bybit) GetInternalDepositRecordsOffChain(ctx context.Context, coin, cu
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-internal-record", params, nil, &resp, defaultEPL)
 }
 
-// GetMasterDepositAddress retrieves the deposit address information of MASTER account.
+// GetMasterDepositAddress retrieves the deposit address information of MASTER accounts.
 func (by *Bybit) GetMasterDepositAddress(ctx context.Context, coin currency.Code, chainType string) (*DepositAddresses, error) {
 	if coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -1809,7 +1809,7 @@ func (by *Bybit) GetMasterDepositAddress(ctx context.Context, coin currency.Code
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/deposit/query-address", params, nil, &resp, getAssetDepositRecordsEPL)
 }
 
-// GetSubDepositAddress retrieves the deposit address information of SUB account.
+// GetSubDepositAddress retrieves the deposit address information of SUB accounts.
 func (by *Bybit) GetSubDepositAddress(ctx context.Context, coin currency.Code, chainType, subMemberID string) (*DepositAddresses, error) {
 	if coin.IsEmpty() {
 		return nil, currency.ErrCurrencyCodeEmpty
@@ -1879,7 +1879,7 @@ func (by *Bybit) GetWithdrawableAmount(ctx context.Context, coin currency.Code) 
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodGet, "/v5/asset/withdraw/withdrawable-amount", params, nil, &resp, defaultEPL)
 }
 
-// WithdrawCurrency Withdraw assets from your Bybit account. You can make an off-chain transfer if the target wallet address is from Bybit. This means that no blockchain fee will be charged.
+// WithdrawCurrency Withdraw assets from your Bybit accounts. You can make an off-chain transfer if the target wallet address is from Bybit. This means that no blockchain fee will be charged.
 func (by *Bybit) WithdrawCurrency(ctx context.Context, arg *WithdrawalParam) (string, error) {
 	if arg == nil {
 		return "", errNilArgument
@@ -1946,7 +1946,7 @@ func (by *Bybit) CreateSubUIDAPIKey(ctx context.Context, arg *SubUIDAPIKeyParam)
 	return resp, by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/create-sub-api", nil, arg, &resp, userCreateSubAPIKeyEPL)
 }
 
-// GetSubUIDList get all sub uid of master account. Use master user's api key only.
+// GetSubUIDList get all sub uid of master accounts. Use master user's api key only.
 func (by *Bybit) GetSubUIDList(ctx context.Context) ([]SubUserItem, error) {
 	resp := struct {
 		SubMembers []SubUserItem `json:"subMembers"`
@@ -2045,13 +2045,13 @@ func (by *Bybit) DeleteSubUID(ctx context.Context, subMemberID string) error {
 	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/del-submember", nil, arg, &resp, defaultEPL)
 }
 
-// DeleteMasterAPIKey delete the api key of master account.
+// DeleteMasterAPIKey delete the api key of master accounts.
 // Use the api key pending to be delete to call the endpoint. Use master user's api key only.
 func (by *Bybit) DeleteMasterAPIKey(ctx context.Context) error {
 	return by.SendAuthHTTPRequestV5(ctx, exchange.RestSpot, http.MethodPost, "/v5/user/delete-api", nil, nil, &struct{}{}, userDeleteAPIEPL)
 }
 
-// DeleteSubAccountAPIKey delete the api key of sub account.
+// DeleteSubAccountAPIKey delete the api key of sub accounts.
 // Use the api key pending to be delete to call the endpoint. Use sub user's api key only.
 func (by *Bybit) DeleteSubAccountAPIKey(ctx context.Context, subAccountUID string) error {
 	if subAccountUID == "" {

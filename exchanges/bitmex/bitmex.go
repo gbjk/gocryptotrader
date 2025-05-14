@@ -673,7 +673,7 @@ func (b *Bitmex) ConfirmEmail(ctx context.Context, token string) (ConfirmEmail, 
 		&confirmation)
 }
 
-// ConfirmTwoFactorAuth confirms 2FA for this account.
+// ConfirmTwoFactorAuth confirms 2FA for this accounts.
 func (b *Bitmex) ConfirmTwoFactorAuth(ctx context.Context, token, typ string) (bool, error) {
 	var working bool
 

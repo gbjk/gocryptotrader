@@ -15,8 +15,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -354,12 +354,12 @@ func (by *Bybit) wsProcessWalletPushData(ctx context.Context, assetType asset.It
 	if err != nil {
 		return err
 	}
-	var changes []account.Change
+	var changes []accounts.Change
 	for x := range result.Data {
 		for y := range result.Data[x].Coin {
-			changes = append(changes, account.Change{
+			changes = append(changes, accounts.Change{
 				AssetType: assetType,
-				Balance: &account.Balance{
+				Balance: accounts.Balance{
 					Currency:  currency.NewCode(result.Data[x].Coin[y].Coin),
 					Total:     result.Data[x].Coin[y].WalletBalance.Float64(),
 					Free:      result.Data[x].Coin[y].WalletBalance.Float64(),
@@ -369,7 +369,7 @@ func (by *Bybit) wsProcessWalletPushData(ctx context.Context, assetType asset.It
 		}
 	}
 	by.Websocket.DataHandler <- changes
-	return account.ProcessChange(by.Name, changes, creds)
+	return by.Accounts.Update(changes, creds)
 }
 
 // wsProcessOrder the order stream to see changes to your orders in real-time.

@@ -15,10 +15,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -513,69 +513,51 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 	return orderbook.Get(k.Name, p, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountBalances retrieves balances for all enabled currencies for the
 // Kraken exchange - to-do
-func (k *Kraken) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var info account.Holdings
-	var balances []account.Balance
-	info.Exchange = k.Name
+func (k *Kraken) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
 	if !assetTranslator.Seeded() {
 		if err := k.SeedAssets(ctx); err != nil {
-			return info, err
+			return nil, err
 		}
 	}
 	switch assetType {
 	case asset.Spot:
-		bal, err := k.GetBalance(ctx)
+		resp, err := k.GetBalance(ctx)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-		for key := range bal {
-			translatedCurrency := assetTranslator.LookupAltName(key)
-			if translatedCurrency == "" {
-				log.Warnf(log.ExchangeSys, "%s unable to translate currency: %s\n",
-					k.Name,
-					key)
+		subAccts = accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+		for key, bal := range resp {
+			c := assetTranslator.LookupAltName(key)
+			if c == "" {
+				log.Warnf(log.ExchangeSys, "%s unable to translate currency: %s\n", k.Name, key)
 				continue
 			}
-			balances = append(balances, account.Balance{
-				Currency: currency.NewCode(translatedCurrency),
-				Total:    bal[key].Total,
-				Hold:     bal[key].Hold,
-				Free:     bal[key].Total - bal[key].Hold,
+			subAccts[0].Balances.Set(c, accounts.Balance{
+				Total: bal.Total,
+				Hold:  bal.Hold,
+				Free:  bal.Total - bal.Hold,
 			})
 		}
-		info.Accounts = append(info.Accounts, account.SubAccount{
-			Currencies: balances,
-			AssetType:  assetType,
-		})
 	case asset.Futures:
-		bal, err := k.GetFuturesAccountData(ctx)
+		resp, err := k.GetFuturesAccountData(ctx)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-		for name := range bal.Accounts {
-			for code := range bal.Accounts[name].Balances {
-				balances = append(balances, account.Balance{
-					Currency: currency.NewCode(code).Upper(),
-					Total:    bal.Accounts[name].Balances[code],
-				})
+		for name, v := range resp.Accounts {
+			a := accounts.NewSubAccount(assetType, name)
+			for curr, bal := range v.Balances {
+				a.Balances.Set(curr, accounts.Balance{Total: bal})
 			}
-			info.Accounts = append(info.Accounts, account.SubAccount{
-				ID:         name,
-				AssetType:  asset.Futures,
-				Currencies: balances,
-			})
+			subAccts = subAccts.Merge(a)
 		}
 	}
 	creds, err := k.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-	if err := account.Process(&info, creds); err != nil {
-		return account.Holdings{}, err
-	}
-	return info, nil
+	return subAccts, k.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -1431,7 +1413,7 @@ func (k *Kraken) AuthenticateWebsocket(ctx context.Context) error {
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (k *Kraken) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := k.UpdateAccountInfo(ctx, assetType)
+	_, err := k.UpdateAccountBalances(ctx, assetType)
 	return k.CheckTransientError(err)
 }
 

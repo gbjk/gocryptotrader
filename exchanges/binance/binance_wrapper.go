@@ -14,10 +14,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -569,113 +569,83 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	return orderbook.Get(b.Name, p, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
-// Binance exchange
-func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var info account.Holdings
-	var acc account.SubAccount
-	acc.AssetType = assetType
-	info.Exchange = b.Name
+// UpdateAccountBalances retrieves balances for all enabled currencies for the Binance exchange
+func (b *Binance) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
 	switch assetType {
 	case asset.Spot:
 		creds, err := b.GetCredentials(ctx)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
 		if creds.SubAccount != "" {
 			// TODO: implement sub-account endpoints
-			return info, common.ErrNotYetImplemented
+			return nil, common.ErrNotYetImplemented
 		}
-		raw, err := b.GetAccount(ctx)
+		resp, err := b.GetAccount(ctx)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-
-		var currencyBalance []account.Balance
-		for i := range raw.Balances {
-			free := raw.Balances[i].Free.InexactFloat64()
-			locked := raw.Balances[i].Locked.InexactFloat64()
-
-			currencyBalance = append(currencyBalance, account.Balance{
-				Currency: currency.NewCode(raw.Balances[i].Asset),
-				Total:    free + locked,
-				Hold:     locked,
-				Free:     free,
+		subAccts = accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+		for i := range resp.Balances {
+			free := resp.Balances[i].Free.InexactFloat64()
+			locked := resp.Balances[i].Locked.InexactFloat64()
+			subAccts[0].Balances.Set(resp.Balances[i].Asset, accounts.Balance{
+				Total: free + locked,
+				Hold:  locked,
+				Free:  free,
 			})
 		}
-
-		acc.Currencies = currencyBalance
-
 	case asset.CoinMarginedFutures:
-		accData, err := b.GetFuturesAccountInfo(ctx)
+		resp, err := b.GetFuturesAccountInfo(ctx)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-		var currencyDetails []account.Balance
-		for i := range accData.Assets {
-			currencyDetails = append(currencyDetails, account.Balance{
-				Currency: currency.NewCode(accData.Assets[i].Asset),
-				Total:    accData.Assets[i].WalletBalance,
-				Hold:     accData.Assets[i].WalletBalance - accData.Assets[i].AvailableBalance,
-				Free:     accData.Assets[i].AvailableBalance,
+		subAccts = accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+		for i := range resp.Assets {
+			subAccts[0].Balances.Set(resp.Assets[i].Asset, accounts.Balance{
+				Total: resp.Assets[i].WalletBalance,
+				Hold:  resp.Assets[i].WalletBalance - resp.Assets[i].AvailableBalance,
+				Free:  resp.Assets[i].AvailableBalance,
 			})
 		}
-
-		acc.Currencies = currencyDetails
-
 	case asset.USDTMarginedFutures:
-		accData, err := b.UAccountBalanceV2(ctx)
+		resp, err := b.UAccountBalanceV2(ctx)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-		accountCurrencyDetails := make(map[string][]account.Balance)
-		for i := range accData {
-			currencyDetails := accountCurrencyDetails[accData[i].AccountAlias]
-			accountCurrencyDetails[accData[i].AccountAlias] = append(
-				currencyDetails, account.Balance{
-					Currency: currency.NewCode(accData[i].Asset),
-					Total:    accData[i].Balance,
-					Hold:     accData[i].Balance - accData[i].AvailableBalance,
-					Free:     accData[i].AvailableBalance,
-				},
-			)
-		}
-
-		if info.Accounts, err = account.CollectBalances(accountCurrencyDetails, assetType); err != nil {
-			return account.Holdings{}, err
+		subAccts = make(accounts.SubAccounts, 0, len(resp))
+		for i := range resp {
+			a := accounts.NewSubAccount(assetType, resp[i].AccountAlias)
+			a.Balances.Set(resp[i].Asset, accounts.Balance{
+				Total: resp[i].Balance,
+				Hold:  resp[i].Balance - resp[i].AvailableBalance,
+				Free:  resp[i].AvailableBalance,
+			})
+			subAccts = subAccts.Merge(a)
 		}
 	case asset.Margin:
-		accData, err := b.GetMarginAccount(ctx)
+		resp, err := b.GetMarginAccount(ctx)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-		var currencyDetails []account.Balance
-		for i := range accData.UserAssets {
-			currencyDetails = append(currencyDetails, account.Balance{
-				Currency:               currency.NewCode(accData.UserAssets[i].Asset),
-				Total:                  accData.UserAssets[i].Free + accData.UserAssets[i].Locked,
-				Hold:                   accData.UserAssets[i].Locked,
-				Free:                   accData.UserAssets[i].Free,
-				AvailableWithoutBorrow: accData.UserAssets[i].Free - accData.UserAssets[i].Borrowed,
-				Borrowed:               accData.UserAssets[i].Borrowed,
+		subAccts = accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+		for i := range resp.UserAssets {
+			subAccts[0].Balances.Set(resp.UserAssets[i].Asset, accounts.Balance{
+				Total:                  resp.UserAssets[i].Free + resp.UserAssets[i].Locked,
+				Hold:                   resp.UserAssets[i].Locked,
+				Free:                   resp.UserAssets[i].Free,
+				AvailableWithoutBorrow: resp.UserAssets[i].Free - resp.UserAssets[i].Borrowed,
+				Borrowed:               resp.UserAssets[i].Borrowed,
 			})
 		}
-
-		acc.Currencies = currencyDetails
-
 	default:
-		return info, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	acc.AssetType = assetType
-	info.Accounts = append(info.Accounts, acc)
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-	if err := account.Process(&info, creds); err != nil {
-		return account.Holdings{}, err
-	}
-	return info, nil
+	return subAccts, b.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -1610,7 +1580,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (b *Binance) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := b.UpdateAccountInfo(ctx, assetType)
+	_, err := b.UpdateAccountBalances(ctx, assetType)
 	return b.CheckTransientError(err)
 }
 

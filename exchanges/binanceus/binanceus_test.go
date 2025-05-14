@@ -120,12 +120,12 @@ func TestUpdateTradablePairs(t *testing.T) {
 	}
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err := bi.UpdateAccountInfo(t.Context(), asset.Spot)
+	_, err := bi.UpdateAccountBalances(t.Context(), asset.Spot)
 	if err != nil {
-		t.Error("Binanceus UpdateAccountInfo() error", err)
+		t.Error("Binanceus UpdateAccountBalances() error", err)
 	}
 }
 
@@ -862,7 +862,7 @@ func TestCancelOpenOrdersForSymbol(t *testing.T) {
 }
 
 // TestGetTrades test for fetching the list of
-// trades attached with this account.
+// trades attached with this accounts.
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
 	_, err := bi.GetTrades(t.Context(), &GetTradesParams{})

@@ -12,10 +12,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -305,41 +305,28 @@ func (h *HitBTC) UpdateOrderbook(ctx context.Context, c currency.Pair, assetType
 	return orderbook.Get(h.Name, c, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
-// HitBTC exchange
-func (h *HitBTC) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var response account.Holdings
-	response.Exchange = h.Name
-	accountBalance, err := h.GetBalances(ctx)
+// UpdateAccountBalances retrieves balances for all enabled currencies
+func (h *HitBTC) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	resp, err := h.GetBalances(ctx)
 	if err != nil {
-		return response, err
+		return nil, err
 	}
-
-	currencies := make([]account.Balance, 0, len(accountBalance))
-	for i := range accountBalance {
-		currencies = append(currencies, account.Balance{
-			Currency: currency.NewCode(accountBalance[i].Currency),
-			Total:    accountBalance[i].Available + accountBalance[i].Reserved,
-			Hold:     accountBalance[i].Reserved,
-			Free:     accountBalance[i].Available,
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+	for i := range resp {
+		subAccts[0].Balances.Set(resp[i].Currency, accounts.Balance{
+			Total: resp[i].Available + resp[i].Reserved,
+			Hold:  resp[i].Reserved,
+			Free:  resp[i].Available,
 		})
 	}
-
-	response.Accounts = append(response.Accounts, account.SubAccount{
-		AssetType:  assetType,
-		Currencies: currencies,
-	})
-
 	creds, err := h.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-	err = account.Process(&response, creds)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-
-	return response, nil
+	return subAccts, h.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -745,7 +732,7 @@ func (h *HitBTC) AuthenticateWebsocket(ctx context.Context) error {
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (h *HitBTC) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := h.UpdateAccountInfo(ctx, assetType)
+	_, err := h.UpdateAccountBalances(ctx, assetType)
 	return h.CheckTransientError(err)
 }
 

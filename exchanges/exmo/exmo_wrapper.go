@@ -12,8 +12,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -269,55 +269,37 @@ func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 	return orderbook.Get(e.Name, p, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountBalances retrieves balances for all enabled currencies for the
 // Exmo exchange
-func (e *EXMO) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var response account.Holdings
-	response.Exchange = e.Name
-	result, err := e.GetUserInfo(ctx)
+func (e *EXMO) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	resp, err := e.GetUserInfo(ctx)
 	if err != nil {
-		return response, err
+		return nil, err
 	}
-
-	currencies := make([]account.Balance, 0, len(result.Balances))
-	for x, y := range result.Balances {
-		var exchangeCurrency account.Balance
-		exchangeCurrency.Currency = currency.NewCode(x)
-		for z, w := range result.Reserved {
-			if z != x {
-				continue
-			}
-			var avail, reserved float64
-			avail, err = strconv.ParseFloat(y, 64)
-			if err != nil {
-				return response, err
-			}
-			reserved, err = strconv.ParseFloat(w, 64)
-			if err != nil {
-				return response, err
-			}
-			exchangeCurrency.Total = avail + reserved
-			exchangeCurrency.Hold = reserved
-			exchangeCurrency.Free = avail
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+	for k, bal := range resp.Balances {
+		avail, err := strconv.ParseFloat(bal, 64)
+		if err != nil {
+			return nil, err
 		}
-		currencies = append(currencies, exchangeCurrency)
+		reserved := 0.0
+		if reservedStr, ok := resp.Reserved[k]; ok {
+			if reserved, err = strconv.ParseFloat(reservedStr, 64); err != nil {
+				return nil, err
+			}
+		}
+		subAccts[0].Balances.Set(k, accounts.Balance{
+			Total: avail + reserved,
+			Hold:  reserved,
+			Free:  avail,
+		})
 	}
-
-	response.Accounts = append(response.Accounts, account.SubAccount{
-		AssetType:  assetType,
-		Currencies: currencies,
-	})
 
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-	err = account.Process(&response, creds)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-
-	return response, nil
+	return subAccts, e.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -681,7 +663,7 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (e *EXMO) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := e.UpdateAccountInfo(ctx, assetType)
+	_, err := e.UpdateAccountBalances(ctx, assetType)
 	return e.CheckTransientError(err)
 }
 

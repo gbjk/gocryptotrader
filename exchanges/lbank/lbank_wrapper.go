@@ -11,8 +11,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -236,49 +236,38 @@ func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 	return orderbook.Get(l.Name, p, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountBalances retrieves balances for all enabled currencies for the
 // Lbank exchange
-func (l *Lbank) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var info account.Holdings
-	data, err := l.GetUserInfo(ctx)
+func (l *Lbank) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	resp, err := l.GetUserInfo(ctx)
 	if err != nil {
-		return info, err
+		return nil, err
 	}
-	acc := account.SubAccount{AssetType: assetType}
-	for key, val := range data.Info.Asset {
-		c := currency.NewCode(key)
-		hold, ok := data.Info.Freeze[key]
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+	for k, val := range resp.Info.Asset {
+		hold, ok := resp.Info.Freeze[k]
 		if !ok {
-			return info, fmt.Errorf("hold data not found with %s", key)
+			return nil, fmt.Errorf("hold data not found with %s", k)
 		}
 		totalVal, parseErr := strconv.ParseFloat(val, 64)
 		if parseErr != nil {
-			return info, parseErr
+			return nil, parseErr
 		}
 		totalHold, parseErr := strconv.ParseFloat(hold, 64)
 		if parseErr != nil {
-			return info, parseErr
+			return nil, parseErr
 		}
-		acc.Currencies = append(acc.Currencies, account.Balance{
-			Currency: c,
-			Total:    totalVal,
-			Hold:     totalHold,
-			Free:     totalVal - totalHold,
+		subAccts[0].Balances.Set(k, accounts.Balance{
+			Total: totalVal,
+			Hold:  totalHold,
+			Free:  totalVal - totalHold,
 		})
 	}
-
-	info.Accounts = append(info.Accounts, acc)
-	info.Exchange = l.Name
-
 	creds, err := l.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return nil, err
 	}
-	err = account.Process(&info, creds)
-	if err != nil {
-		return account.Holdings{}, err
-	}
-	return info, nil
+	return subAccts, l.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
@@ -794,7 +783,7 @@ func (l *Lbank) getAllOpenOrderID(ctx context.Context) (map[string][]string, err
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (l *Lbank) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := l.UpdateAccountInfo(ctx, assetType)
+	_, err := l.UpdateAccountBalances(ctx, assetType)
 	return l.CheckTransientError(err)
 }
 

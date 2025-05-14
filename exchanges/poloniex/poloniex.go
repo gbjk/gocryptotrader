@@ -250,7 +250,7 @@ func (p *Poloniex) GetLoanOrders(ctx context.Context, currency string) (LoanOrde
 	return resp, p.SendHTTPRequest(ctx, exchange.RestSpot, path, &resp)
 }
 
-// GetBalances returns balances for your account.
+// GetBalances returns balances for your accounts.
 func (p *Poloniex) GetBalances(ctx context.Context) (Balance, error) {
 	var result any
 	if err := p.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, http.MethodPost, poloniexBalances, url.Values{}, &result); err != nil {
@@ -282,7 +282,7 @@ func (p *Poloniex) GetBalances(ctx context.Context) (Balance, error) {
 	return balance, nil
 }
 
-// GetCompleteBalances returns complete balances from your account.
+// GetCompleteBalances returns complete balances from your accounts.
 func (p *Poloniex) GetCompleteBalances(ctx context.Context) (CompleteBalances, error) {
 	var result CompleteBalances
 	vals := url.Values{}

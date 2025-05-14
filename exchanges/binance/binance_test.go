@@ -1704,9 +1704,11 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 }
 
-func TestGetAccountInfo(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
+	b := new(Binance) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
+	require.NoError(t, testexch.Setup(b), "Test instance Setup must not error")
 	items := asset.Items{
 		asset.CoinMarginedFutures,
 		asset.USDTMarginedFutures,
@@ -1717,10 +1719,8 @@ func TestGetAccountInfo(t *testing.T) {
 		assetType := items[i]
 		t.Run(fmt.Sprintf("Update info of account [%s]", assetType.String()), func(t *testing.T) {
 			t.Parallel()
-			_, err := b.UpdateAccountInfo(t.Context(), assetType)
-			if err != nil {
-				t.Error(err)
-			}
+			_, err := b.UpdateAccountBalances(t.Context(), assetType)
+			require.NoError(t, err)
 		})
 	}
 }
