@@ -681,38 +681,34 @@ func (c *Counter) IncrementAndGet() int64 {
 	return newID
 }
 
-// ElementProcessor defines the function signature for processing an individual element with its index.
-// Index required in old subscription matching // TODO: Remove this when gateio templates are updated to all assets.
-type ElementProcessor[E any] func(index int, element E) error
+// PipelineProcessor defines batch processing function for ThrottledPipeline
+type PipelineProcessor[S ~[]E, E any] func(batch S) error
 
-// ThrottledBatch takes a slice of elements and processes them in batches of `batchSize` concurrently.
-// For example, if batchSize = 10 and list has 100 elements, 10 goroutines will process 10 elements concurrently
-// in each batch. Each batch completes before the next batch begins.
-// `process` is a function called for each individual element with its index and value.
-func ThrottledBatch[S ~[]E, E any](batchSize int, list S, process ElementProcessor[E]) error {
-	var errs error
-	for i, s := range Batch(list, batchSize) {
-		err := CollectErrors(len(s))
-		for j, e := range s {
-			go func(index int, element E) { err.C <- process(index, element); err.Wg.Done() }((i*batchSize)+j, e)
-		}
-		errs = AppendError(errs, err.Collect())
-	}
-	return errs
-}
-
-// BatchProcessor defines the function signature for processing a batch of elements.
-type BatchProcessor[S ~[]E, E any] func(batch S) error
-
-// ProcessBatches processes `S` concurrently in batches of `batchSize`
-// For example, if batchSize = 10 and list has 100 elements, 10 goroutines will be created to process
-// 10 batches. Each batch is processed sequentially by the `process` function, and batches are processed
-// in parallel.
-func ProcessBatches[S ~[]E, E any](batchSize int, list S, process BatchProcessor[S, E]) error {
+// ThrottledPipeline processes a slice concurrently in batches with a throttled number of workers
+// If workers is 0 then workers will be equal to the number of batches
+func ThrottledPipeline[S ~[]E, E any](workers int, batchSize int, list S, process PipelineProcessor[S, E]) error {
 	batches := Batch(list, batchSize)
-	errs := CollectErrors(len(batches))
-	for _, s := range batches {
-		go func(s S) { errs.C <- process(s); errs.Wg.Done() }(s)
+	if workers == 0 {
+		workers = len(batches)
 	}
-	return errs.Collect()
+	log.Debugf(log.Global, "Spawning `%d` workers to handle `%d` batches of size `%d`", workers, batches, batchSize)
+	q := make(chan S, len(batches))
+	for _, s := range batches {
+		q <- s
+	}
+	err := CollectErrors(len(list))
+	for range workers {
+		go func() {
+			defer err.Wg.Done()
+			for {
+				select {
+				case s := <-q:
+					err.C <- process(s)
+				default:
+					return
+				}
+			}
+		}()
+	}
+	return err.Collect()
 }

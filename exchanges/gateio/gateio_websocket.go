@@ -680,11 +680,8 @@ func (g *Gateio) manageSubs(ctx context.Context, event string, conn websocket.Co
 	// ThrottledBatch will batch the subscriptions into groups of subscriptionBatchCount then concurrently subscribe to them.
 	// Need to throttle the requests to allow gct to process the incoming responses or else the websocket frame will be
 	// clipped.
-	return common.ThrottledBatch(subscriptionBatchCount, exp, func(_ int, s *subscription.Subscription) error {
-		if err := g.manageSubPayload(ctx, conn, event, s); err != nil {
-			return fmt.Errorf("%s %s %s: %w", s.Channel, s.Asset, s.Pairs, err)
-		}
-		return nil
+	return common.ThrottledPipeline(0, subscriptionReqConcurrency, exp, func(s *subscription.Subscription) error {
+		return g.manageSubPayload(ctx, conn, event, s)
 	})
 }
 

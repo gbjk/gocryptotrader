@@ -558,6 +558,8 @@ func formatChannelInterval(s *subscription.Subscription) string {
 
 // Subscribe subscribes to a set of channels
 func (b *Binance) Subscribe(channels subscription.List) error {
+	return common.ThrottledPipeline(
+	, batchSize int, list S, process common.PipelineProcessor[S, E])
 	return b.ParallelChanOp(channels, func(l subscription.List) error { return b.manageSubs(wsSubscribeMethod, l) }, 50)
 }
 
