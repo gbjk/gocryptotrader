@@ -551,17 +551,17 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			})
 		}
 
-		var GetCachedAccountHoldingsResponse account.Holdings
-		GetCachedAccountHoldingsResponse, err = e.GetCachedAccountHoldings(ctx, assetTypes[i])
+		var GetCachedAccountInfoResponse account.Holdings
+		GetCachedAccountInfoResponse, err = e.GetCachedAccountInfo(ctx, assetTypes[i])
 		msg = ""
 		if err != nil {
 			msg = err.Error()
 			responseContainer.ErrorCount++
 		}
 		responseContainer.EndpointResponses = append(responseContainer.EndpointResponses, EndpointResponse{
-			Function: "GetCachedAccountHoldings",
+			Function: "GetCachedAccountInfo",
 			Error:    msg,
-			Response: jsonifyInterface([]any{GetCachedAccountHoldingsResponse}),
+			Response: jsonifyInterface([]any{GetCachedAccountInfoResponse}),
 		})
 
 		var getFundingHistoryResponse []exchange.FundingHistory

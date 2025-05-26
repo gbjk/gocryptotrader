@@ -574,7 +574,7 @@ func (s *RPCServer) GetAccountInfo(ctx context.Context, r *gctrpc.GetAccountInfo
 		return nil, err
 	}
 
-	resp, err := exch.GetCachedAccountHoldings(ctx, assetType)
+	resp, err := exch.GetCachedAccountInfo(ctx, assetType)
 	if err != nil {
 		return nil, err
 	}
@@ -678,7 +678,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 		case <-init:
 		}
 
-		holdings, err := exch.GetCachedAccountHoldings(stream.Context(), assetType)
+		holdings, err := exch.GetCachedAccountInfo(stream.Context(), assetType)
 		if err != nil {
 			return err
 		}
@@ -4773,7 +4773,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	if !a.IsFutures() {
 		return nil, fmt.Errorf("%s %w", a, futures.ErrNotFuturesAsset)
 	}
-	ai, err := exch.GetCachedAccountHoldings(ctx, a)
+	ai, err := exch.GetCachedAccountInfo(ctx, a)
 	if err != nil {
 		return nil, err
 	}
