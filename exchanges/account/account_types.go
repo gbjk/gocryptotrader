@@ -12,8 +12,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-// Store holds ticker information for each individual exchange
-type Store struct {
+// store holds ticker information for each individual exchange
+type store struct {
 	exchangeAccounts map[string]*Accounts
 	mu               sync.Mutex
 	mux              *dispatch.Mux

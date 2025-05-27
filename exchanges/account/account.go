@@ -31,18 +31,18 @@ var (
 	errCannotUpdateBalance          = errors.New("cannot update balance")
 )
 
-var global atomic.Pointer[Store]
+var global atomic.Pointer[store]
 
 // NewStore returns a new store with the default global dispatcher mux
-func NewStore() *Store {
-	return &Store{
+func NewStore() *store {
+	return &store{
 		exchangeAccounts: make(map[string]*Accounts),
 		mux:              dispatch.GetNewMux(nil),
 	}
 }
 
 // GetStore returns the singleton accounts store for global use; Initialising if necessary
-func GetStore() *Store {
+func GetStore() *store {
 	if s := global.Load(); s != nil {
 		return s
 	}
@@ -50,7 +50,7 @@ func GetStore() *Store {
 	return global.Load()
 }
 
-// MustNewAccounts returns an initialized Accounts store for use in isolation from a global exchange accounts Store
+// MustNewAccounts returns an initialized Accounts store for use in isolation from a global exchange accounts store
 // Any errors in mux ID generation will panic, so users should balance risk vs utility accordingly depending on use-case
 func MustNewAccounts(eName string, mux *dispatch.Mux) *Accounts {
 	a, err := NewAccounts(eName, mux)
@@ -60,7 +60,7 @@ func MustNewAccounts(eName string, mux *dispatch.Mux) *Accounts {
 	return a
 }
 
-// NewAccounts returns an initialized Accounts store for use in isolation from a global exchange accounts Store
+// NewAccounts returns an initialized Accounts store for use in isolation from a global exchange accounts store
 func NewAccounts(exchange string, mux *dispatch.Mux) (*Accounts, error) {
 	id, err := mux.GetID()
 	if err != nil {
@@ -76,7 +76,7 @@ func NewAccounts(exchange string, mux *dispatch.Mux) (*Accounts, error) {
 
 // registerExchange adds a new empty shared account accounts entry for an exchange
 // must be called with s.mu locked
-func (s *Store) registerExchange(exch string) (*Accounts, error) {
+func (s *store) registerExchange(exch string) (*Accounts, error) {
 	exch = strings.ToLower(exch)
 	if _, ok := s.exchangeAccounts[exch]; ok {
 		return nil, errExchangeAlreadyExists
@@ -108,7 +108,7 @@ func CollectBalances(accountBalances map[string][]Balance, assetType asset.Item)
 }
 
 // GetExchangeAccounts returns accounts for a specific exchange
-func (s *Store) GetExchangeAccounts(e string) (a *Accounts, err error) {
+func (s *store) GetExchangeAccounts(e string) (a *Accounts, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if e == "" {
@@ -189,7 +189,7 @@ func (a *Accounts) GetHoldings(creds *Credentials, assetType asset.Item) (Holdin
 }
 
 // GetBalance returns the internal balance for that asset item.
-func (s *Store) GetBalance(exch, subAccount string, creds *Credentials, a asset.Item, c currency.Code) (*ProtectedBalance, error) {
+func (s *store) GetBalance(exch, subAccount string, creds *Credentials, a asset.Item, c currency.Code) (*ProtectedBalance, error) {
 	if exch == "" {
 		return nil, fmt.Errorf("cannot get balance: %w", errExchangeNameUnset)
 	}
