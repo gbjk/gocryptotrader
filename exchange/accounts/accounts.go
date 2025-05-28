@@ -3,7 +3,6 @@ package accounts
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -36,15 +35,20 @@ var (
 type Accounts struct {
 	Exchange    exchange
 	ID          uuid.UUID
-	subAccounts map[Credentials]SubAccountMap
+	subAccounts map[Credentials]map[key.SubAccountAsset]CurrencyBalances
 	mu          sync.RWMutex
 	mux         *dispatch.Mux
 }
 
-// SubAccountMap countains a map of SubAccounts with asset and 
-type SubAccountMap    map[key.SubAccountAsset]CurrencyBalances
-	CurrencyBalances map[*currency.Item]*Balance
-)
+type CurrencyBalances map[*currency.Item]*Balance
+
+// SubAccount defines a singular account type with associated currency balances
+type SubAccount struct {
+	ID          string
+	AssetType   asset.Item
+	Currencies  []Balance
+	credentials Credentials
+}
 
 // MustNewAccounts returns an initialized Accounts store for use in isolation from a global exchange accounts store
 // Any errors in mux ID generation will panic, so users should balance risk vs utility accordingly depending on use-case
@@ -64,7 +68,7 @@ func NewAccounts(e exchange, mux *dispatch.Mux) (*Accounts, error) {
 	}
 	return &Accounts{
 		Exchange:    e,
-		subAccounts: make(map[Credentials]map[key.SubAccountAsset]currencyBalances),
+		subAccounts: make(map[Credentials]map[key.SubAccountAsset]CurrencyBalances),
 		ID:          id,
 		mux:         mux,
 	}, nil
@@ -122,7 +126,7 @@ func (a *Accounts) GetHoldings(creds *Credentials, assetType asset.Item) ([]Bala
 	return b, nil
 }
 
-// GetBalance returns the internal balance for that asset item.
+// GetBalance returns the balance for that asset item
 func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset.Item, c currency.Code) (*ProtectedBalance, error) {
 	if !a.IsValid() {
 		return nil, fmt.Errorf("cannot get balance: %s %w", a, asset.ErrNotSupported)
@@ -136,32 +140,65 @@ func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset
 		return nil, fmt.Errorf("cannot get balance: %w", currency.ErrCurrencyCodeEmpty)
 	}
 
-	exch = strings.ToLower(exch)
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 
-	accounts, ok := s.exchangeAccounts[exch]
-	if !ok {
-		return nil, fmt.Errorf("%w for %s", ErrExchangeHoldingsNotFound, exch)
-	}
-
-	subAccounts, ok := accounts.subAccounts[*creds]
+	subAccounts, ok := a.subAccounts[*creds]
 	if !ok {
 		return nil, fmt.Errorf("%w for %s %s", errNoCredentialBalances, exch, creds)
 	}
 
 	assets, ok := subAccounts[key.SubAccountAsset{
 		SubAccount: subAccount,
-		Asset:      a,
+		Asset:      aType,
 	}]
 	if !ok {
-		return nil, fmt.Errorf("%w for %s SubAccount %q %s %s", errNoExchangeSubAccountBalances, exch, subAccount, a, c)
+		return nil, fmt.Errorf("%w for %s SubAccount %q %s %s", errNoExchangeSubAccountBalances, a.Exchange.GetName(), subAccount, a, c)
 	}
 	bal, ok := assets[c.Item]
 	if !ok {
-		return nil, fmt.Errorf("%w for %s SubAccount %q %s %s", errNoExchangeSubAccountBalances, exch, subAccount, a, c)
+		return nil, fmt.Errorf("%w for %s SubAccount %q %s %s", errNoExchangeSubAccountBalances, a.Exchange.GetName(), subAccount, a, c)
 	}
 	return bal, nil
+}
+
+// GetCurrencyBalances returns the currency balances for all sub accounts
+func (a *Accounts) GetCurrencyBalances() map[currency.Code]Balance {
+	b := map[currency.Code]Balance{}
+	for _, m := range a.subAccounts {
+		for subAcctAsset, currs := range m {
+			for _, bal := range currs {
+	TODO: Do we need these vars
+				currencyName := bal.Currency
+				total := bal.Total
+				onHold := bal.Hold
+				avail := bal.AvailableWithoutBorrow
+				free := bal.Free
+				borrowed := bal.Borrowed
+
+				info, ok := result[currencyName]
+				if !ok {
+					accountInfo := accounts.Balance{
+						Currency:               currencyName,
+						Total:                  total,
+						Hold:                   onHold,
+						Free:                   free,
+						AvailableWithoutBorrow: avail,
+						Borrowed:               borrowed,
+					}
+					result[currencyName] = accountInfo
+				} else {
+					info.Hold += onHold
+					info.Total += total
+					info.Free += free
+					info.AvailableWithoutBorrow += avail
+					info.Borrowed += borrowed
+					result[currencyName] = info
+				}
+			}
+		}
+	}
+	return result
 }
 
 // Save saves the holdings with new account info
