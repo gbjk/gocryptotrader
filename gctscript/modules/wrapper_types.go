@@ -35,7 +35,7 @@ type GCTExchange interface {
 	QueryOrder(ctx context.Context, exch, orderid string, pair currency.Pair, assetType asset.Item) (*order.Detail, error)
 	SubmitOrder(ctx context.Context, submit *order.Submit) (*order.SubmitResponse, error)
 	CancelOrder(ctx context.Context, exch, orderid string, pair currency.Pair, item asset.Item) (bool, error)
-	AccountInformation(ctx context.Context, exch string, assetType asset.Item) (account.Holdings, error)
+	AccountHoldings(ctx context.Context, assetType asset.Item) ([]account.SubAccount, error)
 	DepositAddress(exch, chain string, currencyCode currency.Code) (*deposit.Address, error)
 	WithdrawalFiatFunds(ctx context.Context, bankAccountID string, request *withdraw.Request) (out string, err error)
 	WithdrawalCryptoFunds(ctx context.Context, request *withdraw.Request) (out string, err error)

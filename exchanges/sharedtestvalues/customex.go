@@ -91,8 +91,8 @@ func (c *CustomEx) GetAvailablePairs(_ asset.Item) (currency.Pairs, error) {
 	return nil, nil
 }
 
-// UpdateAccountInfo is a mock method for CustomEx
-func (c *CustomEx) UpdateAccountInfo(_ context.Context, _ asset.Item) (account.Holdings, error) {
+// UpdateAccountHoldings is a mock method for CustomEx
+func (c *CustomEx) UpdateAccountHoldings(_ context.Context, _ asset.Item) (account.Holdings, error) {
 	return account.Holdings{}, nil
 }
 

@@ -257,9 +257,9 @@ func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 	return orderbook.Get(l.Name, p, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Lbank exchange
-func (l *Lbank) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+func (l *Lbank) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	data, err := l.GetUserInfo(ctx)
 	if err != nil {
@@ -824,7 +824,7 @@ func (l *Lbank) getAllOpenOrderID(ctx context.Context) (map[string][]string, err
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (l *Lbank) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := l.UpdateAccountInfo(ctx, assetType)
+	_, err := l.UpdateAccountHoldings(ctx, assetType)
 	return l.CheckTransientError(err)
 }
 

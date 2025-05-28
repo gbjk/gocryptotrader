@@ -3000,7 +3000,7 @@ func (f *FakeBase) UpdateOrderbook(context.Context, currency.Pair, asset.Item) (
 	return nil, nil
 }
 
-func (f *FakeBase) UpdateAccountInfo(context.Context, asset.Item) (account.Holdings, error) {
+func (f *FakeBase) UpdateAccountHoldings(context.Context, asset.Item) (account.Holdings, error) {
 	return account.Holdings{}, nil
 }
 

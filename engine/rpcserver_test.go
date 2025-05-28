@@ -391,9 +391,9 @@ func (f fExchange) CalculateTotalCollateral(context.Context, *futures.TotalColla
 	}, nil
 }
 
-// UpdateAccountInfo overrides testExchange's update account info function
+// UpdateAccountHoldings overrides testExchange's update account info function
 // to do the bare minimum required with no API calls or credentials required
-func (f fExchange) UpdateAccountInfo(_ context.Context, a asset.Item) (account.Holdings, error) {
+func (f fExchange) UpdateAccountHoldings(_ context.Context, a asset.Item) (account.Holdings, error) {
 	if a == asset.Futures {
 		return account.Holdings{}, asset.ErrNotSupported
 	}
@@ -1285,7 +1285,7 @@ func TestGetAccountInfo(t *testing.T) {
 	}
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountHoldings(t *testing.T) {
 	t.Parallel()
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(testExchange)
@@ -1313,12 +1313,12 @@ func TestUpdateAccountInfo(t *testing.T) {
 		t.Errorf("received '%v', expected '%v'", err, nil)
 	}
 
-	_, err = s.UpdateAccountInfo(t.Context(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Futures.String()})
+	_, err = s.UpdateAccountHoldings(t.Context(), &gctrpc.GetAccountInfoRequest{Exchange: fakeExchangeName, AssetType: asset.Futures.String()})
 	if !errors.Is(err, currency.ErrAssetNotFound) {
 		t.Errorf("received '%v', expected '%v'", err, currency.ErrAssetNotFound)
 	}
 
-	_, err = s.UpdateAccountInfo(t.Context(), &gctrpc.GetAccountInfoRequest{
+	_, err = s.UpdateAccountHoldings(t.Context(), &gctrpc.GetAccountInfoRequest{
 		Exchange:  fakeExchangeName,
 		AssetType: asset.Spot.String(),
 	})

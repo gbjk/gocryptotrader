@@ -241,9 +241,9 @@ func (b *Bitflyer) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	return orderbook.Get(b.Name, fPair, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies on the
+// UpdateAccountHoldings retrieves balances for all enabled currencies on the
 // Bitflyer exchange
-func (b *Bitflyer) UpdateAccountInfo(_ context.Context, _ asset.Item) (account.Holdings, error) {
+func (b *Bitflyer) UpdateAccountHoldings(_ context.Context, _ asset.Item) (account.Holdings, error) {
 	return account.Holdings{}, common.ErrNotYetImplemented
 }
 
@@ -389,7 +389,7 @@ func (b *Bitflyer) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBui
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (b *Bitflyer) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := b.UpdateAccountInfo(ctx, assetType)
+	_, err := b.UpdateAccountHoldings(ctx, assetType)
 	return b.CheckTransientError(err)
 }
 

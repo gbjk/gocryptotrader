@@ -1695,7 +1695,7 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountHoldings(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 	b := new(Binance) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
@@ -1710,7 +1710,7 @@ func TestUpdateAccountInfo(t *testing.T) {
 		assetType := items[i]
 		t.Run(fmt.Sprintf("Update info of account [%s]", assetType.String()), func(t *testing.T) {
 			t.Parallel()
-			_, err := b.UpdateAccountInfo(t.Context(), assetType)
+			_, err := b.UpdateAccountHoldings(t.Context(), assetType)
 			require.NoError(t, err)
 		})
 	}

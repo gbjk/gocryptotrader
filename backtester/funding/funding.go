@@ -578,7 +578,7 @@ func (f *FundManager) UpdateFundingFromLiveData(initialFundsSet bool) error {
 				continue
 			}
 			var acc account.Holdings
-			acc, err = exchanges[x].UpdateAccountInfo(context.TODO(), assets[y])
+			acc, err = exchanges[x].UpdateAccountHoldings(context.TODO(), assets[y])
 			if err != nil {
 				return err
 			}

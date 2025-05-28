@@ -569,9 +569,9 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	return orderbook.Get(b.Name, p, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Binance exchange
-func (b *Binance) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+func (b *Binance) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	var acc account.SubAccount
 	acc.AssetType = assetType
@@ -1614,7 +1614,7 @@ func (b *Binance) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (b *Binance) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := b.UpdateAccountInfo(ctx, assetType)
+	_, err := b.UpdateAccountHoldings(ctx, assetType)
 	return b.CheckTransientError(err)
 }
 

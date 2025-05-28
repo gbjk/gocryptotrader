@@ -1,4 +1,4 @@
-package account
+package accounts
 
 import (
 	"testing"
@@ -13,22 +13,17 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-var happyCredentials = &Credentials{Key: "AAAAA"}
+type MockEx struct{}
 
-func TestNewStore(t *testing.T) {
-	t.Parallel()
-	require.NotNil(t, NewStore())
+// GetName returns exchange name
+func (_ *MockEx) GetName() string {
+	return "mocky"
 }
 
-func TestGetStore(t *testing.T) {
-	t.Parallel()
-	// Initialize global in case of -count=N+; No other tests should be relying on it
-	global.Store(nil)
-	s := GetStore()
-	require.NotNil(t, s)
-	require.Same(t, global.Load(), s, "GetStore must initialize the store")
-	require.Same(t, s, GetStore(), "GetStore must return the global store on second call")
-}
+var (
+	happyCredentials = &Credentials{Key: "AAAAA"}
+	m                = &MockEx{}
+)
 
 func TestCollectBalances(t *testing.T) {
 	t.Parallel()
@@ -64,19 +59,14 @@ func TestCollectBalances(t *testing.T) {
 func TestGetHoldings(t *testing.T) {
 	t.Parallel()
 
-	a, err := NewAccounts("Test", dispatch.GetNewMux(nil))
-	require.NoError(t, err, "NewAccounts must not error")
+	a := MustNewAccounts(m, dispatch.GetNewMux(nil))
 
-	h := &Holdings{
-		Exchange: "Test",
-		Accounts: []SubAccount{},
-	}
-	require.NoError(t, a.Save(h, happyCredentials), "Save must not error")
+	require.NoError(t, a.Save([]SubAccount{}, happyCredentials), "Save must not error")
 
-	_, err = a.GetHoldings(happyCredentials, asset.Options)
+	_, err := a.GetHoldings(happyCredentials, asset.Options)
 	require.ErrorIs(t, err, ErrExchangeHoldingsNotFound)
 
-	h.Accounts = []SubAccount{
+	s := []SubAccount{
 		{
 			AssetType: asset.UpsideProfitContract,
 			ID:        "1337",
@@ -93,10 +83,10 @@ func TestGetHoldings(t *testing.T) {
 			},
 		},
 	}
-	require.NoError(t, a.Save(h, happyCredentials), "Save must not error")
+	require.NoError(t, a.Save(s, happyCredentials), "Save must not error")
 
 	_, err = a.GetHoldings(nil, asset.Spot)
-	assert.ErrorIs(t, err, errCredentialsAreNil)
+	assert.ErrorIs(t, err, errCredentialsEmpty)
 
 	_, err = a.GetHoldings(happyCredentials, asset.Empty)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
@@ -107,78 +97,62 @@ func TestGetHoldings(t *testing.T) {
 	u, err := a.GetHoldings(happyCredentials, asset.Spot)
 	require.NoError(t, err)
 
-	assert.Equal(t, "test", u.Exchange)
-	require.Len(t, u.Accounts, 1)
-	assert.Equal(t, "1337", u.Accounts[0].ID)
-	assert.Equal(t, asset.Spot, u.Accounts[0].AssetType)
-	require.Len(t, u.Accounts[0].Currencies, 1)
-	assert.Equal(t, currency.BTC, u.Accounts[0].Currencies[0].Currency)
-	assert.Equal(t, 100.0, u.Accounts[0].Currencies[0].Total)
-	assert.Equal(t, 20.0, u.Accounts[0].Currencies[0].Hold)
+	require.Len(t, u, 1)
+	assert.Equal(t, "1337", u[0].ID)
+	assert.Equal(t, asset.Spot, u[0].AssetType)
+	require.Len(t, u[0].Currencies, 1)
+	assert.Equal(t, currency.BTC, u[0].Currencies[0].Currency)
+	assert.Equal(t, 100.0, u[0].Currencies[0].Total)
+	assert.Equal(t, 20.0, u[0].Currencies[0].Hold)
 }
 
 func TestGetBalance(t *testing.T) {
 	t.Parallel()
 
-	s := NewStore()
+	a := MustNewAccounts(m, dispatch.GetNewMux(nil))
 
-	_, err := s.GetBalance("", "", nil, asset.Empty, currency.Code{})
-	assert.ErrorIs(t, err, errExchangeNameUnset)
-
-	_, err = s.GetBalance("bruh", "", nil, asset.Empty, currency.Code{})
+	_, err := a.GetBalance("", nil, asset.Empty, currency.Code{})
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
 
-	_, err = s.GetBalance("bruh", "", nil, asset.Spot, currency.Code{})
-	assert.ErrorIs(t, err, errCredentialsAreNil)
+	_, err = a.GetBalance("", nil, asset.Spot, currency.Code{})
+	assert.ErrorIs(t, err, errCredentialsEmpty)
 
-	_, err = s.GetBalance("bruh", "", happyCredentials, asset.Spot, currency.Code{})
+	_, err = a.GetBalance("", happyCredentials, asset.Spot, currency.Code{})
 	assert.ErrorIs(t, err, currency.ErrCurrencyCodeEmpty)
 
-	_, err = s.GetBalance("bruh", "", happyCredentials, asset.Spot, currency.BTC)
-	assert.ErrorIs(t, err, ErrExchangeHoldingsNotFound)
-
-	a, err := s.GetExchangeAccounts("bruh")
-	require.NoError(t, err, "GetExchangeAccounts must not error")
-
-	err = a.Save(&Holdings{
-		Exchange: "bruh",
-		Accounts: []SubAccount{
-			{
-				AssetType: asset.Spot,
-				ID:        "1337",
-			},
+	err = a.Save([]SubAccount{
+		{
+			AssetType: asset.Spot,
+			ID:        "1337",
 		},
 	}, happyCredentials)
 	require.NoError(t, err, "Save must not error")
 
-	_, err = s.GetBalance("bruh", "1336", &Credentials{Key: "BBBBB"}, asset.Spot, currency.BTC)
+	_, err = a.GetBalance("1336", &Credentials{Key: "BBBBB"}, asset.Spot, currency.BTC)
 	assert.ErrorIs(t, err, errNoCredentialBalances)
 
-	_, err = s.GetBalance("bruh", "1336", happyCredentials, asset.Spot, currency.BTC)
+	_, err = a.GetBalance("1336", happyCredentials, asset.Spot, currency.BTC)
 	assert.ErrorIs(t, err, errNoExchangeSubAccountBalances)
 
-	_, err = s.GetBalance("bruh", "1337", happyCredentials, asset.Futures, currency.BTC)
+	_, err = a.GetBalance("1337", happyCredentials, asset.Futures, currency.BTC)
 	assert.ErrorIs(t, err, errNoExchangeSubAccountBalances)
 
-	err = a.Save(&Holdings{
-		Exchange: "bruh",
-		Accounts: []SubAccount{
-			{
-				AssetType: asset.Spot,
-				ID:        "1337",
-				Currencies: []Balance{
-					{
-						Currency: currency.BTC,
-						Total:    2,
-						Hold:     1,
-					},
+	err = a.Save([]SubAccount{
+		{
+			AssetType: asset.Spot,
+			ID:        "1337",
+			Currencies: []Balance{
+				{
+					Currency: currency.BTC,
+					Total:    2,
+					Hold:     1,
 				},
 			},
 		},
 	}, happyCredentials)
 	require.NoError(t, err, "Save must not error")
 
-	bal, err := s.GetBalance("bruh", "1337", happyCredentials, asset.Spot, currency.BTC)
+	bal, err := a.GetBalance("1337", happyCredentials, asset.Spot, currency.BTC)
 	require.NoError(t, err, "get balance must not error")
 
 	bal.m.Lock()
@@ -247,16 +221,18 @@ func TestGetFree(t *testing.T) {
 func TestSave(t *testing.T) {
 	t.Parallel()
 
-	a, err := NewAccounts("Test", dispatch.GetNewMux(nil))
-	require.NoError(t, err, "NewAccounts must not error")
-
-	err = a.Save(nil, nil)
+	s := []SubAccount{}
+	err := (*Accounts)(nil).Save(s, nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer)
-	assert.ErrorContains(t, err, "*account.Holdings")
+	assert.ErrorContains(t, err, "*account.Accounts")
 
-	err = new(Accounts).Save(&Holdings{}, nil)
-	assert.ErrorIs(t, err, common.ErrNilPointer)
-	assert.ErrorContains(t, err, "*account.ProtectedBalance")
+	err = new(Accounts).Save(s, nil)
+	assert.ErrorIs(t, err, errNoExchangeSubAccountBalances)
+
+	a := MustNewAccounts(m, dispatch.GetNewMux(nil))
+
+	err = a.Save(s, nil)
+	assert.ErrorIs(t, err, errCredentialsEmpty)
 
 	err = dispatch.Start(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
 	require.NoError(t, common.ExcludeError(err, dispatch.ErrDispatcherAlreadyRunning), "dispatch.Start must not error")
@@ -266,23 +242,16 @@ func TestSave(t *testing.T) {
 	require.NotNil(t, p, "Subscribe must return a pipe")
 	require.Empty(t, p.Channel(), "Pipe must be empty before Saving anything")
 
-	h := &Holdings{
-		Exchange: "TeSt",
-		Accounts: []SubAccount{
-			{
-				AssetType:  6969,
-				ID:         "1337",
-				Currencies: []Balance{{Currency: currency.BTC, Total: 100, Hold: 20}},
-			},
-			{ID: "1338", AssetType: asset.Options},
-		},
+	s = []SubAccount{
+		{AssetType: 6969, ID: "1337", Currencies: []Balance{{Currency: currency.BTC, Total: 100, Hold: 20}}},
+		{ID: "1338", AssetType: asset.Options},
 	}
 
-	assert.ErrorIs(t, a.Save(h, nil), errCredentialsAreNil)
-	assert.ErrorIs(t, a.Save(h, happyCredentials), asset.ErrNotSupported)
+	assert.ErrorIs(t, a.Save(s, nil), errCredentialsEmpty)
+	assert.ErrorIs(t, a.Save(s, happyCredentials), asset.ErrNotSupported)
 
-	h.Accounts[0].AssetType = asset.Spot
-	require.NoError(t, a.Save(h, happyCredentials))
+	s[0].AssetType = asset.Spot
+	require.NoError(t, a.Save(s, happyCredentials))
 
 	updates := map[asset.Item]SubAccount{}
 	require.Eventually(t, func() bool {
@@ -295,9 +264,9 @@ func TestSave(t *testing.T) {
 	}, time.Second, time.Millisecond*10, "Save must publish 2 saves through dispatch channel to subscriber")
 
 	require.Contains(t, updates, asset.Spot, "Save must publish Spot asset update")
-	require.Equal(t, h.Accounts[0], updates[asset.Spot], "Save published Spot update must be correct")
+	require.Equal(t, s[0], updates[asset.Spot], "Save published Spot update must be correct")
 	require.Contains(t, updates, asset.Options, "Save must publish Options asset update")
-	require.Equal(t, h.Accounts[1], updates[asset.Options], "Save published Options update must be correct")
+	require.Equal(t, s[1], updates[asset.Options], "Save published Options update must be correct")
 	require.NoError(t, p.Release(), "Releasing the subscription must not error")
 
 	assets, ok := a.subAccounts[*happyCredentials][key.SubAccountAsset{
@@ -313,8 +282,8 @@ func TestSave(t *testing.T) {
 	assert.Equal(t, 100.0, b.total)
 	assert.Equal(t, 20.0, b.hold)
 
-	h.Accounts[0].Currencies[0] = Balance{Currency: currency.ETH, Total: 80, Hold: 20}
-	require.NoError(t, a.Save(h, happyCredentials))
+	s[0].Currencies[0] = Balance{Currency: currency.ETH, Total: 80, Hold: 20}
+	require.NoError(t, a.Save(s, happyCredentials))
 
 	b, ok = assets[currency.BTC.Item]
 	require.True(t, ok)
@@ -328,13 +297,13 @@ func TestSave(t *testing.T) {
 	assert.Equal(t, 80.0, e.total)
 	assert.Equal(t, 20.0, e.hold)
 
-	h.Accounts[0].Currencies[0].UpdatedAt = time.Now().Add(-time.Hour)
-	err = a.Save(h, happyCredentials)
+	s[0].Currencies[0].UpdatedAt = time.Now().Add(-time.Hour)
+	err = a.Save(s, happyCredentials)
 	assert.ErrorIs(t, err, errOutOfSequence)
 
 	a.mux = nil
-	h.Accounts[0].Currencies[0].UpdatedAt = time.Now()
-	err = a.Save(h, happyCredentials)
+	s[0].Currencies[0].UpdatedAt = time.Now()
+	err = a.Save(s, happyCredentials)
 	assert.ErrorIs(t, err, common.ErrNilPointer)
 	assert.ErrorContains(t, err, "*dispatch.Mux")
 }
@@ -342,17 +311,16 @@ func TestSave(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	t.Parallel()
 
-	a, err := NewAccounts("Test", dispatch.GetNewMux(nil))
-	require.NoError(t, err, "NewAccounts must not error")
-
-	err = dispatch.Start(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
+	err := dispatch.Start(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
 	require.NoError(t, common.ExcludeError(err, dispatch.ErrDispatcherAlreadyRunning), "dispatch.Start must not error")
+
+	a := MustNewAccounts(m, dispatch.GetNewMux(nil))
 
 	require.ErrorIs(t, (*Accounts)(nil).Update(nil, nil), common.ErrNilPointer)
 	require.ErrorIs(t, new(Accounts).Update(nil, nil), common.ErrNilPointer)
 
 	err = a.Update(nil, nil)
-	assert.ErrorIs(t, err, errCredentialsAreNil)
+	assert.ErrorIs(t, err, errCredentialsEmpty)
 
 	err = a.Update([]Change{{AssetType: 6969}}, happyCredentials)
 	assert.ErrorIs(t, err, asset.ErrNotSupported)
@@ -444,15 +412,16 @@ func TestUpdate(t *testing.T) {
 
 func TestTrackNewAccounts(t *testing.T) {
 	t.Parallel()
+
 	s := NewStore()
 
 	s.mu.Lock()
-	_, err := s.registerExchange("binance")
+	_, err := s.registerExchange(m)
 	s.mu.Unlock()
 	require.NoError(t, err)
 
 	s.mu.Lock()
-	_, err = s.registerExchange("binance")
+	_, err = s.registerExchange(m)
 	s.mu.Unlock()
 	assert.ErrorIs(t, err, errExchangeAlreadyExists)
 }
@@ -462,13 +431,10 @@ func TestTrackNewAccounts(t *testing.T) {
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
 
-	a, err := NewAccounts("Test", dispatch.GetNewMux(nil))
-	require.NoError(t, err, "NewAccounts must not error")
-
-	err = dispatch.Start(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
+	err := dispatch.Start(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
 	require.NoError(t, common.ExcludeError(err, dispatch.ErrDispatcherAlreadyRunning), "dispatch.Start must not error")
 
-	p, err := a.Subscribe()
+	p, err := MustNewAccounts(m, dispatch.GetNewMux(nil)).Subscribe()
 	require.NoError(t, err)
 	require.NotNil(t, p, "Subscribe must return a pipe")
 	require.Empty(t, p.Channel(), "Pipe must be empty before Saving anything")

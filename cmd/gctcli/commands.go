@@ -753,7 +753,7 @@ func updateAccountInfo(c *cli.Context) error {
 	defer closeConn(conn, cancel)
 
 	client := gctrpc.NewGoCryptoTraderServiceClient(conn)
-	result, err := client.UpdateAccountInfo(c.Context,
+	result, err := client.UpdateAccountHoldings(c.Context,
 		&gctrpc.GetAccountInfoRequest{
 			Exchange:  exchange,
 			AssetType: assetType,

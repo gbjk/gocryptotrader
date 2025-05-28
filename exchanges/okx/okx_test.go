@@ -3362,10 +3362,10 @@ func TestUpdateOrderbook(t *testing.T) {
 	}
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountHoldings(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, ok)
-	result, err := ok.UpdateAccountInfo(contextGenerate(), asset.Spot)
+	result, err := ok.UpdateAccountHoldings(contextGenerate(), asset.Spot)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }

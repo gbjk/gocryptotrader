@@ -299,9 +299,9 @@ func (b *Bithumb) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	return orderbook.Get(b.Name, p, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Bithumb exchange
-func (b *Bithumb) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+func (b *Bithumb) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	bal, err := b.GetAccountBalance(ctx, "ALL")
 	if err != nil {
@@ -740,7 +740,7 @@ func (b *Bithumb) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequ
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (b *Bithumb) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := b.UpdateAccountInfo(ctx, assetType)
+	_, err := b.UpdateAccountHoldings(ctx, assetType)
 	return b.CheckTransientError(err)
 }
 

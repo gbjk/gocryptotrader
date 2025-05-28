@@ -1,12 +1,13 @@
-package account
+package accounts
 
 import (
 	"errors"
 	"fmt"
 	"strings"
-	"sync/atomic"
+	"sync"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -23,7 +24,7 @@ var (
 	errExchangeNameUnset            = errors.New("exchange name unset")
 	errNoExchangeSubAccountBalances = errors.New("no exchange sub account balances")
 	errNoCredentialBalances         = errors.New("no balances associated with credentials")
-	errCredentialsAreNil            = errors.New("credentials are nil")
+	errCredentialsEmpty             = errors.New("credentials are nil")
 	errOutOfSequence                = errors.New("out of sequence")
 	errUpdatedAtIsZero              = errors.New("updatedAt may not be zero")
 	errLoadingBalance               = errors.New("error loading balance")
@@ -31,29 +32,24 @@ var (
 	errCannotUpdateBalance          = errors.New("cannot update balance")
 )
 
-var global atomic.Pointer[store]
-
-// NewStore returns a new store with the default global dispatcher mux
-func NewStore() *store {
-	return &store{
-		exchangeAccounts: make(map[string]*Accounts),
-		mux:              dispatch.GetNewMux(nil),
-	}
+// Accounts holds a stream ID and a map to the exchange holdings
+type Accounts struct {
+	Exchange    exchange
+	ID          uuid.UUID
+	subAccounts map[Credentials]SubAccountMap
+	mu          sync.RWMutex
+	mux         *dispatch.Mux
 }
 
-// GetStore returns the singleton accounts store for global use; Initialising if necessary
-func GetStore() *store {
-	if s := global.Load(); s != nil {
-		return s
-	}
-	_ = global.CompareAndSwap(nil, NewStore())
-	return global.Load()
-}
+// SubAccountMap countains a map of SubAccounts with asset and 
+type SubAccountMap    map[key.SubAccountAsset]CurrencyBalances
+	CurrencyBalances map[*currency.Item]*Balance
+)
 
 // MustNewAccounts returns an initialized Accounts store for use in isolation from a global exchange accounts store
 // Any errors in mux ID generation will panic, so users should balance risk vs utility accordingly depending on use-case
-func MustNewAccounts(eName string, mux *dispatch.Mux) *Accounts {
-	a, err := NewAccounts(eName, mux)
+func MustNewAccounts(e exchange, mux *dispatch.Mux) *Accounts {
+	a, err := NewAccounts(e, mux)
 	if err != nil {
 		panic(err)
 	}
@@ -61,66 +57,17 @@ func MustNewAccounts(eName string, mux *dispatch.Mux) *Accounts {
 }
 
 // NewAccounts returns an initialized Accounts store for use in isolation from a global exchange accounts store
-func NewAccounts(exchange string, mux *dispatch.Mux) (*Accounts, error) {
+func NewAccounts(e exchange, mux *dispatch.Mux) (*Accounts, error) {
 	id, err := mux.GetID()
 	if err != nil {
 		return nil, err
 	}
 	return &Accounts{
-		Exchange:    strings.ToLower(exchange),
+		Exchange:    e,
 		subAccounts: make(map[Credentials]map[key.SubAccountAsset]currencyBalances),
 		ID:          id,
 		mux:         mux,
 	}, nil
-}
-
-// registerExchange adds a new empty shared account accounts entry for an exchange
-// must be called with s.mu locked
-func (s *store) registerExchange(exch string) (*Accounts, error) {
-	exch = strings.ToLower(exch)
-	if _, ok := s.exchangeAccounts[exch]; ok {
-		return nil, errExchangeAlreadyExists
-	}
-	a, err := NewAccounts(exch, s.mux)
-	s.exchangeAccounts[exch] = a
-	return a, err
-}
-
-// CollectBalances converts a map of sub-account balances into a slice
-func CollectBalances(accountBalances map[string][]Balance, assetType asset.Item) (accounts []SubAccount, err error) {
-	if err := common.NilGuard(accountBalances); err != nil {
-		return nil, err
-	}
-
-	if !assetType.IsValid() {
-		return nil, fmt.Errorf("%s, %w", assetType, asset.ErrNotSupported)
-	}
-
-	accounts = make([]SubAccount, 0, len(accountBalances))
-	for accountID, balances := range accountBalances {
-		accounts = append(accounts, SubAccount{
-			ID:         accountID,
-			AssetType:  assetType,
-			Currencies: balances,
-		})
-	}
-	return
-}
-
-// GetExchangeAccounts returns accounts for a specific exchange
-func (s *store) GetExchangeAccounts(e string) (a *Accounts, err error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if e == "" {
-		return nil, errExchangeNameUnset
-	}
-	a, ok := s.exchangeAccounts[strings.ToLower(e)]
-	if !ok {
-		if a, err = s.registerExchange(e); err != nil {
-			return nil, fmt.Errorf("error subscribing to `%s` exchange account: %w", e, err)
-		}
-	}
-	return a, nil
 }
 
 // Subscribe subscribes to your exchange accounts
@@ -128,36 +75,36 @@ func (a *Accounts) Subscribe() (dispatch.Pipe, error) {
 	return a.mux.Subscribe(a.ID)
 }
 
-// GetHoldings returns full holdings for an exchange.
+// GetHoldings returns the Balances
 // NOTE: Due to credentials these amounts could be N*APIKEY actual holdings.
 // TODO: Add jurisdiction and differentiation between APIKEY holdings.
-func (a *Accounts) GetHoldings(creds *Credentials, assetType asset.Item) (Holdings, error) {
+func (a *Accounts) GetHoldings(creds *Credentials, assetType asset.Item) ([]Balance, error) {
 	if err := common.NilGuard(a); err != nil {
-		return Holdings{}, err
+		return nil, err
 	}
 
 	if creds.IsEmpty() {
-		return Holdings{}, fmt.Errorf("%s %s %w", a.Exchange, assetType, errCredentialsAreNil)
+		return nil, fmt.Errorf("%s %s %w", a.Exchange, assetType, errCredentialsEmpty)
 	}
 
 	if !assetType.IsValid() {
-		return Holdings{}, fmt.Errorf("%s %s %w", a.Exchange, assetType, asset.ErrNotSupported)
+		return nil, fmt.Errorf("%s %s %w", a.Exchange, assetType, asset.ErrNotSupported)
 	}
 
 	subAccountHoldings, ok := a.subAccounts[*creds]
 	if !ok {
-		return Holdings{}, fmt.Errorf("%s %s %s %w %w", a.Exchange, creds, assetType, errNoCredentialBalances, ErrExchangeHoldingsNotFound)
+		return nil, fmt.Errorf("%s %s %s %w %w", a.Exchange, creds, assetType, errNoCredentialBalances, ErrExchangeHoldingsNotFound)
 	}
 
-	currencyBalances := make([]Balance, 0, len(subAccountHoldings))
-	cpy := *creds
+	var b []Balance
+
 	for mapKey, assets := range subAccountHoldings {
 		if mapKey.Asset != assetType {
 			continue
 		}
 		for currItem, bal := range assets {
 			bal.m.Lock()
-			currencyBalances = append(currencyBalances, Balance{
+			b = append(b, Balance{
 				Currency:               currItem.Currency().Upper(),
 				Total:                  bal.total,
 				Hold:                   bal.hold,
@@ -168,38 +115,21 @@ func (a *Accounts) GetHoldings(creds *Credentials, assetType asset.Item) (Holdin
 			})
 			bal.m.Unlock()
 		}
-		if cpy.SubAccount == "" && mapKey.SubAccount != "" {
-			// TODO: fix this backwards population
-			// the subAccount here may not be associated with the balance across all subAccountHoldings
-			cpy.SubAccount = mapKey.SubAccount
-		}
 	}
-	if len(currencyBalances) == 0 {
-		return Holdings{}, fmt.Errorf("%s %s %w", a.Exchange, assetType, ErrExchangeHoldingsNotFound)
+	if len(b) == 0 {
+		return nil, fmt.Errorf("%s %s %w", a.Exchange, assetType, ErrExchangeHoldingsNotFound)
 	}
-	return Holdings{
-		Exchange: a.Exchange,
-		Accounts: []SubAccount{{
-			Credentials: Protected{creds: cpy},
-			ID:          cpy.SubAccount,
-			AssetType:   assetType,
-			Currencies:  currencyBalances,
-		}},
-	}, nil
+	return b, nil
 }
 
 // GetBalance returns the internal balance for that asset item.
-func (s *store) GetBalance(exch, subAccount string, creds *Credentials, a asset.Item, c currency.Code) (*ProtectedBalance, error) {
-	if exch == "" {
-		return nil, fmt.Errorf("cannot get balance: %w", errExchangeNameUnset)
-	}
-
+func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset.Item, c currency.Code) (*ProtectedBalance, error) {
 	if !a.IsValid() {
 		return nil, fmt.Errorf("cannot get balance: %s %w", a, asset.ErrNotSupported)
 	}
 
 	if creds.IsEmpty() {
-		return nil, fmt.Errorf("cannot get balance: %w", errCredentialsAreNil)
+		return nil, fmt.Errorf("cannot get balance: %w", errCredentialsEmpty)
 	}
 
 	if c.IsEmpty() {
@@ -246,7 +176,7 @@ func (a *Accounts) Save(h *Holdings, creds *Credentials) error {
 	}
 
 	if creds.IsEmpty() {
-		return fmt.Errorf("cannot save holdings: %w", errCredentialsAreNil)
+		return fmt.Errorf("cannot save holdings: %w", errCredentialsEmpty)
 	}
 
 	a.mu.Lock()
@@ -333,7 +263,7 @@ func (a *Accounts) Update(changes []Change, creds *Credentials) error {
 		return fmt.Errorf("cannot save holdings: %w", err)
 	}
 	if creds.IsEmpty() {
-		return fmt.Errorf("%w: %w", errCannotUpdateBalance, errCredentialsAreNil)
+		return fmt.Errorf("%w: %w", errCannotUpdateBalance, errCredentialsEmpty)
 	}
 
 	a.mu.Lock()

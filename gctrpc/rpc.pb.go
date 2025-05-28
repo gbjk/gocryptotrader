@@ -16387,7 +16387,7 @@ const file_rpc_proto_rawDesc = "" +
 	"\fGetOrderbook\x12\x1b.gctrpc.GetOrderbookRequest\x1a\x19.gctrpc.OrderbookResponse\"\x1b\x82\xd3\xe4\x93\x02\x15:\x01*\"\x10/v1/getorderbook\x12g\n" +
 	"\rGetOrderbooks\x12\x1c.gctrpc.GetOrderbooksRequest\x1a\x1d.gctrpc.GetOrderbooksResponse\"\x19\x82\xd3\xe4\x93\x02\x13\x12\x11/v1/getorderbooks\x12k\n" +
 	"\x0eGetAccountInfo\x12\x1d.gctrpc.GetAccountInfoRequest\x1a\x1e.gctrpc.GetAccountInfoResponse\"\x1a\x82\xd3\xe4\x93\x02\x14\x12\x12/v1/getaccountinfo\x12q\n" +
-	"\x11UpdateAccountInfo\x12\x1d.gctrpc.GetAccountInfoRequest\x1a\x1e.gctrpc.GetAccountInfoResponse\"\x1d\x82\xd3\xe4\x93\x02\x17\x12\x15/v1/updateaccountinfo\x12y\n" +
+	"\x11UpdateAccountHoldings\x12\x1d.gctrpc.GetAccountInfoRequest\x1a\x1e.gctrpc.GetAccountInfoResponse\"\x1d\x82\xd3\xe4\x93\x02\x17\x12\x15/v1/updateaccountinfo\x12y\n" +
 	"\x14GetAccountInfoStream\x12\x1d.gctrpc.GetAccountInfoRequest\x1a\x1e.gctrpc.GetAccountInfoResponse\" \x82\xd3\xe4\x93\x02\x1a\x12\x18/v1/getaccountinfostream0\x01\x12W\n" +
 	"\tGetConfig\x12\x18.gctrpc.GetConfigRequest\x1a\x19.gctrpc.GetConfigResponse\"\x15\x82\xd3\xe4\x93\x02\x0f\x12\r/v1/getconfig\x12c\n" +
 	"\fGetPortfolio\x12\x1b.gctrpc.GetPortfolioRequest\x1a\x1c.gctrpc.GetPortfolioResponse\"\x18\x82\xd3\xe4\x93\x02\x12\x12\x10/v1/getportfolio\x12\x7f\n" +
@@ -16916,7 +16916,7 @@ var file_rpc_proto_depIdxs = []int32{
 	26,  // 170: gctrpc.GoCryptoTraderService.GetOrderbook:input_type -> gctrpc.GetOrderbookRequest
 	29,  // 171: gctrpc.GoCryptoTraderService.GetOrderbooks:input_type -> gctrpc.GetOrderbooksRequest
 	32,  // 172: gctrpc.GoCryptoTraderService.GetAccountInfo:input_type -> gctrpc.GetAccountInfoRequest
-	32,  // 173: gctrpc.GoCryptoTraderService.UpdateAccountInfo:input_type -> gctrpc.GetAccountInfoRequest
+	32,  // 173: gctrpc.GoCryptoTraderService.UpdateAccountHoldings:input_type -> gctrpc.GetAccountInfoRequest
 	32,  // 174: gctrpc.GoCryptoTraderService.GetAccountInfoStream:input_type -> gctrpc.GetAccountInfoRequest
 	36,  // 175: gctrpc.GoCryptoTraderService.GetConfig:input_type -> gctrpc.GetConfigRequest
 	39,  // 176: gctrpc.GoCryptoTraderService.GetPortfolio:input_type -> gctrpc.GetPortfolioRequest
@@ -17031,7 +17031,7 @@ var file_rpc_proto_depIdxs = []int32{
 	28,  // 285: gctrpc.GoCryptoTraderService.GetOrderbook:output_type -> gctrpc.OrderbookResponse
 	31,  // 286: gctrpc.GoCryptoTraderService.GetOrderbooks:output_type -> gctrpc.GetOrderbooksResponse
 	35,  // 287: gctrpc.GoCryptoTraderService.GetAccountInfo:output_type -> gctrpc.GetAccountInfoResponse
-	35,  // 288: gctrpc.GoCryptoTraderService.UpdateAccountInfo:output_type -> gctrpc.GetAccountInfoResponse
+	35,  // 288: gctrpc.GoCryptoTraderService.UpdateAccountHoldings:output_type -> gctrpc.GetAccountInfoResponse
 	35,  // 289: gctrpc.GoCryptoTraderService.GetAccountInfoStream:output_type -> gctrpc.GetAccountInfoResponse
 	37,  // 290: gctrpc.GoCryptoTraderService.GetConfig:output_type -> gctrpc.GetConfigResponse
 	40,  // 291: gctrpc.GoCryptoTraderService.GetPortfolio:output_type -> gctrpc.GetPortfolioResponse

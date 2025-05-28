@@ -239,7 +239,7 @@ func ExchangePairs(args ...objects.Object) (objects.Object, error) {
 	return &r, nil
 }
 
-// ExchangeAccountInfo returns account information for requested exchange
+// ExchangeAccountInfo returns account holdings for requested exchange
 func ExchangeAccountInfo(args ...objects.Object) (objects.Object, error) {
 	if len(args) != 3 {
 		return nil, objects.ErrWrongNumArguments
@@ -263,25 +263,24 @@ func ExchangeAccountInfo(args ...objects.Object) (objects.Object, error) {
 	}
 
 	ctx := processScriptContext(scriptCtx)
-	rtnValue, err := wrappers.GetWrapper().
-		AccountInformation(ctx, exchangeName, assetType)
+	rtnValue, err := wrappers.GetWrapper().AccountHoldings(ctx, assetType)
 	if err != nil {
 		return errorResponsef(standardFormatting, err)
 	}
 
 	var funds objects.Array
-	for x := range rtnValue.Accounts {
-		for y := range rtnValue.Accounts[x].Currencies {
+	for i := range rtnValue {
+		for j := range rtnValue[i].Currencies {
 			temp := make(map[string]objects.Object, 3)
-			temp["name"] = &objects.String{Value: rtnValue.Accounts[x].Currencies[y].Currency.String()}
-			temp["total"] = &objects.Float{Value: rtnValue.Accounts[x].Currencies[y].Total}
-			temp["hold"] = &objects.Float{Value: rtnValue.Accounts[x].Currencies[y].Hold}
+			temp["name"] = &objects.String{Value: rtnValue[i].Currencies[j].Currency.String()}
+			temp["total"] = &objects.Float{Value: rtnValue[i].Currencies[j].Total}
+			temp["hold"] = &objects.Float{Value: rtnValue[i].Currencies[j].Hold}
 			funds.Value = append(funds.Value, &objects.Map{Value: temp})
 		}
 	}
 
 	data := make(map[string]objects.Object, 2)
-	data["exchange"] = &objects.String{Value: rtnValue.Exchange}
+	data["exchange"] = &objects.String{Value: exchangeName}
 	data["currencies"] = &funds
 	return &objects.Map{Value: data}, nil
 }

@@ -185,7 +185,6 @@ message AccountCurrencyInfo {
 }
 
 message GetAccountInfoResponse {
-  string exchange = 1;
   repeated Account accounts = 2;
 }
 
@@ -1612,7 +1611,7 @@ service GoCryptoTraderService {
     option (google.api.http) = {get: "/v1/getaccountinfo"};
   }
 
-  rpc UpdateAccountInfo(GetAccountInfoRequest) returns (GetAccountInfoResponse) {
+  rpc UpdateAccountHoldings(GetAccountInfoRequest) returns (GetAccountInfoResponse) {
     option (google.api.http) = {get: "/v1/updateaccountinfo"};
   }
 

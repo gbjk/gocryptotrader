@@ -3009,7 +3009,7 @@ func TestGetBrokerEarning(t *testing.T) {
 	}
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountHoldings(t *testing.T) {
 	t.Parallel()
 	if !mockTests {
 		sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
@@ -3017,9 +3017,9 @@ func TestUpdateAccountInfo(t *testing.T) {
 
 	b := testInstance() //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 
-	r, err := b.UpdateAccountInfo(t.Context(), asset.Spot)
-	require.NoError(t, err, "UpdateAccountInfo should not error")
-	require.NotEmpty(t, r, "UpdateAccountInfo should return account info")
+	r, err := b.UpdateAccountHoldings(t.Context(), asset.Spot)
+	require.NoError(t, err, "UpdateAccountHoldings should not error")
+	require.NotEmpty(t, r, "UpdateAccountHoldings should return account info")
 
 	if mockTests {
 		require.Len(t, r.Accounts, 1, "Accounts should have 1 item")

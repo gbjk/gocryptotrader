@@ -255,7 +255,7 @@ func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExcha
 		for y := range assetTypes {
 			// Update account info to process account updates in memory on
 			// every fetch.
-			accountHoldings, err := exchanges[x].UpdateAccountInfo(context.TODO(), assetTypes[y])
+			accountHoldings, err := exchanges[x].UpdateAccountHoldings(context.TODO(), assetTypes[y])
 			if err != nil {
 				log.Errorf(log.PortfolioMgr,
 					"Error encountered retrieving exchange account info for %s. Error %s\n",

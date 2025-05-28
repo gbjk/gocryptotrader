@@ -336,8 +336,8 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 	return orderbook.Get(d.Name, p, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies
-func (d *Deribit) UpdateAccountInfo(ctx context.Context, _ asset.Item) (account.Holdings, error) {
+// UpdateAccountHoldings retrieves balances for all enabled currencies
+func (d *Deribit) UpdateAccountHoldings(ctx context.Context, _ asset.Item) (account.Holdings, error) {
 	var resp account.Holdings
 	resp.Exchange = d.Name
 	currencies, err := d.GetCurrencies(ctx)
@@ -1017,7 +1017,7 @@ func (d *Deribit) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuil
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (d *Deribit) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := d.UpdateAccountInfo(ctx, assetType)
+	_, err := d.UpdateAccountHoldings(ctx, assetType)
 	return d.CheckTransientError(err)
 }
 

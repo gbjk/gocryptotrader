@@ -340,9 +340,9 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 	return orderbook.Get(p.Name, pair, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Poloniex exchange
-func (p *Poloniex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+func (p *Poloniex) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = p.Name
 	accountBalance, err := p.GetBalances(ctx)
@@ -937,7 +937,7 @@ func (p *Poloniex) GetOrderHistory(ctx context.Context, req *order.MultiOrderReq
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (p *Poloniex) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := p.UpdateAccountInfo(ctx, assetType)
+	_, err := p.UpdateAccountHoldings(ctx, assetType)
 	return p.CheckTransientError(err)
 }
 

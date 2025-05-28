@@ -295,9 +295,9 @@ func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 	return orderbook.Get(e.Name, p, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Exmo exchange
-func (e *EXMO) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+func (e *EXMO) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = e.Name
 	result, err := e.GetUserInfo(ctx)
@@ -707,7 +707,7 @@ func (e *EXMO) GetOrderHistory(ctx context.Context, req *order.MultiOrderRequest
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (e *EXMO) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := e.UpdateAccountInfo(ctx, assetType)
+	_, err := e.UpdateAccountHoldings(ctx, assetType)
 	return e.CheckTransientError(err)
 }
 

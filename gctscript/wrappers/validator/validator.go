@@ -189,32 +189,25 @@ func (w Wrapper) CancelOrder(_ context.Context, exch, orderid string, cp currenc
 	return true, nil
 }
 
-// AccountInformation validator for test execution/scripts
-func (w Wrapper) AccountInformation(_ context.Context, exch string, assetType asset.Item) (account.Holdings, error) {
-	if exch == exchError.String() {
-		return account.Holdings{}, errTestFailed
-	}
-
-	return account.Holdings{
-		Exchange: exch,
-		Accounts: []account.SubAccount{
-			{
-				ID:        exch,
-				AssetType: assetType,
-				Currencies: []account.Balance{
-					{
-						Currency: currency.Code{
-							Item: &currency.Item{
-								ID:         0,
-								FullName:   "Bitcoin",
-								Symbol:     "BTC",
-								Role:       1,
-								AssocChain: "",
-							},
+// AccountHoldings validator for test execution/scripts
+func (w Wrapper) AccountHoldings(_ context.Context, assetType asset.Item) ([]account.SubAccount, error) {
+	return []account.SubAccount{
+		{
+			ID:        "subacct1",
+			AssetType: assetType,
+			Currencies: []account.Balance{
+				{
+					Currency: currency.Code{
+						Item: &currency.Item{
+							ID:         0,
+							FullName:   "Bitcoin",
+							Symbol:     "BTC",
+							Role:       1,
+							AssocChain: "",
 						},
-						Total: 100,
-						Hold:  0,
 					},
+					Total: 100,
+					Hold:  0,
 				},
 			},
 		},

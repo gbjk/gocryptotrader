@@ -93,8 +93,8 @@ func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, g)
 	for _, a := range g.GetAssetTypes(false) {
-		_, err := g.UpdateAccountInfo(t.Context(), a)
-		assert.NoErrorf(t, err, "UpdateAccountInfo should not error for asset %s", a)
+		_, err := g.UpdateAccountHoldings(t.Context(), a)
+		assert.NoErrorf(t, err, "UpdateAccountHoldings should not error for asset %s", a)
 	}
 }
 

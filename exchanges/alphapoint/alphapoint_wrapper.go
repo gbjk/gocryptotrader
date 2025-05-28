@@ -100,9 +100,9 @@ func (a *Alphapoint) UpdateTradablePairs(_ context.Context, _ bool) error {
 	return common.ErrFunctionNotSupported
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies on the
+// UpdateAccountHoldings retrieves balances for all enabled currencies on the
 // Alphapoint exchange
-func (a *Alphapoint) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+func (a *Alphapoint) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = a.Name
 	acc, err := a.GetAccountInformation(ctx)
@@ -420,7 +420,7 @@ func (a *Alphapoint) GetOrderHistory(ctx context.Context, req *order.MultiOrderR
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (a *Alphapoint) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := a.UpdateAccountInfo(ctx, assetType)
+	_, err := a.UpdateAccountHoldings(ctx, assetType)
 	return a.CheckTransientError(err)
 }
 

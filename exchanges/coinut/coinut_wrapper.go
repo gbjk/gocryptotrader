@@ -198,9 +198,9 @@ func (c *COINUT) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 	return c.EnsureOnePairEnabled()
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // COINUT exchange
-func (c *COINUT) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+func (c *COINUT) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var info account.Holdings
 	var bal *UserBalance
 	var err error
@@ -1044,7 +1044,7 @@ func (c *COINUT) loadInstrumentsIfNotLoaded() error {
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (c *COINUT) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := c.UpdateAccountInfo(ctx, assetType)
+	_, err := c.UpdateAccountHoldings(ctx, assetType)
 	return c.CheckTransientError(err)
 }
 

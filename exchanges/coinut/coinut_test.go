@@ -357,12 +357,12 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 	if apiKey != "" || clientID != "" {
-		_, err := c.UpdateAccountInfo(t.Context(), asset.Spot)
+		_, err := c.UpdateAccountHoldings(t.Context(), asset.Spot)
 		if err != nil {
 			t.Error("GetAccountInfo() error", err)
 		}
 	} else {
-		_, err := c.UpdateAccountInfo(t.Context(), asset.Spot)
+		_, err := c.UpdateAccountHoldings(t.Context(), asset.Spot)
 		if err == nil {
 			t.Error("GetAccountInfo() Expected error")
 		}

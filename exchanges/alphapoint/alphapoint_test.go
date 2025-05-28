@@ -317,7 +317,7 @@ func TestGetAccountInfo(t *testing.T) {
 	a := new(Alphapoint) //nolint:govet // Intentional shadow to avoid future copy/paste mistakes
 	require.NoError(t, testexch.Setup(a), "Test instance Setup must not error")
 
-	_, err := a.UpdateAccountInfo(t.Context(), asset.Spot)
+	_, err := a.UpdateAccountHoldings(t.Context(), asset.Spot)
 	if err == nil {
 		t.Error("GetUserInfo() Expected error")
 	}

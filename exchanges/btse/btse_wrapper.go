@@ -349,9 +349,9 @@ func (b *BTSE) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 	return orderbook.Get(b.Name, p, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies for the
+// UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // BTSE exchange
-func (b *BTSE) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+func (b *BTSE) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var a account.Holdings
 	balance, err := b.GetWalletInformation(ctx)
 	if err != nil {
@@ -895,7 +895,7 @@ func (b *BTSE) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (b *BTSE) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := b.UpdateAccountInfo(ctx, assetType)
+	_, err := b.UpdateAccountHoldings(ctx, assetType)
 	return b.CheckTransientError(err)
 }
 

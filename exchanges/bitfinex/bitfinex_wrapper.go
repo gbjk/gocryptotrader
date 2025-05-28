@@ -409,9 +409,9 @@ func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 	return orderbook.Get(b.Name, fPair, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies on the
+// UpdateAccountHoldings retrieves balances for all enabled currencies on the
 // Bitfinex exchange
-func (b *Bitfinex) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+func (b *Bitfinex) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	var response account.Holdings
 	response.Exchange = b.Name
 
@@ -1018,7 +1018,7 @@ func (b *Bitfinex) appendOptionalDelimiter(p *currency.Pair) {
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (b *Bitfinex) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := b.UpdateAccountInfo(ctx, assetType)
+	_, err := b.UpdateAccountHoldings(ctx, assetType)
 	return b.CheckTransientError(err)
 }
 

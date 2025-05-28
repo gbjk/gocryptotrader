@@ -749,17 +749,17 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	assert.Empty(t, resp.Status, "CancelAllOrders Status should not contain any failed order errors")
 }
 
-// TestUpdateAccountInfo exercises UpdateAccountInfo
-func TestUpdateAccountInfo(t *testing.T) {
+// TestUpdateAccountHoldings exercises UpdateAccountHoldings
+func TestUpdateAccountHoldings(t *testing.T) {
 	t.Parallel()
 
 	for _, a := range []asset.Item{asset.Spot, asset.Futures} {
-		_, err := k.UpdateAccountInfo(t.Context(), a)
+		_, err := k.UpdateAccountHoldings(t.Context(), a)
 
 		if sharedtestvalues.AreAPICredentialsSet(k) {
-			assert.NoErrorf(t, err, "UpdateAccountInfo should not error for asset %s", a) // Note Well: Spot and Futures have separate api keys
+			assert.NoErrorf(t, err, "UpdateAccountHoldings should not error for asset %s", a) // Note Well: Spot and Futures have separate api keys
 		} else {
-			assert.ErrorIsf(t, err, exchange.ErrAuthenticationSupportNotEnabled, "UpdateAccountInfo should error correctly for asset %s", a)
+			assert.ErrorIsf(t, err, exchange.ErrAuthenticationSupportNotEnabled, "UpdateAccountHoldings should error correctly for asset %s", a)
 		}
 	}
 }

@@ -1,43 +1,13 @@
-package account
+package accounts
 
 import (
 	"sync"
 	"time"
 
-	"github.com/gofrs/uuid"
-	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
-
-// store holds ticker information for each individual exchange
-type store struct {
-	exchangeAccounts map[string]*Accounts
-	mu               sync.Mutex
-	mux              *dispatch.Mux
-}
-
-// Accounts holds a stream ID and a map to the exchange holdings
-type Accounts struct {
-	Exchange string
-	ID       uuid.UUID
-	// NOTE: Credentials is a place holder for a future interface type, which will need -
-	// TODO: Credential tracker to match to keys that are managed and return pointer.
-	// TODO: Have different cred struct for centralized verse DEFI exchanges.
-	subAccounts map[Credentials]map[key.SubAccountAsset]currencyBalances
-	mu          sync.Mutex
-	mux         *dispatch.Mux
-}
-
-// Holdings is a generic type to hold each exchange's holdings for all enabled currencies
-type Holdings struct {
-	Exchange string
-	Accounts []SubAccount
-}
-
-type currencyBalances = map[*currency.Item]*ProtectedBalance
 
 // ProtectedBalance stores the full balance information for that specific asset
 type ProtectedBalance struct {
@@ -49,8 +19,7 @@ type ProtectedBalance struct {
 	m                      sync.Mutex
 	updatedAt              time.Time
 
-	// notice alerts for when the balance changes for strategy inspection and
-	// usage.
+	// notice alerts for when the balance changes for strategy inspection and usage
 	notice alert.Notice
 }
 

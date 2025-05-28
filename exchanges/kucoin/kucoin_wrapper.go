@@ -409,8 +409,8 @@ func (ku *Kucoin) UpdateOrderbook(ctx context.Context, pair currency.Pair, asset
 	return orderbook.Get(ku.Name, pair, assetType)
 }
 
-// UpdateAccountInfo retrieves balances for all enabled currencies
-func (ku *Kucoin) UpdateAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+// UpdateAccountHoldings retrieves balances for all enabled currencies
+func (ku *Kucoin) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
 	holding := account.Holdings{Exchange: ku.Name}
 	err := ku.CurrencyPairs.IsAssetEnabled(assetType)
 	if err != nil {
@@ -1724,7 +1724,7 @@ func (ku *Kucoin) ValidateCredentials(ctx context.Context, assetType asset.Item)
 	if err != nil {
 		return err
 	}
-	_, err = ku.UpdateAccountInfo(ctx, assetType)
+	_, err = ku.UpdateAccountHoldings(ctx, assetType)
 	return ku.CheckTransientError(err)
 }
 
@@ -1871,7 +1871,7 @@ func (ku *Kucoin) GetAvailableTransferChains(ctx context.Context, cryptocurrency
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (ku *Kucoin) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := ku.UpdateAccountInfo(ctx, assetType)
+	_, err := ku.UpdateAccountHoldings(ctx, assetType)
 	return ku.CheckTransientError(err)
 }
 

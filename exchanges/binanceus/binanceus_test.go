@@ -132,12 +132,12 @@ func TestUpdateTradablePairs(t *testing.T) {
 	}
 }
 
-func TestUpdateAccountInfo(t *testing.T) {
+func TestUpdateAccountHoldings(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)
-	_, err := bi.UpdateAccountInfo(t.Context(), asset.Spot)
+	_, err := bi.UpdateAccountHoldings(t.Context(), asset.Spot)
 	if err != nil {
-		t.Error("Binanceus UpdateAccountInfo() error", err)
+		t.Error("Binanceus UpdateAccountHoldings() error", err)
 	}
 }
 
