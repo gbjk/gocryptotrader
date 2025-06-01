@@ -439,3 +439,34 @@ func TestSubscribe(t *testing.T) {
 	require.NotNil(t, p, "Subscribe must return a pipe")
 	require.Empty(t, p.Channel(), "Pipe must be empty before Saving anything")
 }
+
+// TestGetCurrencyBalances
+func TestGetCurrencyBalances(t *testing.T) {
+	t.Parallel()
+
+	a := MustNewAccounts(m, dispatch.GetNewMux(nil))
+	t.Error("TODO")
+	/*
+		s.Save
+		a := Account{
+			subAccounts:
+			{
+				AssetType: asset.UpsideProfitContract,
+				ID:        "1337",
+			},
+			{
+				AssetType: asset.Spot,
+				ID:        "1337",
+				Currencies: []Balance{
+					{
+						Currency: currency.BTC,
+						Total:    100,
+						Hold:     20,
+					},
+				},
+			},
+		}
+		require.NoError(t, a.Save(
+			, &Credentials{Key: "B"}), "Save must not error")
+	*/
+}

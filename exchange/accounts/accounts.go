@@ -165,36 +165,18 @@ func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset
 // GetCurrencyBalances returns the currency balances for all sub accounts
 func (a *Accounts) GetCurrencyBalances() map[currency.Code]Balance {
 	b := map[currency.Code]Balance{}
-	for _, m := range a.subAccounts {
-		for subAcctAsset, currs := range m {
+	for _, subAcctMap := range a.subAccounts {
+		for subAcctAsset, currs := range subAcctMap {
 			for _, bal := range currs {
-	TODO: Do we need these vars
-				currencyName := bal.Currency
-				total := bal.Total
-				onHold := bal.Hold
-				avail := bal.AvailableWithoutBorrow
-				free := bal.Free
-				borrowed := bal.Borrowed
-
-				info, ok := result[currencyName]
-				if !ok {
-					accountInfo := accounts.Balance{
-						Currency:               currencyName,
-						Total:                  total,
-						Hold:                   onHold,
-						Free:                   free,
-						AvailableWithoutBorrow: avail,
-						Borrowed:               borrowed,
-					}
-					result[currencyName] = accountInfo
-				} else {
-					info.Hold += onHold
-					info.Total += total
-					info.Free += free
-					info.AvailableWithoutBorrow += avail
-					info.Borrowed += borrowed
-					result[currencyName] = info
+				c = bal.Currency
+				if _, ok := result[currencyName]; !ok {
+					result[c] = accounts.Balance{bal.Currency}
 				}
+				result[c].Total += bal.Total
+				result[c].Hold += bal.Hold
+				result[c].Free += bal.Free
+				result[c].AvailableWithoutBorrow += bal.AvailableWithoutBorrow
+				result[c].Borrowed += bal.Borrowed
 			}
 		}
 	}
