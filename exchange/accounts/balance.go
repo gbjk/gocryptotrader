@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // Balance contains an exchange currency balance
@@ -16,6 +17,13 @@ type Balance struct {
 	Free                   float64
 	AvailableWithoutBorrow float64
 	Borrowed               float64
+}
+
+// Change defines incoming balance change on currency holdings
+type Change struct {
+	Account   string
+	AssetType asset.Item
+	Balance   *Balance
 }
 
 // LiveBalance contains a balance with live updates

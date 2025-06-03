@@ -186,7 +186,7 @@ func (a *Accounts) GetCurrencyBalances() map[currency.Code]Balance {
 // Save saves the holdings with new account info
 // h should be a full update, and any missing currencies will be zeroed
 // h.Exchange is ignored
-func (a *Accounts) Save(h *Holdings, creds *Credentials) error {
+func (a *Accounts) Save(s []SubAccount, creds *Credentials) error {
 	if err := common.NilGuard(a, h); err != nil {
 		return fmt.Errorf("cannot save holdings: %w", err)
 	}
