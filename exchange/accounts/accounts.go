@@ -40,7 +40,7 @@ type Accounts struct {
 	mux         *dispatch.Mux
 }
 
-type CurrencyBalances map[*currency.Item]*Balance
+type CurrencyBalances map[*currency.Item]*LiveBalance
 
 // SubAccount defines a singular account type with associated currency balances
 type SubAccount struct {
