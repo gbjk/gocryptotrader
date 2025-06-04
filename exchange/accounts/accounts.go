@@ -40,7 +40,7 @@ type Accounts struct {
 	mux         *dispatch.Mux
 }
 
-type CurrencyBalances map[*currency.Item]*LiveBalance
+type CurrencyBalances map[*currency.Item]balance
 
 // SubAccount defines a singular account type with associated currency balances
 type SubAccount struct {
@@ -117,17 +117,17 @@ func (a *Accounts) GetHoldings(creds *Credentials, assetType asset.Item) ([]Bala
 }
 
 // GetBalance returns a copy of the balance for that asset item
-func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset.Item, c currency.Code) (*Balance, error) {
+func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset.Item, c currency.Code) (Balance, error) {
 	if !aType.IsValid() {
-		return nil, fmt.Errorf("cannot get balance: %w: %q", asset.ErrNotSupported, aType)
+		return Balance{}, fmt.Errorf("cannot get balance: %w: %q", asset.ErrNotSupported, aType)
 	}
 
 	if creds.IsEmpty() {
-		return nil, fmt.Errorf("cannot get balance: %w", errCredentialsEmpty)
+		return Balance{}, fmt.Errorf("cannot get balance: %w", errCredentialsEmpty)
 	}
 
 	if c.IsEmpty() {
-		return nil, fmt.Errorf("cannot get balance: %w", currency.ErrCurrencyCodeEmpty)
+		return Balance{}, fmt.Errorf("cannot get balance: %w", currency.ErrCurrencyCodeEmpty)
 	}
 
 	a.mu.RLock()
@@ -135,7 +135,7 @@ func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset
 
 	subAccounts, ok := a.subAccounts[*creds]
 	if !ok {
-		return nil, fmt.Errorf("%w for %s", errNoCredentialBalances, creds)
+		return Balance{}, fmt.Errorf("%w for %s", errNoCredentialBalances, creds)
 	}
 
 	assets, ok := subAccounts[key.SubAccountAsset{
@@ -143,30 +143,27 @@ func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset
 		Asset:      aType,
 	}]
 	if !ok {
-		return nil, fmt.Errorf("%w for %s SubAccount %q %s %s", errNoExchangeSubAccountBalances, a.Exchange.GetName(), subAccount, aType, c)
+		return Balance{}, fmt.Errorf("%w for %s SubAccount %q %s %s", errNoExchangeSubAccountBalances, a.Exchange.GetName(), subAccount, aType, c)
 	}
-	bal, ok := assets[c.Item]
+	liveBalance, ok := assets[c.Item]
 	if !ok {
-		return nil, fmt.Errorf("%w for %s SubAccount %q %s %s", errNoExchangeSubAccountBalances, a.Exchange.GetName(), subAccount, aType, c)
+		return Balance{}, fmt.Errorf("%w for %s SubAccount %q %s %s", errNoExchangeSubAccountBalances, a.Exchange.GetName(), subAccount, aType, c)
 	}
-	return bal, nil
+	return liveBalance.balance(), nil
 }
 
-// GetCurrencyBalances returns the currency balances for all sub accounts
-func (a *Accounts) GetCurrencyBalances() map[currency.Code]Balance {
-	b := map[currency.Code]Balance{}
+// CurrencyBalances returns the collated currency balances for all sub accounts
+func (a *Accounts) CurrencyBalances() map[currency.Code]Balance {
+	currMap := map[currency.Code]Balance{}
 	for _, subAcctMap := range a.subAccounts {
-		for subAcctAsset, currs := range subAcctMap {
-			for _, bal := range currs {
-				c = bal.Currency
-				if _, ok := result[currencyName]; !ok {
-					result[c] = accounts.Balance{bal.Currency}
+		for _, currs := range subAcctMap {
+			for _, liveBalance := range currs {
+				curr := liveBalance.Currency
+				if _, ok := currMap[curr]; !ok {
+					currMap[curr] = liveBalance.Balance()
+				} else {
+					currMap[curr].Add(liveBalance.Balance())
 				}
-				result[c].Total += bal.Total
-				result[c].Hold += bal.Hold
-				result[c].Free += bal.Free
-				result[c].AvailableWithoutBorrow += bal.AvailableWithoutBorrow
-				result[c].Borrowed += bal.Borrowed
 			}
 		}
 	}

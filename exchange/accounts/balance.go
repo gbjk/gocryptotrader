@@ -29,13 +29,13 @@ type Change struct {
 
 // LiveBalance contains a balance with live updates
 type LiveBalance struct {
-	Currency currency.Code
 	b        Balance
 	m        sync.RWMutex
 	notifier alert.Notice
 }
 
-// Balance returns a snapshot copy of the Balance
+// balance returns a snapshot copy of the Balance
+// Does not enjoy protection from locking
 func (l *LiveBalance) Balance() Balance {
 	l.m.RLock()
 	defer l.m.RUnlock()
@@ -82,4 +82,21 @@ func (l *LiveBalance) UpdatedAt() time.Time {
 	l.m.RLock()
 	defer l.m.RUnlock()
 	return l.b.UpdatedAt
+}
+
+// Add returns a new Balance adding together a and b
+// UpdatedAt is the later of the two Balances
+func (b Balance) Add(a Balance) Balance {
+	c := Balance{
+		Total:                  b.Total + a.Total,
+		Hold:                   b.Hold + a.Hold,
+		Free:                   b.Free + a.Free,
+		AvailableWithoutBorrow: b.AvailableWithoutBorrow + a.AvailableWithoutBorrow,
+		Borrowed:               b.Borrowed + a.Borrowed,
+		UpdatedAt:              b.UpdatedAt,
+	}
+	if a.UpdatedAt.After(b.UpdatedAt) {
+		c.UpdatedAt = a.UpdatedAt
+	}
+	return c
 }
