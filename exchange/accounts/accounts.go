@@ -88,48 +88,38 @@ func (a *Accounts) GetHoldings(creds *Credentials, assetType asset.Item) ([]Bala
 	}
 
 	if creds.IsEmpty() {
-		return nil, fmt.Errorf("%s %s %w", a.Exchange, assetType, errCredentialsEmpty)
+		return nil, fmt.Errorf("%s %s %w", a.Exchange.GetName(), assetType, errCredentialsEmpty)
 	}
 
 	if !assetType.IsValid() {
-		return nil, fmt.Errorf("%s %s %w", a.Exchange, assetType, asset.ErrNotSupported)
+		return nil, fmt.Errorf("%s %s %w", a.Exchange.GetName(), assetType, asset.ErrNotSupported)
 	}
 
 	subAccountHoldings, ok := a.subAccounts[*creds]
 	if !ok {
-		return nil, fmt.Errorf("%s %s %s %w %w", a.Exchange, creds, assetType, errNoCredentialBalances, ErrExchangeHoldingsNotFound)
+		return nil, fmt.Errorf("%s %s %s %w %w", a.Exchange.GetName(), creds, assetType, errNoCredentialBalances, ErrExchangeHoldingsNotFound)
 	}
 
 	var b []Balance
 
 	for mapKey, assets := range subAccountHoldings {
-		if mapKey.Asset != assetType {
+		if mapKey.Asset == assetType {
 			continue
 		}
-		for currItem, bal := range assets {
-			bal.m.Lock()
-			b = append(b, Balance{
-				Currency:               currItem.Currency().Upper(),
-				Total:                  bal.total,
-				Hold:                   bal.hold,
-				Free:                   bal.free,
-				AvailableWithoutBorrow: bal.availableWithoutBorrow,
-				Borrowed:               bal.borrowed,
-				UpdatedAt:              bal.updatedAt,
-			})
-			bal.m.Unlock()
+		for _, bal := range assets {
+			b = append(b, bal.Balance())
 		}
 	}
 	if len(b) == 0 {
-		return nil, fmt.Errorf("%s %s %w", a.Exchange, assetType, ErrExchangeHoldingsNotFound)
+		return nil, fmt.Errorf("%s %s %w", a.Exchange.GetName(), assetType, ErrExchangeHoldingsNotFound)
 	}
 	return b, nil
 }
 
-// GetBalance returns the balance for that asset item
-func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset.Item, c currency.Code) (*ProtectedBalance, error) {
-	if !a.IsValid() {
-		return nil, fmt.Errorf("cannot get balance: %s %w", a, asset.ErrNotSupported)
+// GetBalance returns a copy of the balance for that asset item
+func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset.Item, c currency.Code) (*Balance, error) {
+	if !aType.IsValid() {
+		return nil, fmt.Errorf("cannot get balance: %w: %q", asset.ErrNotSupported, aType)
 	}
 
 	if creds.IsEmpty() {
@@ -145,7 +135,7 @@ func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset
 
 	subAccounts, ok := a.subAccounts[*creds]
 	if !ok {
-		return nil, fmt.Errorf("%w for %s %s", errNoCredentialBalances, exch, creds)
+		return nil, fmt.Errorf("%w for %s", errNoCredentialBalances, creds)
 	}
 
 	assets, ok := subAccounts[key.SubAccountAsset{
@@ -153,11 +143,11 @@ func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset
 		Asset:      aType,
 	}]
 	if !ok {
-		return nil, fmt.Errorf("%w for %s SubAccount %q %s %s", errNoExchangeSubAccountBalances, a.Exchange.GetName(), subAccount, a, c)
+		return nil, fmt.Errorf("%w for %s SubAccount %q %s %s", errNoExchangeSubAccountBalances, a.Exchange.GetName(), subAccount, aType, c)
 	}
 	bal, ok := assets[c.Item]
 	if !ok {
-		return nil, fmt.Errorf("%w for %s SubAccount %q %s %s", errNoExchangeSubAccountBalances, a.Exchange.GetName(), subAccount, a, c)
+		return nil, fmt.Errorf("%w for %s SubAccount %q %s %s", errNoExchangeSubAccountBalances, a.Exchange.GetName(), subAccount, aType, c)
 	}
 	return bal, nil
 }

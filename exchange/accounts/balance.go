@@ -17,6 +17,7 @@ type Balance struct {
 	Free                   float64
 	AvailableWithoutBorrow float64
 	Borrowed               float64
+	UpdatedAt              time.Time
 }
 
 // Change defines incoming balance change on currency holdings
@@ -28,11 +29,17 @@ type Change struct {
 
 // LiveBalance contains a balance with live updates
 type LiveBalance struct {
-	Currency  currency.Code
-	b         Balance
-	updatedAt time.Time
-	m         sync.RWMutex
-	notifier  alert.Notice
+	Currency currency.Code
+	b        Balance
+	m        sync.RWMutex
+	notifier alert.Notice
+}
+
+// Balance returns a snapshot copy of the Balance
+func (l *LiveBalance) Balance() Balance {
+	l.m.RLock()
+	defer l.m.RUnlock()
+	return l.b
 }
 
 // Total returns the total in this balance
