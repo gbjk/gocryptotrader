@@ -27,61 +27,19 @@ type Change struct {
 	Balance   *Balance
 }
 
-// LiveBalance contains a balance with live updates
-type LiveBalance struct {
-	b        Balance
+// balance contains a balance with live updates
+type balance struct {
+	internal Balance
 	m        sync.RWMutex
 	notifier alert.Notice
 }
 
 // balance returns a snapshot copy of the Balance
 // Does not enjoy protection from locking
-func (l *LiveBalance) Balance() Balance {
+func (l *balance) Balance() Balance {
 	l.m.RLock()
 	defer l.m.RUnlock()
-	return l.b
-}
-
-// Total returns the total in this balance
-func (l *LiveBalance) Total() float64 {
-	l.m.RLock()
-	defer l.m.RUnlock()
-	return l.b.Total
-}
-
-// Hold returns the amount on hold in this balance
-func (l *LiveBalance) Hold() float64 {
-	l.m.RLock()
-	defer l.m.RUnlock()
-	return l.b.Hold
-}
-
-// Free returns the free amount in this balance
-func (l *LiveBalance) Free() float64 {
-	l.m.RLock()
-	defer l.m.RUnlock()
-	return l.b.Free
-}
-
-// AvailableWithoutBorrow returns the available without borrowing  in this balance
-func (l *LiveBalance) AvailableWithoutBorrow() float64 {
-	l.m.RLock()
-	defer l.m.RUnlock()
-	return l.b.AvailableWithoutBorrow
-}
-
-// Borrowed returns the amount borrowed in this balance
-func (l *LiveBalance) Borrowed() float64 {
-	l.m.RLock()
-	defer l.m.RUnlock()
-	return l.b.Borrowed
-}
-
-// UpdatedAt returns the time this balance was last updated
-func (l *LiveBalance) UpdatedAt() time.Time {
-	l.m.RLock()
-	defer l.m.RUnlock()
-	return l.b.UpdatedAt
+	return l.internal
 }
 
 // Add returns a new Balance adding together a and b

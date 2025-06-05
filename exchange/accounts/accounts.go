@@ -40,7 +40,7 @@ type Accounts struct {
 	mux         *dispatch.Mux
 }
 
-type CurrencyBalances map[*currency.Item]balance
+type CurrencyBalances map[*currency.Item]*balance
 
 // SubAccount defines a singular account type with associated currency balances
 type SubAccount struct {
@@ -145,11 +145,11 @@ func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset
 	if !ok {
 		return Balance{}, fmt.Errorf("%w for %s SubAccount %q %s %s", errNoExchangeSubAccountBalances, a.Exchange.GetName(), subAccount, aType, c)
 	}
-	liveBalance, ok := assets[c.Item]
+	b, ok := assets[c.Item]
 	if !ok {
 		return Balance{}, fmt.Errorf("%w for %s SubAccount %q %s %s", errNoExchangeSubAccountBalances, a.Exchange.GetName(), subAccount, aType, c)
 	}
-	return liveBalance.balance(), nil
+	return b.Balance(), nil
 }
 
 // CurrencyBalances returns the collated currency balances for all sub accounts
@@ -157,8 +157,8 @@ func (a *Accounts) CurrencyBalances() map[currency.Code]Balance {
 	currMap := map[currency.Code]Balance{}
 	for _, subAcctMap := range a.subAccounts {
 		for _, currs := range subAcctMap {
-			for _, liveBalance := range currs {
-				curr := liveBalance.Currency
+			for _, b := range currs {
+				curr := b.internal.Currency
 				if _, ok := currMap[curr]; !ok {
 					currMap[curr] = liveBalance.Balance()
 				} else {
