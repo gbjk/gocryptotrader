@@ -160,21 +160,21 @@ func (a *Accounts) CurrencyBalances() map[currency.Code]Balance {
 			for _, b := range currs {
 				curr := b.internal.Currency
 				if _, ok := currMap[curr]; !ok {
-					currMap[curr] = liveBalance.Balance()
+					currMap[curr] = b.Balance()
 				} else {
-					currMap[curr].Add(liveBalance.Balance())
+					currMap[curr].Add(b.Balance())
 				}
 			}
 		}
 	}
-	return result
+	return currMap
 }
 
 // Save saves the holdings with new account info
 // h should be a full update, and any missing currencies will be zeroed
 // h.Exchange is ignored
 func (a *Accounts) Save(s []SubAccount, creds *Credentials) error {
-	if err := common.NilGuard(a, h); err != nil {
+	if err := common.NilGuard(a); err != nil {
 		return fmt.Errorf("cannot save holdings: %w", err)
 	}
 	if err := common.NilGuard(a.subAccounts); err != nil {
@@ -190,7 +190,7 @@ func (a *Accounts) Save(s []SubAccount, creds *Credentials) error {
 
 	subAccounts, ok := a.subAccounts[*creds]
 	if !ok {
-		subAccounts = make(map[key.SubAccountAsset]currencyBalances)
+		subAccounts = make(map[key.SubAccountAsset]CurrencyBalances)
 		a.subAccounts[*creds] = subAccounts
 	}
 
