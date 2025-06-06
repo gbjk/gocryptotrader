@@ -10,6 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -226,34 +227,29 @@ func (c *CoinbasePro) UpdateAccountHoldings(ctx context.Context, assetType asset
 		return response, err
 	}
 
-	accountCurrencies := make(map[string][]account.Balance)
+	subAccts := make(accounts.SubAccounts, 0, len(accountBalance))
 	for i := range accountBalance {
-		profileID := accountBalance[i].ProfileID
-		currencies := accountCurrencies[profileID]
-		accountCurrencies[profileID] = append(currencies, account.Balance{
-			Currency:               currency.NewCode(accountBalance[i].Currency),
-			Total:                  accountBalance[i].Balance,
-			Hold:                   accountBalance[i].Hold,
-			Free:                   accountBalance[i].Available,
-			AvailableWithoutBorrow: accountBalance[i].Available - accountBalance[i].FundedAmount,
-			Borrowed:               accountBalance[i].FundedAmount,
+		subAccts = append(subAccts, accounts.SubAccount{
+			AssetType: assetType,
+			ID:        accountBalance[i].ProfileID,
+			Currencies: []account.Balance{{
+				Currency:               currency.NewCode(accountBalance[i].Currency),
+				Total:                  accountBalance[i].Balance,
+				Hold:                   accountBalance[i].Hold,
+				Free:                   accountBalance[i].Available,
+				Borrowed:               accountBalance[i].FundedAmount,
+				AvailableWithoutBorrow: accountBalance[i].Available - accountBalance[i].FundedAmount,
+			}},
 		})
 	}
-
-	if response.Accounts, err = account.CollectBalances(accountCurrencies, assetType); err != nil {
-		return account.Holdings{}, err
-	}
+	response.Accounts = subAccts.Group()
 
 	creds, err := c.GetCredentials(ctx)
 	if err != nil {
 		return account.Holdings{}, err
 	}
-	err = c.Accounts.Save(&response, creds)
-	if err != nil {
-		return account.Holdings{}, err
-	}
 
-	return response, nil
+	return response, c.Accounts.Save(&response, creds)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type

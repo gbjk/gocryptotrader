@@ -440,12 +440,11 @@ func TestSubscribe(t *testing.T) {
 	require.Empty(t, p.Channel(), "Pipe must be empty before Saving anything")
 }
 
-// TestGetCurrencyBalances
 func TestGetCurrencyBalances(t *testing.T) {
 	t.Parallel()
 
 	a := MustNewAccounts(m, dispatch.GetNewMux(nil))
-	t.Error("TODO")
+	t.Error("TODO: ", a)
 	/*
 		s.Save
 		a := Account{
@@ -469,4 +468,10 @@ func TestGetCurrencyBalances(t *testing.T) {
 		require.NoError(t, a.Save(
 			, &Credentials{Key: "B"}), "Save must not error")
 	*/
+}
+
+func TestSubAccountsGroup(t *testing.T) {
+	t.Parallel()
+
+	t.Error("TODO")
 }

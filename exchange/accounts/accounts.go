@@ -1,8 +1,10 @@
 package accounts
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -49,6 +51,8 @@ type SubAccount struct {
 	Currencies  []Balance
 	credentials Credentials
 }
+
+type SubAccounts []SubAccount
 
 // MustNewAccounts returns an initialized Accounts store for use in isolation from a global exchange accounts store
 // Any errors in mux ID generation will panic, so users should balance risk vs utility accordingly depending on use-case
@@ -323,6 +327,25 @@ func (a *Accounts) Update(changes []Change, creds *Credentials) error {
 		}
 	}
 	return errs
+}
+
+// Group reduces a list of SubAccounts, grouping by AssetType and ID and concating Currencies
+func (l SubAccounts) Group() SubAccounts {
+	var n SubAccounts
+	slices.SortFunc(l, func(a, b SubAccount) int {
+		if c := cmp.Compare(a.AssetType, b.AssetType); c != 0 {
+			return c
+		}
+		return cmp.Compare(a.ID, b.ID)
+	})
+	for i := range l {
+		if len(n) == 0 || l[i].AssetType != n[len(n)-1].AssetType || l[i].ID != n[len(n)-1].ID {
+			n = append(n, l[i])
+		} else {
+			n[len(n)-1].Currencies = append(n[len(n)-1].Currencies, l[i].Currencies...)
+		}
+	}
+	return n
 }
 
 // load checks to see if there is a change from incoming balance, if there is a

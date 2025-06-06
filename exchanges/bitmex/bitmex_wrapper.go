@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -458,39 +459,31 @@ func (b *Bitmex) UpdateAccountHoldings(ctx context.Context, assetType asset.Item
 		return info, err
 	}
 
-	accountBalances := make(map[string][]account.Balance)
+	subAccts := make(accounts.SubAccounts, 0, len(userMargins))
 	// Need to update to add Margin/Liquidity availability
 	for i := range userMargins {
-		accountID := strconv.FormatInt(userMargins[i].Account, 10)
-
-		var wallet WalletInfo
-		wallet, err = b.GetWalletInfo(ctx, userMargins[i].Currency)
+		wallet, err := b.GetWalletInfo(ctx, userMargins[i].Currency)
 		if err != nil {
 			continue
 		}
-
-		accountBalances[accountID] = append(
-			accountBalances[accountID], account.Balance{
+		subAccts = append(subAccts, accounts.SubAccount{
+			AssetType: assetType,
+			ID:        strconv.FormatInt(userMargins[i].Account, 10),
+			Currencies: []account.Balance{{
 				Currency: currency.NewCode(wallet.Currency),
 				Total:    wallet.Amount,
-			},
-		)
+			}},
+		})
 	}
 
-	if info.Accounts, err = account.CollectBalances(accountBalances, assetType); err != nil {
-		return account.Holdings{}, err
-	}
+	info.Accounts = subAccts.Group()
 	info.Exchange = b.Name
 
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return account.Holdings{}, err
 	}
-	if err := b.Accounts.Save(&info, creds); err != nil {
-		return account.Holdings{}, err
-	}
-
-	return info, nil
+	return info, b.Accounts.Save(&info, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and

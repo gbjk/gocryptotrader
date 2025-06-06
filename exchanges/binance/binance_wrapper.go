@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -620,30 +621,26 @@ func (b *Binance) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 				Free:     accData.Assets[i].AvailableBalance,
 			})
 		}
-
 		acc.Currencies = currencyDetails
-
 	case asset.USDTMarginedFutures:
 		accData, err := b.UAccountBalanceV2(ctx)
 		if err != nil {
 			return info, err
 		}
-		accountCurrencyDetails := make(map[string][]account.Balance)
+		subAccts := make(account.SubAccounts, 0, len(accData))
 		for i := range accData {
-			currencyDetails := accountCurrencyDetails[accData[i].AccountAlias]
-			accountCurrencyDetails[accData[i].AccountAlias] = append(
-				currencyDetails, account.Balance{
+			subAccts = append(subAccts, accounts.SubAccount{
+				AssetType: assetType,
+				ID:        accData[i].AccountAlias,
+				Currencies: []account.Balance{{
 					Currency: currency.NewCode(accData[i].Asset),
 					Total:    accData[i].Balance,
 					Hold:     accData[i].Balance - accData[i].AvailableBalance,
 					Free:     accData[i].AvailableBalance,
-				},
-			)
+				}},
+			})
 		}
-
-		if info.Accounts, err = account.CollectBalances(accountCurrencyDetails, assetType); err != nil {
-			return account.Holdings{}, err
-		}
+		info.Accounts = subAccts.Group()
 	case asset.Margin:
 		accData, err := b.GetMarginAccount(ctx)
 		if err != nil {
@@ -672,10 +669,7 @@ func (b *Binance) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 	if err != nil {
 		return account.Holdings{}, err
 	}
-	if err := b.Accounts.Save(&info, creds); err != nil {
-		return account.Holdings{}, err
-	}
-	return info, nil
+	return info, b.Accounts.Save(&info, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
