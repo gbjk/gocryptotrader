@@ -174,9 +174,7 @@ func (a *Accounts) CurrencyBalances() map[currency.Code]Balance {
 	return currMap
 }
 
-// Save saves the holdings with new account info
-// h should be a full update, and any missing currencies will be zeroed
-// h.Exchange is ignored
+// Save saves the holdings with a new snapshot of account balances; Any missing currencies will be removed
 func (a *Accounts) Save(s []SubAccount, creds *Credentials) error {
 	if err := common.NilGuard(a); err != nil {
 		return fmt.Errorf("cannot save holdings: %w", err)
@@ -199,8 +197,8 @@ func (a *Accounts) Save(s []SubAccount, creds *Credentials) error {
 	}
 
 	var errs error
-	for i := range h.Accounts {
-		subAccount := h.Accounts[i]
+	for i := range s {
+		subAccount := s[i]
 		if !subAccount.AssetType.IsValid() {
 			errs = common.AppendError(errs, fmt.Errorf("cannot load sub account holdings for %s [%s] %w",
 				subAccount.ID,
@@ -209,36 +207,28 @@ func (a *Accounts) Save(s []SubAccount, creds *Credentials) error {
 			continue
 		}
 
-		// This assignment outside of scope is designed to have minimal impact
-		// on the exchange implementation UpdateAccountInfo() and portfoio
-		// management.
-		// TODO: Update incoming Holdings type to already be populated. (Suggestion)
-		cpy := *creds
-		if cpy.SubAccount == "" {
-			cpy.SubAccount = subAccount.ID
-		}
-
 		accAsset := key.SubAccountAsset{
 			SubAccount: subAccount.ID,
 			Asset:      subAccount.AssetType,
 		}
 		assets, ok := subAccounts[accAsset]
 		if !ok {
-			assets = make(map[*currency.Item]*ProtectedBalance)
+			assets = make(CurrencyBalances)
 			a.subAccounts[*creds][accAsset] = assets
 		}
 
 		updated := make(map[*currency.Item]bool)
 		for y := range subAccount.Currencies {
-			accBal := &subAccount.Currencies[y]
+			accBal := subAccount.Currencies[y]
 			if accBal.UpdatedAt.IsZero() {
 				accBal.UpdatedAt = time.Now()
 			}
 			bal, ok := assets[accBal.Currency.Item]
 			if !ok || bal == nil {
-				bal = &ProtectedBalance{}
+				bal = &balance{}
+				assets[accBal.Currency.Item] = bal
 			}
-			if err := bal.load(accBal); err != nil {
+			if err := bal.update(accBal); err != nil {
 				errs = common.AppendError(errs, fmt.Errorf("%w for account ID `%s` [%s %s]: %w",
 					errLoadingBalance,
 					subAccount.ID,
@@ -312,7 +302,6 @@ func (a *Accounts) Update(changes []Change, creds *Credentials) error {
 			bal = &ProtectedBalance{}
 			assets[change.Balance.Currency.Item] = bal
 		}
-
 		if err := bal.load(change.Balance); err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("%w for %s.%s.%s %w",
 				errCannotUpdateBalance,
@@ -346,80 +335,4 @@ func (l SubAccounts) Group() SubAccounts {
 		}
 	}
 	return n
-}
-
-// load checks to see if there is a change from incoming balance, if there is a
-// change it will change then alert external routines.
-func (b *ProtectedBalance) load(change *Balance) error {
-	if change == nil {
-		return fmt.Errorf("%w for '%T'", common.ErrNilPointer, change)
-	}
-	if change.UpdatedAt.IsZero() {
-		return errUpdatedAtIsZero
-	}
-	b.m.Lock()
-	defer b.m.Unlock()
-	if !b.updatedAt.IsZero() && !b.updatedAt.Before(change.UpdatedAt) {
-		return errOutOfSequence
-	}
-	if b.total == change.Total &&
-		b.hold == change.Hold &&
-		b.free == change.Free &&
-		b.availableWithoutBorrow == change.AvailableWithoutBorrow &&
-		b.borrowed == change.Borrowed &&
-		b.updatedAt.Equal(change.UpdatedAt) {
-		return nil
-	}
-	b.total = change.Total
-	b.hold = change.Hold
-	b.free = change.Free
-	b.availableWithoutBorrow = change.AvailableWithoutBorrow
-	b.borrowed = change.Borrowed
-	b.updatedAt = change.UpdatedAt
-	b.notice.Alert()
-	return nil
-}
-
-// Wait waits for a change in amounts for an asset type. This will pause
-// indefinitely if no change ever occurs. Max wait will return true if it failed
-// to achieve a state change in the time specified. If Max wait is not specified
-// it will default to a minute wait time.
-func (b *ProtectedBalance) Wait(maxWait time.Duration) (wait <-chan bool, cancel chan<- struct{}, err error) {
-	if err := common.NilGuard(b); err != nil {
-		return nil, nil, err
-	}
-
-	if maxWait <= 0 {
-		maxWait = time.Minute
-	}
-	ch := make(chan struct{})
-	go func(ch chan<- struct{}, until time.Duration) {
-		time.Sleep(until)
-		close(ch)
-	}(ch, maxWait)
-
-	return b.notice.Wait(ch), ch, nil
-}
-
-// GetFree returns the current free balance for the exchange
-func (b *ProtectedBalance) GetFree() float64 {
-	if b == nil {
-		return 0
-	}
-	b.m.Lock()
-	defer b.m.Unlock()
-	return b.free
-}
-
-func (b *ProtectedBalance) reset() {
-	b.m.Lock()
-	defer b.m.Unlock()
-
-	b.total = 0
-	b.hold = 0
-	b.free = 0
-	b.availableWithoutBorrow = 0
-	b.borrowed = 0
-	b.updatedAt = time.Now()
-	b.notice.Alert()
 }

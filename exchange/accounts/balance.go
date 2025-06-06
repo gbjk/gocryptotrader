@@ -4,8 +4,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/alert"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
@@ -31,7 +31,6 @@ type Change struct {
 type balance struct {
 	internal Balance
 	m        sync.RWMutex
-	notifier alert.Notice
 }
 
 // balance returns a snapshot copy of the Balance
@@ -54,4 +53,75 @@ func (b Balance) Add(a Balance) Balance {
 		b.UpdatedAt = a.UpdatedAt
 	}
 	return b
+}
+
+// load checks to see if there is a change from incoming balance, if there is a
+// change it will change then alert external routines.
+func (b *balance) load(change *Balance) error {
+	if err := common.NilGuard(b, change); err != nil {
+		return err
+	}
+	if change.UpdatedAt.IsZero() {
+		return errUpdatedAtIsZero
+	}
+	b.m.Lock()
+	defer b.m.Unlock()
+	ib := b.internal
+	if !ib.UpdatedAt.IsZero() && !ib.UpdatedAt.Before(change.UpdatedAt) {
+		return errOutOfSequence
+	}
+	if ib.Total == change.Total &&
+		ib.Hold == change.Hold &&
+		ib.Free == change.Free &&
+		ib.AvailableWithoutBorrow == change.AvailableWithoutBorrow &&
+		ib.Borrowed == change.Borrowed &&
+		ib.UpdatedAt.Equal(change.UpdatedAt) {
+		return nil
+	}
+	ib = *change
+	return nil
+}
+
+// Wait waits for a change in amounts for an asset type. This will pause
+// indefinitely if no change ever occurs. Max wait will return true if it failed
+// to achieve a state change in the time specified. If Max wait is not specified
+// it will default to a minute wait time.
+func (b *balance) Wait(maxWait time.Duration) (wait <-chan bool, cancel chan<- struct{}, err error) {
+	if err := common.NilGuard(b); err != nil {
+		return nil, nil, err
+	}
+
+	if maxWait <= 0 {
+		maxWait = time.Minute
+	}
+	ch := make(chan struct{})
+	go func(ch chan<- struct{}, until time.Duration) {
+		time.Sleep(until)
+		close(ch)
+	}(ch, maxWait)
+
+	return b.notice.Wait(ch), ch, nil
+}
+
+// GetFree returns the current free balance for the exchange
+func (b *ProtectedBalance) GetFree() float64 {
+	if b == nil {
+		return 0
+	}
+	b.m.Lock()
+	defer b.m.Unlock()
+	return b.free
+}
+
+func (b *ProtectedBalance) reset() {
+	b.m.Lock()
+	defer b.m.Unlock()
+
+	b.total = 0
+	b.hold = 0
+	b.free = 0
+	b.availableWithoutBorrow = 0
+	b.borrowed = 0
+	b.updatedAt = time.Now()
+	b.notice.Alert()
 }
