@@ -159,10 +159,10 @@ func (a *Accounts) CurrencyBalances() map[currency.Code]Balance {
 		for _, currs := range subAcctMap {
 			for _, b := range currs {
 				curr := b.internal.Currency
-				if _, ok := currMap[curr]; !ok {
+				if existing, ok := currMap[curr]; !ok {
 					currMap[curr] = b.Balance()
 				} else {
-					currMap[curr].Add(b.Balance())
+					currMap[curr] = existing.Add(b.Balance())
 				}
 			}
 		}

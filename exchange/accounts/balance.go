@@ -45,16 +45,13 @@ func (l *balance) Balance() Balance {
 // Add returns a new Balance adding together a and b
 // UpdatedAt is the later of the two Balances
 func (b Balance) Add(a Balance) Balance {
-	c := Balance{
-		Total:                  b.Total + a.Total,
-		Hold:                   b.Hold + a.Hold,
-		Free:                   b.Free + a.Free,
-		AvailableWithoutBorrow: b.AvailableWithoutBorrow + a.AvailableWithoutBorrow,
-		Borrowed:               b.Borrowed + a.Borrowed,
-		UpdatedAt:              b.UpdatedAt,
-	}
+	b.Total += a.Total
+	b.Hold += a.Hold
+	b.Free += a.Free
+	b.AvailableWithoutBorrow += a.AvailableWithoutBorrow
+	b.Borrowed += a.Borrowed
 	if a.UpdatedAt.After(b.UpdatedAt) {
-		c.UpdatedAt = a.UpdatedAt
+		b.UpdatedAt = a.UpdatedAt
 	}
-	return c
+	return b
 }
