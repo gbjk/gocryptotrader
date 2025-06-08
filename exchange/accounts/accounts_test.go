@@ -39,89 +39,22 @@ func TestMustNewAccounts(t *testing.T) {
 	require.Panics(t, func() { _ = MustNewAccounts(nil, nil) })
 }
 
-/*
-// TestAccounts_NewAccounts_MustNewAccounts tests NewAccounts and MustNewAccounts functions.
-func TestAccounts_NewAccounts_MustNewAccounts(t *testing.T) {
+// TestSubscribe ensures that Subscribe returns a subscription channel
+// See TestSave and TestUpdate for exercising publish to subscribers
+func TestSubscribe(t *testing.T) {
 	t.Parallel()
 
-	mux := dispatch.GetNewMux(nil) // Corrected
-	// errDispatch is not returned by GetNewMux, so remove it.
-	// if errDispatch != nil {
-	// 	t.Fatalf("Failed to create dispatch.Mux for testing: %v", errDispatch)
-	// }
+	err := dispatch.Start(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
+	require.NoError(t, common.ExcludeError(err, dispatch.ErrDispatcherAlreadyRunning), "dispatch.Start must not error")
 
-	mockEx := &mockEx{name: "TestExchange"}
-
-	t.Run("NewAccounts_success", func(t *testing.T) {
-		acc, err := NewAccounts(mockEx, mux)
-		if err != nil {
-			t.Fatalf("NewAccounts() error = %v, wantErr %v", err, false)
-		}
-		if acc == nil {
-			t.Fatal("NewAccounts() returned nil Accounts struct")
-		}
-		if acc.Exchange == nil || acc.Exchange.GetName() != "TestExchange" {
-			t.Errorf("NewAccounts() Exchange.GetName() = %s, want %s", acc.Exchange.GetName(), mockEx.GetName())
-		}
-		if acc.subAccounts == nil {
-			t.Error("NewAccounts() subAccounts map is nil, expected initialized map")
-		}
-		if acc.mux == nil {
-			t.Error("NewAccounts() stored mux is nil")
-		}
-		if acc.ID == uuid.Nil {
-			t.Error("NewAccounts() ID is nil UUID, expected valid UUID from mux.GetID()")
-		}
-	})
-
-	t.Run("NewAccounts_nil_mux (should panic or error depending on GetID)", func(t *testing.T) {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Errorf("NewAccounts(nil mux) did not panic, but GetID on nil mux should panic.")
-			}
-		}()
-		_, _ = NewAccounts(mockEx, nil)
-	})
-
-	t.Run("NewAccounts_nil_exchange (should succeed, Exchange can be nil)", func(t *testing.T) {
-		acc, err := NewAccounts(nil, mux)
-		if err != nil {
-			t.Fatalf("NewAccounts(nil exchange) error = %v, wantErr %v", err, false)
-		}
-		if acc == nil {
-			t.Fatal("NewAccounts(nil exchange) returned nil")
-		}
-		if acc.Exchange != nil {
-			t.Errorf("NewAccounts(nil exchange) Exchange = %v, want nil", acc.Exchange)
-		}
-	})
-
-	t.Run("MustNewAccounts_success", func(t *testing.T) {
-		localMux := dispatch.GetNewMux(nil) // Corrected
-		acc := MustNewAccounts(mockEx, localMux)
-		if acc == nil {
-			t.Fatal("MustNewAccounts() returned nil Accounts struct")
-		}
-		if acc.Exchange.GetName() != "TestExchange" {
-			t.Errorf("MustNewAccounts() Exchange.GetName() = %s, want %s", acc.Exchange.GetName(), mockEx.GetName())
-		}
-		if acc.subAccounts == nil {
-			t.Error("MustNewAccounts() subAccounts map is nil, expected initialized map")
-		}
-	})
-
-	t.Run("MustNewAccounts_panic_on_nil_mux", func(t *testing.T) {
-		defer func() {
-			if r := recover(); r == nil {
-				t.Errorf("MustNewAccounts did not panic with nil mux")
-			}
-		}()
-		_ = MustNewAccounts(mockEx, nil)
-	})
+	p, err := MustNewAccounts(&mockEx{}, dispatch.GetNewMux(nil)).Subscribe()
+	require.NoError(t, err)
+	require.NotNil(t, p, "Subscribe must return a pipe")
+	require.Empty(t, p.Channel(), "Pipe must be empty before Saving anything")
 }
 
-// TestAccounts_CurrencyBalances tests the CurrencyBalances method of the Accounts struct.
-func TestAccounts_CurrencyBalances(t *testing.T) {
+/*
+func TestCurrencyBalances(t *testing.T) {
 	t.Parallel()
 
 	mockCreds1 := Credentials{Key: "cred1"}
