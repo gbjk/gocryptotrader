@@ -224,17 +224,14 @@ func (a *Accounts) Save(s []SubAccount, creds *Credentials) error {
 			if newBal.UpdatedAt.IsZero() {
 				newBal.UpdatedAt = time.Now()
 			}
-			bal, ok := existing[newBal.Currency.Item]
-			if !ok || bal == nil {
-				bal = &balance{}
+			if _, ok := existing[newBal.Currency.Item]; !ok {
+				existing[newBal.Currency.Item] = &balance{}
 			}
-			if u, err := bal.update(newBal); err != nil {
+			if u, err := existing[newBal.Currency.Item].update(newBal); err != nil {
 				errs = common.AppendError(errs, fmt.Errorf("%w for account ID `%s` [%s %s]: %w", errLoadingBalance, update.ID, update.AssetType, update.Currencies[y].Currency, err))
-				continue
 			} else if u {
 				updated = true
 			}
-			existing[newBal.Currency.Item] = bal
 		}
 		for cur := range missing {
 			delete(existing, cur)
@@ -250,7 +247,7 @@ func (a *Accounts) Save(s []SubAccount, creds *Credentials) error {
 	return errs
 }
 
-// Update updates the balance
+// Update updates the account balances
 func (a *Accounts) Update(changes []Change, creds *Credentials) error {
 	if err := common.NilGuard(a); err != nil {
 		return fmt.Errorf("cannot save holdings: %w", err)
@@ -267,7 +264,7 @@ func (a *Accounts) Update(changes []Change, creds *Credentials) error {
 
 	subAccounts, ok := a.subAccounts[*creds]
 	if !ok {
-		subAccounts = make(map[key.SubAccountAsset]currencyBalances)
+		subAccounts = make(map[key.SubAccountAsset]CurrencyBalances)
 		a.subAccounts[*creds] = subAccounts
 	}
 
@@ -288,25 +285,23 @@ func (a *Accounts) Update(changes []Change, creds *Credentials) error {
 		}
 		assets, ok := subAccounts[accAsset]
 		if !ok {
-			assets = make(map[*currency.Item]*ProtectedBalance)
+			assets = make(CurrencyBalances)
 			a.subAccounts[*creds][accAsset] = assets
 		}
-		bal, ok := assets[change.Balance.Currency.Item]
-		if !ok || bal == nil {
-			bal = &ProtectedBalance{}
-			assets[change.Balance.Currency.Item] = bal
+		if _, ok := assets[change.Balance.Currency.Item]; !ok {
+			assets[change.Balance.Currency.Item] = &balance{}
 		}
-		if err := bal.load(change.Balance); err != nil {
+		if u, err := assets[change.Balance.Currency.Item].update(*change.Balance); err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("%w for %s.%s.%s %w",
 				errCannotUpdateBalance,
 				change.Account,
 				change.AssetType,
 				change.Balance.Currency,
 				err))
-			continue
-		}
-		if err := a.mux.Publish(change, a.ID); err != nil {
-			errs = common.AppendError(errs, fmt.Errorf("cannot publish update balance for %s: %w", a.Exchange, err))
+		} else if u {
+			if err := a.mux.Publish(change, a.ID); err != nil {
+				errs = common.AppendError(errs, fmt.Errorf("cannot publish update balance for %s: %w", a.Exchange, err))
+			}
 		}
 	}
 	return errs
