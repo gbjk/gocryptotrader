@@ -55,31 +55,25 @@ func (b Balance) Add(a Balance) Balance {
 	return b
 }
 
-// load checks to see if there is a change from incoming balance, if there is a
-// change it will change then alert external routines.
-func (b *balance) load(change *Balance) error {
+// update checks that an incoming change has a valid change, and returns if the balances were changed
+func (b *balance) update(change Balance) (bool, error) {
 	if err := common.NilGuard(b, change); err != nil {
-		return err
+		return false, err
 	}
 	if change.UpdatedAt.IsZero() {
-		return errUpdatedAtIsZero
+		return false, errUpdatedAtIsZero
 	}
 	b.m.Lock()
 	defer b.m.Unlock()
-	ib := b.internal
-	if !ib.UpdatedAt.IsZero() && !ib.UpdatedAt.Before(change.UpdatedAt) {
-		return errOutOfSequence
+	if !b.internal.UpdatedAt.Before(change.UpdatedAt) {
+		return false, errOutOfSequence
 	}
-	if ib.Total == change.Total &&
-		ib.Hold == change.Hold &&
-		ib.Free == change.Free &&
-		ib.AvailableWithoutBorrow == change.AvailableWithoutBorrow &&
-		ib.Borrowed == change.Borrowed &&
-		ib.UpdatedAt.Equal(change.UpdatedAt) {
-		return nil
+	b.internal.UpdatedAt = change.UpdatedAt // Set just the time, and then can compare easily
+	if b.internal == change {
+		return false, nil
 	}
-	ib = *change
-	return nil
+	b.internal = change
+	return true, nil
 }
 
 // Wait waits for a change in amounts for an asset type. This will pause

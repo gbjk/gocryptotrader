@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"sync"
 	"time"
@@ -175,6 +176,7 @@ func (a *Accounts) CurrencyBalances() map[currency.Code]Balance {
 }
 
 // Save saves the holdings with a new snapshot of account balances; Any missing currencies will be removed
+// Each SubAccount change is Published if it changes the balance for that currency
 func (a *Accounts) Save(s []SubAccount, creds *Credentials) error {
 	if err := common.NilGuard(a); err != nil {
 		return fmt.Errorf("cannot save holdings: %w", err)
@@ -198,63 +200,57 @@ func (a *Accounts) Save(s []SubAccount, creds *Credentials) error {
 
 	var errs error
 	for i := range s {
-		subAccount := s[i]
-		if !subAccount.AssetType.IsValid() {
-			errs = common.AppendError(errs, fmt.Errorf("cannot load sub account holdings for %s [%s] %w",
-				subAccount.ID,
-				subAccount.AssetType,
-				asset.ErrNotSupported))
+		update := s[i]
+		if !update.AssetType.IsValid() {
+			errs = common.AppendError(errs, fmt.Errorf("error loading %s[%s] SubAccount holdings: %w", update.ID, update.AssetType, asset.ErrNotSupported))
 			continue
 		}
 
 		accAsset := key.SubAccountAsset{
-			SubAccount: subAccount.ID,
-			Asset:      subAccount.AssetType,
+			SubAccount: update.ID,
+			Asset:      update.AssetType,
 		}
-		assets, ok := subAccounts[accAsset]
+		existing, ok := subAccounts[accAsset]
 		if !ok {
-			assets = make(CurrencyBalances)
-			a.subAccounts[*creds][accAsset] = assets
+			existing = make(CurrencyBalances)
+			a.subAccounts[*creds][accAsset] = existing
 		}
 
-		updated := make(map[*currency.Item]bool)
-		for y := range subAccount.Currencies {
-			accBal := subAccount.Currencies[y]
-			if accBal.UpdatedAt.IsZero() {
-				accBal.UpdatedAt = time.Now()
+		updated := false
+		missing := maps.Clone(existing)
+		for y := range update.Currencies {
+			newBal := update.Currencies[y]
+			delete(missing, newBal.Currency.Item)
+			if newBal.UpdatedAt.IsZero() {
+				newBal.UpdatedAt = time.Now()
 			}
-			bal, ok := assets[accBal.Currency.Item]
+			bal, ok := existing[newBal.Currency.Item]
 			if !ok || bal == nil {
 				bal = &balance{}
-				assets[accBal.Currency.Item] = bal
 			}
-			if err := bal.update(accBal); err != nil {
-				errs = common.AppendError(errs, fmt.Errorf("%w for account ID `%s` [%s %s]: %w",
-					errLoadingBalance,
-					subAccount.ID,
-					subAccount.AssetType,
-					subAccount.Currencies[y].Currency,
-					err))
+			if u, err := bal.update(newBal); err != nil {
+				errs = common.AppendError(errs, fmt.Errorf("%w for account ID `%s` [%s %s]: %w", errLoadingBalance, update.ID, update.AssetType, update.Currencies[y].Currency, err))
 				continue
+			} else if u {
+				updated = true
 			}
-			assets[accBal.Currency.Item] = bal
-			updated[accBal.Currency.Item] = true
+			existing[newBal.Currency.Item] = bal
 		}
-		for cur, bal := range assets {
-			if !updated[cur] {
-				bal.reset()
+		for cur := range missing {
+			delete(existing, cur)
+			updated = true
+		}
+		if updated {
+			if err := a.mux.Publish(update, a.ID); err != nil {
+				errs = common.AppendError(errs, fmt.Errorf("cannot publish load for %s %w", a.Exchange, err))
 			}
-		}
-
-		if err := a.mux.Publish(subAccount, a.ID); err != nil {
-			errs = common.AppendError(errs, fmt.Errorf("cannot publish load for %s %w", a.Exchange, err))
 		}
 	}
 
 	return errs
 }
 
-// Update updates the balance for a specific exchange and credentials
+// Update updates the balance
 func (a *Accounts) Update(changes []Change, creds *Credentials) error {
 	if err := common.NilGuard(a); err != nil {
 		return fmt.Errorf("cannot save holdings: %w", err)
@@ -278,13 +274,11 @@ func (a *Accounts) Update(changes []Change, creds *Credentials) error {
 	var errs error
 	for _, change := range changes {
 		if !change.AssetType.IsValid() {
-			errs = common.AppendError(errs, fmt.Errorf("%w for %s.%s %w",
-				errCannotUpdateBalance, change.Account, change.AssetType, asset.ErrNotSupported))
+			errs = common.AppendError(errs, fmt.Errorf("%w for %s.%s %w", errCannotUpdateBalance, change.Account, change.AssetType, asset.ErrNotSupported))
 			continue
 		}
 		if err := common.NilGuard(change.Balance); err != nil {
-			errs = common.AppendError(errs, fmt.Errorf("%w for %s.%s %w",
-				errCannotUpdateBalance, change.Account, change.AssetType, err))
+			errs = common.AppendError(errs, fmt.Errorf("%w for %s.%s %w", errCannotUpdateBalance, change.Account, change.AssetType, err))
 			continue
 		}
 
