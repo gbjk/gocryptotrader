@@ -32,6 +32,13 @@ func TestNewAccounts(t *testing.T) {
 	assert.ErrorContains(t, err, "nil pointer: *dispatch.Mux")
 }
 
+func TestMustNewAccounts(t *testing.T) {
+	t.Parallel()
+	a := MustNewAccounts(&mockEx{"mocky"}, dispatch.GetNewMux(nil))
+	require.NotNil(t, a)
+	require.Panics(t, func() { _ = MustNewAccounts(nil, nil) })
+}
+
 /*
 // TestAccounts_NewAccounts_MustNewAccounts tests NewAccounts and MustNewAccounts functions.
 func TestAccounts_NewAccounts_MustNewAccounts(t *testing.T) {
