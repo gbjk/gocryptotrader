@@ -8,7 +8,10 @@ import (
 
 func TestNewStore(t *testing.T) {
 	t.Parallel()
-	require.NotNil(t, NewStore())
+	s := NewStore()
+	require.NotNil(t, s, "NewStore must return a store")
+	require.NotNil(t, s.mux, "NewStore must set mux")
+	require.NotNil(t, s.exchangeAccounts, "NewStore must set exchangeAccounts")
 }
 
 func TestGetStore(t *testing.T) {

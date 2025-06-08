@@ -67,6 +67,9 @@ func MustNewAccounts(e exchange, mux *dispatch.Mux) *Accounts {
 
 // NewAccounts returns an initialized Accounts store for use in isolation from a global exchange accounts store
 func NewAccounts(e exchange, mux *dispatch.Mux) (*Accounts, error) {
+	if err := common.NilGuard(e); err != nil {
+		return nil, err
+	}
 	id, err := mux.GetID()
 	if err != nil {
 		return nil, err
