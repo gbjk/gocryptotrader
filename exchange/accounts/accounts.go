@@ -19,13 +19,12 @@ import (
 
 // Public errors
 var (
-	ErrExchangeHoldingsNotFound = errors.New("exchange holdings not found")
+	ErrBalancesNotFound = errors.New("balances not found")
 )
 
 var (
 	errExchangeNameUnset            = errors.New("exchange name unset")
 	errNoExchangeSubAccountBalances = errors.New("no exchange sub account balances")
-	errNoCredentialBalances         = errors.New("no balances associated with credentials")
 	errCredentialsEmpty             = errors.New("credentials are nil")
 	errOutOfSequence                = errors.New("out of sequence")
 	errUpdatedAtIsZero              = errors.New("updatedAt may not be zero")
@@ -43,13 +42,11 @@ type Accounts struct {
 	mux         *dispatch.Mux
 }
 
-type CurrencyBalances map[*currency.Item]*balance
-
 // SubAccount defines a singular account type with associated currency balances
 type SubAccount struct {
 	ID          string
 	AssetType   asset.Item
-	Currencies  []Balance
+	Balances    CurrencyBalances
 	credentials Credentials
 }
 
@@ -87,10 +84,8 @@ func (a *Accounts) Subscribe() (dispatch.Pipe, error) {
 	return a.mux.Subscribe(a.ID)
 }
 
-// GetHoldings returns the Balances
-// NOTE: Due to credentials these amounts could be N*APIKEY actual holdings.
-// TODO: Add jurisdiction and differentiation between APIKEY holdings.
-func (a *Accounts) GetHoldings(creds *Credentials, assetType asset.Item) ([]Balance, error) {
+// GetBalances returns the Balances
+func (a *Accounts) GetBalances(creds *Credentials, assetType asset.Item) (SubAccounts, error) {
 	if err := common.NilGuard(a); err != nil {
 		return nil, err
 	}
@@ -103,25 +98,26 @@ func (a *Accounts) GetHoldings(creds *Credentials, assetType asset.Item) ([]Bala
 		return nil, fmt.Errorf("%s %s %w", a.Exchange.GetName(), assetType, asset.ErrNotSupported)
 	}
 
-	subAccountHoldings, ok := a.subAccounts[*creds]
+	subAccounts, ok := a.subAccounts[*creds]
 	if !ok {
-		return nil, fmt.Errorf("%s %s %s %w %w", a.Exchange.GetName(), creds, assetType, errNoCredentialBalances, ErrExchangeHoldingsNotFound)
+		return nil, fmt.Errorf("%w for %s credentials %s", ErrBalancesNotFound, a.Exchange.GetName(), creds)
 	}
 
-	var b []Balance
+	var s SubAccounts
 
-	for mapKey, assets := range subAccountHoldings {
-		if mapKey.Asset == assetType {
-			continue
-		}
-		for _, bal := range assets {
-			b = append(b, bal.Balance())
+	for subAcctKey, currBals := range subAccounts {
+		if subAcctKey.Asset == assetType {
+			s = append(s, SubAccount{
+				ID:        subAcctKey.SubAccount,
+				AssetType: subAcctKey.Asset,
+				Balances:  currBals.Public(),
+			})
 		}
 	}
-	if len(b) == 0 {
-		return nil, fmt.Errorf("%s %s %w", a.Exchange.GetName(), assetType, ErrExchangeHoldingsNotFound)
+	if len(s) == 0 {
+		return nil, fmt.Errorf("%w for %s credentials %s asset %s", ErrBalancesNotFound, a.Exchange.GetName(), assetType)
 	}
-	return b, nil
+	return s, nil
 }
 
 // GetBalance returns a copy of the balance for that asset item
@@ -143,7 +139,7 @@ func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset
 
 	subAccounts, ok := a.subAccounts[*creds]
 	if !ok {
-		return Balance{}, fmt.Errorf("%w for %s", errNoCredentialBalances, creds)
+		return Balance{}, fmt.Errorf("%w for %s", ErrBalancesNotFound, creds)
 	}
 
 	assets, ok := subAccounts[key.SubAccountAsset{
@@ -221,9 +217,8 @@ func (a *Accounts) Save(s []SubAccount, creds *Credentials) error {
 
 		updated := false
 		missing := maps.Clone(existing)
-		for y := range update.Currencies {
-			newBal := update.Currencies[y]
-			delete(missing, newBal.Currency.Item)
+		for curr, newBal := range update.Currencies {
+			delete(missing, curr)
 			if newBal.UpdatedAt.IsZero() {
 				newBal.UpdatedAt = time.Now()
 			}

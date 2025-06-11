@@ -20,11 +20,15 @@ type Balance struct {
 	UpdatedAt              time.Time
 }
 
+type HasBalance interface {
+	Balance() Balance
+}
+
 // Change defines incoming balance change on currency holdings
 type Change struct {
 	Account   string
 	AssetType asset.Item
-	Balance   *Balance
+	Balance   HasBalance
 }
 
 // balance contains a balance with live updates
@@ -33,12 +37,27 @@ type balance struct {
 	m        sync.RWMutex
 }
 
-// balance returns a snapshot copy of the Balance
-// Does not enjoy protection from locking
+// CurrencyBalance provides a map of currencies to balances, for both private and public use
+type CurrencyBalances map[*currency.Item]HasBalance
+
+func (c CurrencyBalances) Public() CurrencyBalances {
+	var n CurrencyBalances
+	for curr, bal := range c {
+		n[curr] = bal.Balance()
+	}
+	return n
+}
+
+// HasBalance implements the HasBalance interface and returns a snapshot copy of the Balance
 func (l *balance) Balance() Balance {
 	l.m.RLock()
 	defer l.m.RUnlock()
 	return l.internal
+}
+
+// HasBalance implements the HasBalance interface and returns a snapshot copy of the Balance
+func (b Balance) Balance() Balance {
+	return b
 }
 
 // Add returns a new Balance adding together a and b

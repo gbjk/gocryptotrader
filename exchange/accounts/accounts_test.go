@@ -2,11 +2,15 @@ package accounts
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
+	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 type mockEx struct {
@@ -53,99 +57,97 @@ func TestSubscribe(t *testing.T) {
 	require.Empty(t, p.Channel(), "Pipe must be empty before Saving anything")
 }
 
-/*
 func TestCurrencyBalances(t *testing.T) {
 	t.Parallel()
 
-	mockCreds1 := Credentials{Key: "cred1"}
-	btcSpot1Bal := Balance{Currency: currency.BTC, Total: 1, Free: 1, UpdatedAt: time.Now()}
-	ethSpot1Bal := Balance{Currency: currency.ETH, Total: 10, Free: 10, UpdatedAt: time.Now()}
-	btcSpot2Bal := Balance{Currency: currency.BTC, Total: 2, Free: 2, UpdatedAt: time.Now()}
-	ltcSpot2Bal := Balance{Currency: currency.LTC, Total: 5, Free: 5, UpdatedAt: time.Now()}
-	usdtMargin1Bal := Balance{Currency: currency.USDT, Total: 100, Free: 100, UpdatedAt: time.Now()}
-	btcMargin1Bal := Balance{Currency: currency.BTC, Total: 0.5, Free: 0.5, UpdatedAt: time.Now()}
-
-	accs := Accounts{
-		subAccounts: make(map[Credentials]map[key.SubAccountAsset]CurrencyBalances),
-	}
-	accs.subAccounts[mockCreds1] = make(map[key.SubAccountAsset]CurrencyBalances)
-	saKeySpot1 := key.SubAccountAsset{SubAccount: "subAccID1", Asset: asset.Spot}
-	accs.subAccounts[mockCreds1][saKeySpot1] = CurrencyBalances{
-		currency.BTC.Item: &balance{internal: btcSpot1Bal},
-		currency.ETH.Item: &balance{internal: ethSpot1Bal},
-	}
-	saKeySpot2 := key.SubAccountAsset{SubAccount: "subAccID2", Asset: asset.Spot}
-	accs.subAccounts[mockCreds1][saKeySpot2] = CurrencyBalances{
-		currency.BTC.Item: &balance{internal: btcSpot2Bal},
-		currency.LTC.Item: &balance{internal: ltcSpot2Bal},
-	}
-	saKeyMargin1 := key.SubAccountAsset{SubAccount: "subAccID1", Asset: asset.Margin}
-	accs.subAccounts[mockCreds1][saKeyMargin1] = CurrencyBalances{
-		currency.USDT.Item: &balance{internal: usdtMargin1Bal},
-		currency.BTC.Item:  &balance{internal: btcMargin1Bal},
+	n := time.Now()
+	creds := Credentials{Key: "cred1"}
+	a := Accounts{
+		subAccounts: map[Credentials]map[key.SubAccountAsset]CurrencyBalances{
+			creds: {
+				{"a", asset.Spot}: {
+					currency.BTC.Item: &balance{internal: Balance{Currency: currency.BTC, Total: 1, Free: 1, UpdatedAt: n}},
+					currency.ETH.Item: &balance{internal: Balance{Currency: currency.ETH, Total: 10, Free: 10, UpdatedAt: n}},
+				},
+				{"b", asset.Spot}: {
+					currency.BTC.Item: &balance{internal: Balance{Currency: currency.BTC, Total: 2, Free: 2, UpdatedAt: n}},
+					currency.LTC.Item: &balance{internal: Balance{Currency: currency.LTC, Total: 5, Free: 5, UpdatedAt: n}},
+				},
+				{"a", asset.Margin}: {
+					currency.USDT.Item: &balance{internal: Balance{Currency: currency.USDT, Total: 100, Free: 100, UpdatedAt: n}},
+					currency.BTC.Item:  &balance{internal: Balance{Currency: currency.BTC, Total: 0.5, Free: 0.5, UpdatedAt: n}},
+				},
+			},
+		},
 	}
 
-	expectedBalances := map[currency.Code]Balance{
-		currency.BTC:  {Currency: currency.BTC, Total: 3.5, Free: 3.5},
-		currency.ETH:  {Currency: currency.ETH, Total: 10, Free: 10},
-		currency.LTC:  {Currency: currency.LTC, Total: 5, Free: 5},
-		currency.USDT: {Currency: currency.USDT, Total: 100, Free: 100},
-	}
-
-	t.Run("basic aggregation", func(t *testing.T) {
-		result := accs.CurrencyBalances()
-		if len(result) != len(expectedBalances) {
-			t.Errorf("Expected %d aggregated currencies, got %d. Result: %+v", len(expectedBalances), len(result), result)
+	/*
+		expectedBalances := map[currency.Code]Balance{
+			currency.BTC:  {Currency: currency.BTC, Total: 3.5, Free: 3.5},
+			currency.ETH:  {Currency: currency.ETH, Total: 10, Free: 10},
+			currency.LTC:  {Currency: currency.LTC, Total: 5, Free: 5},
+			currency.USDT: {Currency: currency.USDT, Total: 100, Free: 100},
 		}
-		for c, expectedBal := range expectedBalances {
-			actualBal, ok := result[c]
-			if !ok {
-				t.Errorf("Expected currency %s missing from result", c)
-				continue
+	*/
+
+	b := a.CurrencyBalances()
+	require.Equal(t, 4, len(b), "Must get 4 balances")
+	/*
+			if len(result) != len(expectedBalances) {
+				t.Errorf("Expected %d aggregated currencies, got %d. Result: %+v", len(expectedBalances), len(result), result)
 			}
-			if actualBal.Total != expectedBal.Total {
-				t.Errorf("For currency %s, expected Total %f, got %f", c, expectedBal.Total, actualBal.Total)
+			for c, expectedBal := range expectedBalances {
+				actualBal, ok := result[c]
+				if !ok {
+					t.Errorf("Expected currency %s missing from result", c)
+					continue
+				}
+				if actualBal.Total != expectedBal.Total {
+					t.Errorf("For currency %s, expected Total %f, got %f", c, expectedBal.Total, actualBal.Total)
+				}
+				if actualBal.Free != expectedBal.Free {
+					t.Errorf("For currency %s, expected Free %f, got %f", c, expectedBal.Free, actualBal.Free)
+				}
+				if actualBal.Hold != expectedBal.Hold {
+					t.Errorf("For currency %s, expected Hold %f, got %f", c, expectedBal.Hold, actualBal.Hold)
+				}
 			}
-			if actualBal.Free != expectedBal.Free {
-				t.Errorf("For currency %s, expected Free %f, got %f", c, expectedBal.Free, actualBal.Free)
+		})
+
+		t.Run("no subaccounts", func(t *testing.T) {
+			emptyAccs := Accounts{
+				subAccounts: make(map[Credentials]map[key.SubAccountAsset]CurrencyBalances),
 			}
-			if actualBal.Hold != expectedBal.Hold {
-				t.Errorf("For currency %s, expected Hold %f, got %f", c, expectedBal.Hold, actualBal.Hold)
+			result := emptyAccs.CurrencyBalances()
+			if len(result) != 0 {
+				t.Errorf("Expected 0 balances for empty accounts, got %d", len(result))
 			}
-		}
-	})
+		})
 
-	t.Run("no subaccounts", func(t *testing.T) {
-		emptyAccs := Accounts{
-			subAccounts: make(map[Credentials]map[key.SubAccountAsset]CurrencyBalances),
-		}
-		result := emptyAccs.CurrencyBalances()
-		if len(result) != 0 {
-			t.Errorf("Expected 0 balances for empty accounts, got %d", len(result))
-		}
-	})
+		t.Run("subaccounts exist but no balances for some currencies", func(t *testing.T) {
+			complexAccs := Accounts{
+				subAccounts: make(map[Credentials]map[key.SubAccountAsset]CurrencyBalances),
+			}
+			complexAccs.subAccounts[creds] = make(map[key.SubAccountAsset]CurrencyBalances)
+			saKeyTest := key.SubAccountAsset{SubAccount: "testSub", Asset: asset.Spot}
+			complexAccs.subAccounts[creds][saKeyTest] = CurrencyBalances{
+				currency.BTC.Item: &balance{internal: Balance{Currency: currency.BTC, Total: 1, UpdatedAt: time.Now()}},
+			}
+			saKeyEmpty := key.SubAccountAsset{SubAccount: "emptySub", Asset: asset.Spot}
+			complexAccs.subAccounts[creds][saKeyEmpty] = make(CurrencyBalances)
 
-	t.Run("subaccounts exist but no balances for some currencies", func(t *testing.T) {
-		complexAccs := Accounts{
-			subAccounts: make(map[Credentials]map[key.SubAccountAsset]CurrencyBalances),
-		}
-		complexAccs.subAccounts[mockCreds1] = make(map[key.SubAccountAsset]CurrencyBalances)
-		saKeyTest := key.SubAccountAsset{SubAccount: "testSub", Asset: asset.Spot}
-		complexAccs.subAccounts[mockCreds1][saKeyTest] = CurrencyBalances{
-			currency.BTC.Item: &balance{internal: Balance{Currency: currency.BTC, Total: 1, UpdatedAt: time.Now()}},
-		}
-		saKeyEmpty := key.SubAccountAsset{SubAccount: "emptySub", Asset: asset.Spot}
-		complexAccs.subAccounts[mockCreds1][saKeyEmpty] = make(CurrencyBalances)
-
-		result := complexAccs.CurrencyBalances()
-		if len(result) != 1 {
-			t.Errorf("Expected 1 currency (BTC), got %d. Result: %+v", len(result), result)
-		}
-		if _, ok := result[currency.BTC]; !ok {
-			t.Error("Expected BTC to be present in the result.")
-		}
-	})
+			result := complexAccs.CurrencyBalances()
+			if len(result) != 1 {
+				t.Errorf("Expected 1 currency (BTC), got %d. Result: %+v", len(result), result)
+			}
+			if _, ok := result[currency.BTC]; !ok {
+				t.Error("Expected BTC to be present in the result.")
+			}
+		})
+	*/
 }
+
+/*
 
 // TestAccounts_Save tests the Save method of the Accounts struct.
 func TestAccounts_Save(t *testing.T) {
