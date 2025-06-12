@@ -37,19 +37,42 @@ var (
 type Accounts struct {
 	Exchange    exchange
 	ID          uuid.UUID
-	subAccounts map[Credentials]map[key.SubAccountAsset]CurrencyBalances
+	subAccounts credSubAccounts
 	mu          sync.RWMutex
 	mux         *dispatch.Mux
 }
 
-// SubAccount defines a singular account type with associated currency balances
-type SubAccount struct {
-	ID          string
-	AssetType   asset.Item
-	Balances    CurrencyBalances
-	credentials Credentials
+type (
+	credSubAccounts map[Credentials]subAccounts
+	subAccounts     map[key.SubAccountAsset]currencyBalances
+)
+
+func (a *Accounts) currencyBalances(c *Credentials, subAcct string, aType asset.Item) currencyBalances {
+	k := key.SubAccountAsset{SubAccount: subAcct, Asset: aType}
+	if _, ok := a.subAccounts[*c]; !ok {
+		a.subAccounts[*c] = make(subAccounts)
+	}
+	if _, ok := a.subAccounts[*c][k]; !ok {
+		a.subAccounts[*c][k] = make(currencyBalances)
+	}
+	return a.subAccounts[*c][k]
 }
 
+func (s currencyBalances) balance(c currency.Code) *balance {
+	if _, ok := s[c]; !ok {
+		s[c] = &balance{}
+	}
+	return s[c]
+}
+
+// SubAccount contains a sub account for a single asset type and it's Balances
+type SubAccount struct {
+	ID        string
+	AssetType asset.Item
+	Balances  CurrencyBalances
+}
+
+// SubAccounts contains a list of public SubAccounts
 type SubAccounts []SubAccount
 
 // MustNewAccounts returns an initialized Accounts store for use in isolation from a global exchange accounts store
@@ -73,7 +96,7 @@ func NewAccounts(e exchange, mux *dispatch.Mux) (*Accounts, error) {
 	}
 	return &Accounts{
 		Exchange:    e,
-		subAccounts: make(map[Credentials]map[key.SubAccountAsset]CurrencyBalances),
+		subAccounts: make(credSubAccounts),
 		ID:          id,
 		mux:         mux,
 	}, nil
@@ -149,7 +172,7 @@ func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset
 	if !ok {
 		return Balance{}, fmt.Errorf("%w for %s SubAccount %q %s %s", errNoExchangeSubAccountBalances, a.Exchange.GetName(), subAccount, aType, c)
 	}
-	b, ok := assets[c.Item]
+	b, ok := assets[c]
 	if !ok {
 		return Balance{}, fmt.Errorf("%w for %s SubAccount %q %s %s", errNoExchangeSubAccountBalances, a.Exchange.GetName(), subAccount, aType, c)
 	}
@@ -161,12 +184,11 @@ func (a *Accounts) CurrencyBalances() map[currency.Code]Balance {
 	currMap := map[currency.Code]Balance{}
 	for _, subAcctMap := range a.subAccounts {
 		for _, currs := range subAcctMap {
-			for _, b := range currs {
-				curr := b.internal.Currency
+			for curr, bal := range currs {
 				if existing, ok := currMap[curr]; !ok {
-					currMap[curr] = b.Balance()
+					currMap[curr] = bal.Balance()
 				} else {
-					currMap[curr] = existing.Add(b.Balance())
+					currMap[curr] = existing.Add(bal.Balance())
 				}
 			}
 		}
@@ -191,12 +213,6 @@ func (a *Accounts) Save(s []SubAccount, creds *Credentials) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	subAccounts, ok := a.subAccounts[*creds]
-	if !ok {
-		subAccounts = make(map[key.SubAccountAsset]CurrencyBalances)
-		a.subAccounts[*creds] = subAccounts
-	}
-
 	var errs error
 	for i := range s {
 		update := s[i]
@@ -205,34 +221,24 @@ func (a *Accounts) Save(s []SubAccount, creds *Credentials) error {
 			continue
 		}
 
-		accAsset := key.SubAccountAsset{
-			SubAccount: update.ID,
-			Asset:      update.AssetType,
-		}
-		existing, ok := subAccounts[accAsset]
-		if !ok {
-			existing = make(CurrencyBalances)
-			a.subAccounts[*creds][accAsset] = existing
-		}
+		accBalances := a.currencyBalances(creds, update.ID, update.AssetType)
 
 		updated := false
-		missing := maps.Clone(existing)
-		for curr, newBal := range update.Currencies {
+		missing := maps.Clone(accBalances)
+		for curr, newBal := range update.Balances {
 			delete(missing, curr)
 			if newBal.UpdatedAt.IsZero() {
 				newBal.UpdatedAt = time.Now()
 			}
-			if _, ok := existing[newBal.Currency.Item]; !ok {
-				existing[newBal.Currency.Item] = &balance{}
-			}
-			if u, err := existing[newBal.Currency.Item].update(newBal); err != nil {
+			b := accBalances.balance(newBal.Currency)
+			if u, err := b.update(newBal); err != nil {
 				errs = common.AppendError(errs, fmt.Errorf("%w for account ID `%s` [%s %s]: %w", errLoadingBalance, update.ID, update.AssetType, update.Currencies[y].Currency, err))
 			} else if u {
 				updated = true
 			}
 		}
 		for cur := range missing {
-			delete(existing, cur)
+			delete(accBalances, cur)
 			updated = true
 		}
 		if updated {
@@ -260,12 +266,6 @@ func (a *Accounts) Update(changes []Change, creds *Credentials) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	subAccounts, ok := a.subAccounts[*creds]
-	if !ok {
-		subAccounts = make(map[key.SubAccountAsset]CurrencyBalances)
-		a.subAccounts[*creds] = subAccounts
-	}
-
 	var errs error
 	for _, change := range changes {
 		if !change.AssetType.IsValid() {
@@ -277,19 +277,8 @@ func (a *Accounts) Update(changes []Change, creds *Credentials) error {
 			continue
 		}
 
-		accAsset := key.SubAccountAsset{
-			SubAccount: change.Account,
-			Asset:      change.AssetType,
-		}
-		assets, ok := subAccounts[accAsset]
-		if !ok {
-			assets = make(CurrencyBalances)
-			a.subAccounts[*creds][accAsset] = assets
-		}
-		if _, ok := assets[change.Balance.Currency.Item]; !ok {
-			assets[change.Balance.Currency.Item] = &balance{}
-		}
-		if u, err := assets[change.Balance.Currency.Item].update(*change.Balance); err != nil {
+		accBalances := a.currencyBalances(creds, change.Account, change.AssetType)
+		if u, err := accBalances.balance(change.Balance.Currency).update(*change.Balance); err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("%w for %s.%s.%s %w",
 				errCannotUpdateBalance,
 				change.Account,
@@ -306,6 +295,7 @@ func (a *Accounts) Update(changes []Change, creds *Credentials) error {
 }
 
 // Group reduces a list of SubAccounts, grouping by AssetType and ID and concating Currencies
+TODO: Now that Balances is a map, what do we do here?
 func (l SubAccounts) Group() SubAccounts {
 	var n SubAccounts
 	slices.SortFunc(l, func(a, b SubAccount) int {
@@ -318,7 +308,7 @@ func (l SubAccounts) Group() SubAccounts {
 		if len(n) == 0 || l[i].AssetType != n[len(n)-1].AssetType || l[i].ID != n[len(n)-1].ID {
 			n = append(n, l[i])
 		} else {
-			n[len(n)-1].Currencies = append(n[len(n)-1].Currencies, l[i].Currencies...)
+			n[len(n)-1].Balances = append(n[len(n)-1].Balances, l[i].Balances...)
 		}
 	}
 	return n
