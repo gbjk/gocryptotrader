@@ -449,41 +449,38 @@ func (b *Bitmex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 	return orderbook.Get(b.Name, p, assetType)
 }
 
-// UpdateAccountHoldings retrieves balances for all enabled currencies for the
-// Bitmex exchange
-func (b *Bitmex) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var info account.Holdings
-
+// UpdateAccountHoldings retrieves balances for all enabled currencies for the Bitmex exchange
+func (b *Bitmex) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.SubAccounts, error) {
+	var subAccts accounts.SubAccounts
 	userMargins, err := b.GetAllUserMargin(ctx)
 	if err != nil {
-		return info, err
+		return subAccts, err
 	}
 
-	subAccts := make(accounts.SubAccounts, 0, len(userMargins))
 	// Need to update to add Margin/Liquidity availability
 	for i := range userMargins {
 		wallet, err := b.GetWalletInfo(ctx, userMargins[i].Currency)
 		if err != nil {
 			continue
 		}
-		subAccts = append(subAccts, accounts.SubAccount{
+		c := currency.NewCode(wallet.Currency)
+		subAccts.Merge(accounts.SubAccount{
 			AssetType: assetType,
 			ID:        strconv.FormatInt(userMargins[i].Account, 10),
-			Currencies: []account.Balance{{
-				Currency: currency.NewCode(wallet.Currency),
-				Total:    wallet.Amount,
-			}},
+			Balances: account.CurrencyBalances{
+				c: account.Balance{
+					Currency: c,
+					Total:    wallet.Amount,
+				},
+			},
 		})
 	}
-
-	info.Accounts = subAccts.Group()
-	info.Exchange = b.Name
 
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return account.Holdings{}, err
 	}
-	return info, b.Accounts.Save(&info, creds)
+	return subAccts, b.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and

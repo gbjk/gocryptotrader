@@ -1,7 +1,6 @@
 package accounts
 
 import (
-	"cmp"
 	"errors"
 	"fmt"
 	"maps"
@@ -46,24 +45,6 @@ type (
 	credSubAccounts map[Credentials]subAccounts
 	subAccounts     map[key.SubAccountAsset]currencyBalances
 )
-
-func (a *Accounts) currencyBalances(c *Credentials, subAcct string, aType asset.Item) currencyBalances {
-	k := key.SubAccountAsset{SubAccount: subAcct, Asset: aType}
-	if _, ok := a.subAccounts[*c]; !ok {
-		a.subAccounts[*c] = make(subAccounts)
-	}
-	if _, ok := a.subAccounts[*c][k]; !ok {
-		a.subAccounts[*c][k] = make(currencyBalances)
-	}
-	return a.subAccounts[*c][k]
-}
-
-func (s currencyBalances) balance(c currency.Code) *balance {
-	if _, ok := s[c]; !ok {
-		s[c] = &balance{}
-	}
-	return s[c]
-}
 
 // SubAccount contains a sub account for a single asset type and it's Balances
 type SubAccount struct {
@@ -278,13 +259,8 @@ func (a *Accounts) Update(changes []Change, creds *Credentials) error {
 		}
 
 		accBalances := a.currencyBalances(creds, change.Account, change.AssetType)
-		if u, err := accBalances.balance(change.Balance.Currency).update(*change.Balance); err != nil {
-			errs = common.AppendError(errs, fmt.Errorf("%w for %s.%s.%s %w",
-				errCannotUpdateBalance,
-				change.Account,
-				change.AssetType,
-				change.Balance.Currency,
-				err))
+		if u, err := accBalances.balance(change.Balance.Currency).update(change.Balance); err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("%w for %s.%s.%s %w", errCannotUpdateBalance, change.Account, change.AssetType, change.Balance.Currency, err))
 		} else if u {
 			if err := a.mux.Publish(change, a.ID); err != nil {
 				errs = common.AppendError(errs, fmt.Errorf("cannot publish update balance for %s: %w", a.Exchange, err))
@@ -294,22 +270,33 @@ func (a *Accounts) Update(changes []Change, creds *Credentials) error {
 	return errs
 }
 
-// Group reduces a list of SubAccounts, grouping by AssetType and ID and concating Currencies
-TODO: Now that Balances is a map, what do we do here?
-func (l SubAccounts) Group() SubAccounts {
-	var n SubAccounts
-	slices.SortFunc(l, func(a, b SubAccount) int {
-		if c := cmp.Compare(a.AssetType, b.AssetType); c != 0 {
-			return c
-		}
-		return cmp.Compare(a.ID, b.ID)
-	})
-	for i := range l {
-		if len(n) == 0 || l[i].AssetType != n[len(n)-1].AssetType || l[i].ID != n[len(n)-1].ID {
-			n = append(n, l[i])
-		} else {
-			n[len(n)-1].Balances = append(n[len(n)-1].Balances, l[i].Balances...)
+// Merge adds CurrencyBalances in s to the SubAccount in l with a matching AssetType and ID
+// If no SubAccount matches, s is appended
+// Duplicate Currency Balances are added
+func (l *SubAccounts) Merge(s SubAccount) {
+	if i := slices.IndexFunc(*l, func(b SubAccount) bool { return s.AssetType == b.AssetType && s.ID == b.ID }); i == -1 {
+		*l = append(*l, s)
+	} else {
+		for curr, newBal := range s.Balances {
+			(*l)[i].Balances[curr] = newBal.Add((*l)[i].Balances[curr])
 		}
 	}
-	return n
+}
+
+func (a *Accounts) currencyBalances(c *Credentials, subAcct string, aType asset.Item) currencyBalances {
+	k := key.SubAccountAsset{SubAccount: subAcct, Asset: aType}
+	if _, ok := a.subAccounts[*c]; !ok {
+		a.subAccounts[*c] = make(subAccounts)
+	}
+	if _, ok := a.subAccounts[*c][k]; !ok {
+		a.subAccounts[*c][k] = make(currencyBalances)
+	}
+	return a.subAccounts[*c][k]
+}
+
+func (s currencyBalances) balance(c currency.Code) *balance {
+	if _, ok := s[c]; !ok {
+		s[c] = &balance{}
+	}
+	return s[c]
 }

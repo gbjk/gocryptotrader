@@ -219,37 +219,37 @@ func (c *CoinbasePro) UpdateTradablePairs(ctx context.Context, forceUpdate bool)
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // coinbasepro exchange
-func (c *CoinbasePro) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var response account.Holdings
-	response.Exchange = c.Name
+func (c *CoinbasePro) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.SubAccounts, error) {
+	var subAccts account.SubAccounts
 	accountBalance, err := c.GetAccounts(ctx)
 	if err != nil {
-		return response, err
+		return subAccts, err
 	}
 
-	subAccts := make(accounts.SubAccounts, 0, len(accountBalance))
 	for i := range accountBalance {
-		subAccts = append(subAccts, accounts.SubAccount{
+		curr := currency.NewCode(accountBalance[i].Currency)
+		subAccts.Merge(accounts.SubAccount{
 			AssetType: assetType,
 			ID:        accountBalance[i].ProfileID,
-			Currencies: []account.Balance{{
-				Currency:               currency.NewCode(accountBalance[i].Currency),
-				Total:                  accountBalance[i].Balance,
-				Hold:                   accountBalance[i].Hold,
-				Free:                   accountBalance[i].Available,
-				Borrowed:               accountBalance[i].FundedAmount,
-				AvailableWithoutBorrow: accountBalance[i].Available - accountBalance[i].FundedAmount,
-			}},
+			Balances: account.CurrencyBalances{
+				curr: account.Balance{
+					Currency:               curr,
+					Total:                  accountBalance[i].Balance,
+					Hold:                   accountBalance[i].Hold,
+					Free:                   accountBalance[i].Available,
+					Borrowed:               accountBalance[i].FundedAmount,
+					AvailableWithoutBorrow: accountBalance[i].Available - accountBalance[i].FundedAmount,
+				},
+			},
 		})
 	}
-	response.Accounts = subAccts.Group()
 
 	creds, err := c.GetCredentials(ctx)
 	if err != nil {
 		return account.Holdings{}, err
 	}
 
-	return response, c.Accounts.Save(&response, creds)
+	return subAccts, c.Accounts.Save(subAccts, creds)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
