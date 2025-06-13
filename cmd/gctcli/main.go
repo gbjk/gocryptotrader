@@ -28,7 +28,7 @@ var (
 	pairDelimiter string
 	certPath      string
 	timeout       time.Duration
-	exchangeCreds account.Credentials
+	exchangeCreds accounts.Credentials
 	verbose       bool
 	ignoreTimeout bool
 )

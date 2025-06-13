@@ -222,7 +222,7 @@ type API struct {
 
 	Endpoints *Endpoints
 
-	credentials account.Credentials
+	credentials accounts.Credentials
 	credMu      sync.RWMutex
 
 	CredentialsValidator config.APICredentialsValidatorConfig

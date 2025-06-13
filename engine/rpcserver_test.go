@@ -326,7 +326,7 @@ func (f fExchange) GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Price
 func (f fExchange) GetCachedAccountInfo(_ context.Context, a asset.Item) (account.Holdings, error) {
 	return account.Holdings{
 		Exchange: f.GetName(),
-		Accounts: []account.SubAccount{
+		Accounts: accounts.SubAccounts{
 			{
 				ID:        "1337",
 				AssetType: a,
@@ -399,7 +399,7 @@ func (f fExchange) UpdateAccountHoldings(_ context.Context, a asset.Item) (accou
 	}
 	return account.Holdings{
 		Exchange: f.GetName(),
-		Accounts: []account.SubAccount{
+		Accounts: accounts.SubAccounts{
 			{
 				ID:         "1337",
 				AssetType:  a,
@@ -2407,7 +2407,7 @@ func TestGetCollateral(t *testing.T) {
 	}
 
 	ctx := account.DeployCredentialsToContext(t.Context(),
-		&account.Credentials{Key: "fakerino", Secret: "supafake"})
+		&accounts.Credentials{Key: "fakerino", Secret: "supafake"})
 
 	_, err = s.GetCollateral(ctx, &gctrpc.GetCollateralRequest{
 		Exchange: fakeExchangeName,
@@ -2418,7 +2418,7 @@ func TestGetCollateral(t *testing.T) {
 	}
 
 	ctx = account.DeployCredentialsToContext(t.Context(),
-		&account.Credentials{Key: "fakerino", Secret: "supafake", SubAccount: "1337"})
+		&accounts.Credentials{Key: "fakerino", Secret: "supafake", SubAccount: "1337"})
 
 	r, err := s.GetCollateral(ctx, &gctrpc.GetCollateralRequest{
 		Exchange:         fakeExchangeName,

@@ -2900,11 +2900,11 @@ func TestGetCachedAccountInfo(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
 
-	creds := &account.Credentials{
+	creds := &accounts.Credentials{
 		Key:    "test",
 		Secret: "test",
 	}
-	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{
+	ctx := account.DeployCredentialsToContext(t.Context(), &accounts.Credentials{
 		Key:    "test",
 		Secret: "test",
 	})
@@ -2915,7 +2915,7 @@ func TestGetCachedAccountInfo(t *testing.T) {
 	_, err = b.GetCachedAccountInfo(ctx, asset.Spot)
 	assert.ErrorIs(t, err, account.ErrExchangeHoldingsNotFound)
 
-	err = b.Accounts.Save(&account.Holdings{Exchange: "test", Accounts: []account.SubAccount{
+	err = b.Accounts.Save(&account.Holdings{Exchange: "test", Accounts: accounts.SubAccounts{
 		{AssetType: asset.Spot, Currencies: []account.Balance{{Currency: currency.BTC, Total: 1}}},
 	}}, creds)
 	require.NoError(t, err, "b.Accounts.Save must not error")

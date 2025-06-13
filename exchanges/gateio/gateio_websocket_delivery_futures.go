@@ -122,7 +122,7 @@ func (g *Gateio) generateDeliveryFuturesPayload(ctx context.Context, conn websoc
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
-	var creds *account.Credentials
+	var creds *accounts.Credentials
 	var err error
 	if g.Websocket.CanUseAuthenticatedEndpoints() {
 		creds, err = g.GetCredentials(ctx)

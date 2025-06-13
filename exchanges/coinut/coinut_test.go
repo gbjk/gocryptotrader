@@ -800,7 +800,7 @@ func TestWsLogin(t *testing.T) {
    "username":"test"
 }`)
 	ctx := account.DeployCredentialsToContext(t.Context(),
-		&account.Credentials{Key: "b46e658f-d4c4-433c-b032-093423b1aaa4", ClientID: "dummy"})
+		&accounts.Credentials{Key: "b46e658f-d4c4-433c-b032-093423b1aaa4", ClientID: "dummy"})
 	err := c.wsHandleData(ctx, pressXToJSON)
 	if err != nil {
 		t.Error(err)

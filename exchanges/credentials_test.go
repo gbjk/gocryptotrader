@@ -20,21 +20,21 @@ func TestGetCredentials(t *testing.T) {
 	}
 
 	b.API.CredentialsValidator.RequiresKey = true
-	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Secret: "wow"})
+	ctx := account.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Secret: "wow"})
 	_, err = b.GetCredentials(ctx)
 	if !errors.Is(err, errRequiresAPIKey) {
 		t.Fatalf("received: %v but expected: %v", err, errRequiresAPIKey)
 	}
 
 	b.API.CredentialsValidator.RequiresSecret = true
-	ctx = account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "wow"})
+	ctx = account.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "wow"})
 	_, err = b.GetCredentials(ctx)
 	if !errors.Is(err, errRequiresAPISecret) {
 		t.Fatalf("received: %v but expected: %v", err, errRequiresAPISecret)
 	}
 
 	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
-	ctx = account.DeployCredentialsToContext(t.Context(), &account.Credentials{
+	ctx = account.DeployCredentialsToContext(t.Context(), &accounts.Credentials{
 		Key:    "meow",
 		Secret: "invalidb64",
 	})
@@ -43,7 +43,7 @@ func TestGetCredentials(t *testing.T) {
 	}
 
 	const expectedBase64DecodedOutput = "hello world"
-	ctx = account.DeployCredentialsToContext(t.Context(), &account.Credentials{
+	ctx = account.DeployCredentialsToContext(t.Context(), &accounts.Credentials{
 		Key:    "meow",
 		Secret: "aGVsbG8gd29ybGQ=",
 	})
@@ -55,12 +55,12 @@ func TestGetCredentials(t *testing.T) {
 		t.Fatalf("received: %v but expected: %v", creds.Secret, expectedBase64DecodedOutput)
 	}
 
-	ctx = context.WithValue(t.Context(), account.ContextCredentialsFlag, "pewpew")
+	ctx = context.WithValue(t.Context(), accounts.ContextCredentialsFlag, "pewpew")
 	_, err = b.GetCredentials(ctx)
 	require.ErrorIs(t, err, common.ErrTypeAssertFailure)
 
 	b.API.CredentialsValidator.RequiresBase64DecodeSecret = false
-	fullCred := &account.Credentials{
+	fullCred := &accounts.Credentials{
 		Key:             "superkey",
 		Secret:          "supersecret",
 		SubAccount:      "supersub",
@@ -84,7 +84,7 @@ func TestGetCredentials(t *testing.T) {
 		t.Fatal("unexpected values")
 	}
 
-	lonelyCred := &account.Credentials{
+	lonelyCred := &accounts.Credentials{
 		Key:             "superkey",
 		Secret:          "supersecret",
 		SubAccount:      "supersub",
@@ -103,7 +103,7 @@ func TestGetCredentials(t *testing.T) {
 	b.API.SetSecret("sir")
 	b.API.SetClientID("1337")
 
-	ctx = context.WithValue(t.Context(), account.ContextSubAccountFlag, "superaccount")
+	ctx = context.WithValue(t.Context(), accounts.ContextSubAccountFlag, "superaccount")
 	overridedSA, err := b.GetCredentials(ctx)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
@@ -135,7 +135,7 @@ func TestAreCredentialsValid(t *testing.T) {
 	if b.AreCredentialsValid(t.Context()) {
 		t.Fatal("should not be valid")
 	}
-	ctx := account.DeployCredentialsToContext(t.Context(), &account.Credentials{Key: "hello"})
+	ctx := account.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "hello"})
 	if !b.AreCredentialsValid(ctx) {
 		t.Fatal("should be valid")
 	}
@@ -243,7 +243,7 @@ func TestCheckCredentials(t *testing.T) {
 			base: &Base{
 				API: API{
 					CredentialsValidator: config.APICredentialsValidatorConfig{RequiresKey: true},
-					credentials:          account.Credentials{OneTimePassword: "wow"},
+					credentials:          accounts.Credentials{OneTimePassword: "wow"},
 				},
 			},
 			expectedErr: errRequiresAPIKey,
@@ -254,7 +254,7 @@ func TestCheckCredentials(t *testing.T) {
 				LoadedByConfig: true,
 				API: API{
 					CredentialsValidator: config.APICredentialsValidatorConfig{RequiresKey: true},
-					credentials:          account.Credentials{Key: "k3y"},
+					credentials:          accounts.Credentials{Key: "k3y"},
 				},
 			},
 			expectedErr: ErrAuthenticationSupportNotEnabled,
@@ -266,7 +266,7 @@ func TestCheckCredentials(t *testing.T) {
 				API: API{
 					AuthenticatedSupport: true,
 					CredentialsValidator: config.APICredentialsValidatorConfig{RequiresKey: true},
-					credentials:          account.Credentials{},
+					credentials:          accounts.Credentials{},
 				},
 			},
 			expectedErr: ErrCredentialsAreEmpty,
@@ -276,7 +276,7 @@ func TestCheckCredentials(t *testing.T) {
 			base: &Base{
 				API: API{
 					CredentialsValidator: config.APICredentialsValidatorConfig{RequiresBase64DecodeSecret: true},
-					credentials:          account.Credentials{Secret: "invalid"},
+					credentials:          accounts.Credentials{Secret: "invalid"},
 				},
 			},
 			expectedErr: errBase64DecodeFailure,
@@ -286,7 +286,7 @@ func TestCheckCredentials(t *testing.T) {
 			base: &Base{
 				API: API{
 					CredentialsValidator: config.APICredentialsValidatorConfig{RequiresBase64DecodeSecret: true},
-					credentials:          account.Credentials{Secret: "aGVsbG8gd29ybGQ="},
+					credentials:          accounts.Credentials{Secret: "aGVsbG8gd29ybGQ="},
 				},
 			},
 			checkBase64Output: true,
@@ -298,7 +298,7 @@ func TestCheckCredentials(t *testing.T) {
 				API: API{
 					AuthenticatedSupport: true,
 					CredentialsValidator: config.APICredentialsValidatorConfig{RequiresKey: true},
-					credentials:          account.Credentials{Key: "k3y"},
+					credentials:          accounts.Credentials{Key: "k3y"},
 				},
 			},
 			expectedErr: nil,

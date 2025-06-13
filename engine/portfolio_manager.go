@@ -250,7 +250,7 @@ func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExcha
 
 		exchangeHoldings := account.Holdings{
 			Exchange: exchanges[x].GetName(),
-			Accounts: make([]account.SubAccount, 0, len(assetTypes)),
+			Accounts: make(accounts.SubAccounts, 0, len(assetTypes)),
 		}
 		for y := range assetTypes {
 			// Update account info to process account updates in memory on

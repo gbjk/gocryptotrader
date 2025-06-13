@@ -420,7 +420,7 @@ func (b *Bitfinex) UpdateAccountHoldings(ctx context.Context, assetType asset.It
 		return response, err
 	}
 
-	Accounts := []account.SubAccount{
+	Accounts := accounts.SubAccounts{
 		{ID: "deposit", AssetType: assetType},
 		{ID: "exchange", AssetType: assetType},
 		{ID: "trading", AssetType: assetType},

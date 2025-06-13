@@ -565,7 +565,7 @@ func (f *FundManager) UpdateFundingFromLiveData(initialFundsSet bool) error {
 		return err
 	}
 	for x := range exchanges {
-		var creds *account.Credentials
+		var creds *accounts.Credentials
 		creds, err = exchanges[x].GetCredentials(context.TODO())
 		if err != nil {
 			return err

@@ -295,7 +295,7 @@ func TestLoadPrivKey(t *testing.T) {
 	}
 
 	ctx := account.DeployCredentialsToContext(t.Context(),
-		&account.Credentials{Secret: "errortest"})
+		&accounts.Credentials{Secret: "errortest"})
 	err = l.loadPrivKey(ctx)
 	if err == nil {
 		t.Errorf("Expected error due to pemblock nil")

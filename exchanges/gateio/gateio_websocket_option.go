@@ -227,7 +227,7 @@ func (g *Gateio) generateOptionsPayload(ctx context.Context, conn websocket.Conn
 				continue
 			}
 			params = append([]string{strconv.FormatInt(userID, 10)}, params...)
-			var creds *account.Credentials
+			var creds *accounts.Credentials
 			creds, err = g.GetCredentials(ctx)
 			if err != nil {
 				return nil, err

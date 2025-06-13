@@ -922,7 +922,7 @@ func TestGenerateConfigForDCALiveCandles(t *testing.T) {
 				ExchangeCredentials: []Credentials{
 					{
 						Exchange: mainExchange,
-						Keys: account.Credentials{
+						Keys: accounts.Credentials{
 							Key:    "",
 							Secret: "",
 						},
@@ -1455,7 +1455,7 @@ func TestGenerateConfigForLiveCashAndCarry(t *testing.T) {
 				ExchangeCredentials: []Credentials{
 					{
 						Exchange: mainExchange,
-						Keys: account.Credentials{
+						Keys: accounts.Credentials{
 							Key:        "",
 							Secret:     "",
 							SubAccount: "",

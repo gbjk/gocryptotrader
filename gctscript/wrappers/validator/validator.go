@@ -7,7 +7,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/core"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -190,24 +190,25 @@ func (w Wrapper) CancelOrder(_ context.Context, exch, orderid string, cp currenc
 }
 
 // AccountHoldings validator for test execution/scripts
-func (w Wrapper) AccountHoldings(_ context.Context, assetType asset.Item) ([]account.SubAccount, error) {
-	return []account.SubAccount{
+func (w Wrapper) AccountHoldings(_ context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	c := currency.Code{
+		Item: &currency.Item{
+			ID:         0,
+			FullName:   "Bitcoin",
+			Symbol:     "BTC",
+			Role:       1,
+			AssocChain: "",
+		},
+	}
+	return accounts.SubAccounts{
 		{
 			ID:        "subacct1",
 			AssetType: assetType,
-			Currencies: []account.Balance{
-				{
-					Currency: currency.Code{
-						Item: &currency.Item{
-							ID:         0,
-							FullName:   "Bitcoin",
-							Symbol:     "BTC",
-							Role:       1,
-							AssocChain: "",
-						},
-					},
-					Total: 100,
-					Hold:  0,
+			Balances: accounts.CurrencyBalances{
+				c: accounts.Balance{
+					Currency: c,
+					Total:    100,
+					Hold:     0,
 				},
 			},
 		},

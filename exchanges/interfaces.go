@@ -88,7 +88,7 @@ type IBotExchange interface {
 	GetOrderExecutionLimits(a asset.Item, cp currency.Pair) (order.MinMaxLevel, error)
 	CheckOrderExecutionLimits(a asset.Item, cp currency.Pair, price, amount float64, orderType order.Type) error
 	UpdateOrderExecutionLimits(ctx context.Context, a asset.Item) error
-	GetCredentials(ctx context.Context) (*account.Credentials, error)
+	GetCredentials(ctx context.Context) (*accounts.Credentials, error)
 	EnsureOnePairEnabled() error
 	PrintEnabledPairs()
 	IsVerbose() bool
@@ -100,10 +100,10 @@ type IBotExchange interface {
 	// VerifyAPICredentials determines if the credentials supplied have unset
 	// required values. See exchanges/credentials.go Base method for
 	// implementation.
-	VerifyAPICredentials(creds *account.Credentials) error
+	VerifyAPICredentials(creds *accounts.Credentials) error
 	// GetDefaultCredentials returns the exchange.Base api credentials loaded by
 	// config.json. See exchanges/credentials.go Base method for implementation.
-	GetDefaultCredentials() *account.Credentials
+	GetDefaultCredentials() *accounts.Credentials
 
 	FunctionalityChecker
 	AccountManagement
@@ -150,8 +150,8 @@ type CurrencyStateManagement interface {
 
 // AccountManagement defines functionality for exchange account management
 type AccountManagement interface {
-	UpdateAccountHoldings(ctx context.Context, a asset.Item) ([]account.SubAccount, error)
-	GetCachedAccountInfo(ctx context.Context, a asset.Item) ([]account.SubAccount, error)
+	UpdateAccountHoldings(ctx context.Context, a asset.Item) (account.SubAccounts, error)
+	GetCachedAccountInfo(ctx context.Context, a asset.Item) (account.SubAccounts, error)
 	HasAssetTypeAccountSegregation() bool
 	SubscribeAccountHoldings() (dispatch.Pipe, error)
 }

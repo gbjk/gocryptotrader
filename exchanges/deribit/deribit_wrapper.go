@@ -344,7 +344,7 @@ func (d *Deribit) UpdateAccountHoldings(ctx context.Context, _ asset.Item) (acco
 	if err != nil {
 		return resp, err
 	}
-	resp.Accounts = make([]account.SubAccount, len(currencies))
+	resp.Accounts = make(accounts.SubAccounts, len(currencies))
 	for x := range currencies {
 		var data *AccountSummaryData
 		if d.Websocket.IsConnected() && d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {

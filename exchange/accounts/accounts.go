@@ -213,7 +213,7 @@ func (a *Accounts) Save(s []SubAccount, creds *Credentials) error {
 			}
 			b := accBalances.balance(newBal.Currency)
 			if u, err := b.update(newBal); err != nil {
-				errs = common.AppendError(errs, fmt.Errorf("%w for account ID `%s` [%s %s]: %w", errLoadingBalance, update.ID, update.AssetType, update.Currencies[y].Currency, err))
+				errs = common.AppendError(errs, fmt.Errorf("%w for account ID `%s` [%s %s]: %w", errLoadingBalance, update.ID, update.AssetType, curr, err))
 			} else if u {
 				updated = true
 			}

@@ -480,7 +480,7 @@ func TestSetSubAccount(t *testing.T) {
 		t.Fatal("should not be nil")
 	}
 
-	subaccount, ok := ctx.Value(account.ContextSubAccountFlag).(string)
+	subaccount, ok := ctx.Value(accounts.ContextSubAccountFlag).(string)
 	if !ok {
 		t.Fatal("wrong type")
 	}

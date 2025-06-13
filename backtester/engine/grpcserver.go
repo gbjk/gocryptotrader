@@ -550,7 +550,7 @@ func (s *GRPCServer) ExecuteStrategyFromConfig(_ context.Context, request *btrpc
 		for i := range request.Config.DataSettings.LiveData.Credentials {
 			creds[i] = config.Credentials{
 				Exchange: request.Config.DataSettings.LiveData.Credentials[i].Exchange,
-				Keys: account.Credentials{
+				Keys: accounts.Credentials{
 					Key:             request.Config.DataSettings.LiveData.Credentials[i].Keys.Key,
 					Secret:          request.Config.DataSettings.LiveData.Credentials[i].Keys.Secret,
 					ClientID:        request.Config.DataSettings.LiveData.Credentials[i].Keys.ClientId,

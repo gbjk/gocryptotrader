@@ -715,7 +715,7 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 func (g *Gateio) UpdateAccountHoldings(ctx context.Context, a asset.Item) (account.Holdings, error) {
 	info := account.Holdings{
 		Exchange: g.Name,
-		Accounts: []account.SubAccount{{
+		Accounts: accounts.SubAccounts{{
 			AssetType: a,
 		}},
 	}

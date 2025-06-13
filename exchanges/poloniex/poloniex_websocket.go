@@ -581,7 +581,7 @@ func (p *Poloniex) Unsubscribe(subs subscription.List) error {
 }
 
 func (p *Poloniex) manageSubs(subs subscription.List, op wsOp) error {
-	var creds *account.Credentials
+	var creds *accounts.Credentials
 	if p.IsWebsocketAuthenticationSupported() {
 		var err error
 		creds, err = p.GetCredentials(context.TODO())

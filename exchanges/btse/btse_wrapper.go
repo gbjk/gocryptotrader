@@ -368,7 +368,7 @@ func (b *BTSE) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) 
 		}
 	}
 	a.Exchange = b.Name
-	a.Accounts = []account.SubAccount{
+	a.Accounts = accounts.SubAccounts{
 		{
 			AssetType:  assetType,
 			Currencies: currencies,

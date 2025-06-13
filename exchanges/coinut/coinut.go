@@ -278,7 +278,7 @@ func (c *COINUT) SendHTTPRequest(ctx context.Context, ep exchange.URL, apiReques
 
 		headers := make(map[string]string)
 		if authenticated {
-			var creds *account.Credentials
+			var creds *accounts.Credentials
 			creds, err = c.GetCredentials(ctx)
 			if err != nil {
 				return nil, err

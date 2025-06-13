@@ -289,7 +289,7 @@ var (
 	withdrawRequestParam = reflect.TypeOf((**withdraw.Request)(nil)).Elem()
 	stringParam          = reflect.TypeOf((*string)(nil)).Elem()
 	feeBuilderParam      = reflect.TypeOf((**exchange.FeeBuilder)(nil)).Elem()
-	credentialsParam     = reflect.TypeOf((**account.Credentials)(nil)).Elem()
+	credentialsParam     = reflect.TypeOf((**accounts.Credentials)(nil)).Elem()
 	orderSideParam       = reflect.TypeOf((*order.Side)(nil)).Elem()
 	collateralModeParam  = reflect.TypeOf((*collateral.Mode)(nil)).Elem()
 	marginTypeParam      = reflect.TypeOf((*margin.Type)(nil)).Elem()
@@ -339,7 +339,7 @@ func generateMethodArg(ctx context.Context, t *testing.T, argGenerator *MethodAr
 			Asset: argGenerator.AssetParams.Asset,
 		})
 	case argGenerator.MethodInputType.AssignableTo(credentialsParam):
-		input = reflect.ValueOf(&account.Credentials{
+		input = reflect.ValueOf(&accounts.Credentials{
 			Key:             "test",
 			Secret:          "test",
 			ClientID:        "test",

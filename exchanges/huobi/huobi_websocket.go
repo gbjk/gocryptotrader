@@ -553,7 +553,7 @@ func (h *HUOBI) manageSubs(op string, subs subscription.List) error {
 	return err
 }
 
-func (h *HUOBI) wsGenerateSignature(creds *account.Credentials, timestamp string) ([]byte, error) {
+func (h *HUOBI) wsGenerateSignature(creds *accounts.Credentials, timestamp string) ([]byte, error) {
 	values := url.Values{}
 	values.Set("accessKey", creds.Key)
 	values.Set("signatureMethod", signatureMethod)

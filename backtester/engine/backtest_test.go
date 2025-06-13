@@ -351,7 +351,7 @@ func TestLoadDataLive(t *testing.T) {
 				ExchangeCredentials: []config.Credentials{
 					{
 						Exchange: testExchange,
-						Keys: account.Credentials{
+						Keys: accounts.Credentials{
 							Key:             "test",
 							Secret:          "test",
 							ClientID:        "test",
@@ -1575,7 +1575,7 @@ func TestSetExchangeCredentials(t *testing.T) {
 	// enter them here
 	cfg.DataSettings.LiveData.ExchangeCredentials = []config.Credentials{{
 		Exchange: testExchange,
-		Keys: account.Credentials{
+		Keys: accounts.Credentials{
 			Key:    "test",
 			Secret: "test",
 		},
