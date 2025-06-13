@@ -5,9 +5,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 // store holds ticker information for each individual exchange
@@ -40,27 +38,6 @@ func GetStore() *store {
 	}
 	_ = global.CompareAndSwap(nil, NewStore())
 	return global.Load()
-}
-
-// CollectBalances converts a map of sub-account balances into a slice
-func CollectBalances(accountBalances map[string][]Balance, assetType asset.Item) (accounts []SubAccount, err error) {
-	if err := common.NilGuard(accountBalances); err != nil {
-		return nil, err
-	}
-
-	if !assetType.IsValid() {
-		return nil, fmt.Errorf("%s, %w", assetType, asset.ErrNotSupported)
-	}
-
-	accounts = make([]SubAccount, 0, len(accountBalances))
-	for accountID, balances := range accountBalances {
-		accounts = append(accounts, SubAccount{
-			ID:         accountID,
-			AssetType:  assetType,
-			Currencies: balances,
-		})
-	}
-	return
 }
 
 // GetExchangeAccounts returns accounts for a specific exchange
