@@ -12,8 +12,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -297,53 +297,42 @@ func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Exmo exchange
-func (e *EXMO) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
-	var response accounts.SubAccounts
-	response.Exchange = e.Name
-	result, err := e.GetUserInfo(ctx)
+func (e *EXMO) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
+	resp, err := e.GetUserInfo(ctx)
 	if err != nil {
-		return response, err
+		return subAccts, err
 	}
 
-	currencies := make([]accounts.Balance, 0, len(result.Balances))
-	for x, y := range result.Balances {
-		var exchangeCurrency accounts.Balance
-		exchangeCurrency.Currency = currency.NewCode(x)
-		for z, w := range result.Reserved {
-			if z != x {
-				continue
-			}
-			var avail, reserved float64
-			avail, err = strconv.ParseFloat(y, 64)
-			if err != nil {
-				return response, err
-			}
-			reserved, err = strconv.ParseFloat(w, 64)
-			if err != nil {
-				return response, err
-			}
-			exchangeCurrency.Total = avail + reserved
-			exchangeCurrency.Hold = reserved
-			exchangeCurrency.Free = avail
+	for k, bal := range resp.Balances {
+		c := currency.NewCode(k)
+		avail, err := strconv.ParseFloat(bal, 64)
+		if err != nil {
+			return subAccts, err
 		}
-		currencies = append(currencies, exchangeCurrency)
+		reserved := 0.0
+		if reservedStr, ok := resp.Reserved[k]; ok {
+			if reserved, err = strconv.ParseFloat(reservedStr, 64); err != nil {
+				return subAccts, err
+			}
+		}
+		subAccts.Merge(accounts.SubAccount{
+			AssetType: assetType,
+			Balances: accounts.CurrencyBalances{
+				c: accounts.Balance{
+					Currency: c,
+					Total:    avail + reserved,
+					Hold:     reserved,
+					Free:     avail,
+				},
+			},
+		})
 	}
-
-	response.Accounts = append(response.Accounts, accounts.SubAccount{
-		AssetType:  assetType,
-		Currencies: currencies,
-	})
 
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
-		return accounts.SubAccounts{}, err
+		return subAccts, err
 	}
-	err = e.Accounts.Save(&response, creds)
-	if err != nil {
-		return accounts.SubAccounts{}, err
-	}
-
-	return response, nil
+	return subAccts, e.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
