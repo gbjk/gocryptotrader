@@ -13,9 +13,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -216,39 +216,32 @@ func (g *Gemini) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 
 // UpdateAccountHoldings Retrieves balances for all enabled currencies for the
 // Gemini exchange
-func (g *Gemini) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
-	var response accounts.SubAccounts
-	response.Exchange = g.Name
+func (g *Gemini) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
 	accountBalance, err := g.GetBalances(ctx)
 	if err != nil {
-		return response, err
+		return subAccts, err
 	}
 
-	currencies := make([]accounts.Balance, len(accountBalance))
 	for i := range accountBalance {
-		currencies[i] = accounts.Balance{
-			Currency: currency.NewCode(accountBalance[i].Currency),
-			Total:    accountBalance[i].Amount,
-			Hold:     accountBalance[i].Amount - accountBalance[i].Available,
-			Free:     accountBalance[i].Available,
-		}
+		c := currency.NewCode(accountBalance[i].Currency)
+		subAccts.Merge(accounts.SubAccount{
+			AssetType: assetType,
+			Balances: accounts.CurrencyBalances{
+				c: accounts.Balance{
+					Currency: c,
+					Total:    accountBalance[i].Amount,
+					Hold:     accountBalance[i].Amount - accountBalance[i].Available,
+					Free:     accountBalance[i].Available,
+				},
+			},
+		})
 	}
-
-	response.Accounts = append(response.Accounts, accounts.SubAccount{
-		AssetType:  assetType,
-		Currencies: currencies,
-	})
 
 	creds, err := g.GetCredentials(ctx)
 	if err != nil {
-		return accounts.SubAccounts{}, err
+		return subAccts, err
 	}
-	err = g.Accounts.Save(&response, creds)
-	if err != nil {
-		return accounts.SubAccounts{}, err
-	}
-
-	return response, nil
+	return subAccts, g.Accounts.Save(subAccts, creds)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
