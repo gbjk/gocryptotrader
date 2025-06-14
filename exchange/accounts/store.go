@@ -21,6 +21,10 @@ type exchange interface {
 	GetName() string
 }
 
+type exchangeWrapper interface {
+	GetBase() exchange
+}
+
 var global atomic.Pointer[store]
 
 // NewStore returns a new store with the default global dispatcher mux
@@ -44,6 +48,10 @@ func GetStore() *store {
 func (s *store) GetExchangeAccounts(e exchange) (a *Accounts, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if w, ok := e.(exchangeWrapper); ok {
+		// Because SetupDefualts is called on Base, it's easiest to just use the Base pointer as the key
+		e = w.GetBase()
+	}
 	a, ok := s.exchangeAccounts[e]
 	if !ok {
 		if a, err = s.registerExchange(e); err != nil {
