@@ -13,9 +13,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/convert"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -302,49 +302,43 @@ func (b *Bithumb) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Bithumb exchange
 func (b *Bithumb) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
-	var info accounts.SubAccounts
+	var subAccts accounts.SubAccounts
 	bal, err := b.GetAccountBalance(ctx, "ALL")
 	if err != nil {
-		return info, err
+		return nil, err
 	}
 
-	exchangeBalances := make([]accounts.Balance, 0, len(bal.Total))
-	for key, totalAmount := range bal.Total {
-		hold, ok := bal.InUse[key]
+	for k, totalAmount := range bal.Total {
+		hold, ok := bal.InUse[k]
 		if !ok {
-			return info, fmt.Errorf("getAccountInfo error - in use item not found for currency %s",
-				key)
+			return nil, fmt.Errorf("getAccountInfo error - in use item not found for currency %s", k)
 		}
 
-		avail, ok := bal.Available[key]
+		avail, ok := bal.Available[k]
 		if !ok {
 			avail = totalAmount - hold
 		}
 
-		exchangeBalances = append(exchangeBalances, accounts.Balance{
-			Currency: currency.NewCode(key),
-			Total:    totalAmount,
-			Hold:     hold,
-			Free:     avail,
+		c := currency.NewCode(k)
+		subAccts.Merge(accounts.SubAccount{
+			AssetType: assetType,
+			Balances: accounts.CurrencyBalances{
+				c: accounts.Balance{
+					Currency: c,
+					Total:    totalAmount,
+					Hold:     hold,
+					Free:     avail,
+				},
+			},
 		})
 	}
 
-	info.Accounts = append(info.Accounts, accounts.SubAccount{
-		Currencies: exchangeBalances,
-		AssetType:  assetType,
-	})
-
-	info.Exchange = b.Name
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
-		return accounts.SubAccounts{}, err
-	}
-	err = b.Accounts.Save(&info, creds)
-	if err != nil {
-		return accounts.SubAccounts{}, err
+		return nil, err
 	}
 
-	return info, nil
+	return subAccts, b.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
