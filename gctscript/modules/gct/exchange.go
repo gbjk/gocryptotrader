@@ -270,12 +270,12 @@ func ExchangeAccountInfo(args ...objects.Object) (objects.Object, error) {
 
 	var funds objects.Array
 	for i := range rtnValue {
-		for j := range rtnValue[i].Currencies {
-			temp := make(map[string]objects.Object, 3)
-			temp["name"] = &objects.String{Value: rtnValue[i].Currencies[j].Currency.String()}
-			temp["total"] = &objects.Float{Value: rtnValue[i].Currencies[j].Total}
-			temp["hold"] = &objects.Float{Value: rtnValue[i].Currencies[j].Hold}
-			funds.Value = append(funds.Value, &objects.Map{Value: temp})
+		for curr, bal := range rtnValue[i].Balances {
+			funds.Value = append(funds.Value, &objects.Map{Value: map[string]objects.Object{
+				"name":  &objects.String{Value: curr.String()},
+				"total": &objects.Float{Value: bal.Total},
+				"hold":  &objects.Float{Value: bal.Hold},
+			}})
 		}
 	}
 
