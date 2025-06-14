@@ -28,7 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -758,13 +758,13 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 	t.Parallel()
 	CreateTestBot(t)
 
-	var exchangeInfo []account.Holdings
+	var exchangeInfo []accounts.Holdings
 
-	var bitfinexHoldings account.Holdings
+	var bitfinexHoldings accounts.Holdings
 	bitfinexHoldings.Exchange = "Bitfinex"
 	bitfinexHoldings.Accounts = append(bitfinexHoldings.Accounts,
-		account.SubAccount{
-			Currencies: []account.Balance{
+		accounts.SubAccount{
+			Currencies: []accounts.Balance{
 				{
 					Currency: currency.BTC,
 					Total:    100,
@@ -775,11 +775,11 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 
 	exchangeInfo = append(exchangeInfo, bitfinexHoldings)
 
-	var bitstampHoldings account.Holdings
+	var bitstampHoldings accounts.Holdings
 	bitstampHoldings.Exchange = testExchange
 	bitstampHoldings.Accounts = append(bitstampHoldings.Accounts,
-		account.SubAccount{
-			Currencies: []account.Balance{
+		accounts.SubAccount{
+			Currencies: []accounts.Balance{
 				{
 					Currency: currency.LTC,
 					Total:    100,

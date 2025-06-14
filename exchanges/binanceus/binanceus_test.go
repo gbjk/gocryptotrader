@@ -902,7 +902,7 @@ func TestCancelOpenOrdersForSymbol(t *testing.T) {
 }
 
 // TestGetTrades test for fetching the list of
-// trades attached with this account.
+// trades attached with this accounts.
 func TestGetTrades(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, bi)

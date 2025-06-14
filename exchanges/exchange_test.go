@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -850,10 +850,10 @@ func TestSetupDefaults(t *testing.T) {
 	require.NoError(t, err, "CurrencyPairs.Get must not error")
 	assert.True(t, ps.Enabled.Contains(btcusdPair, true), "default pair should be stored in the configs pair store")
 
-	exp, err := account.GetStore().GetExchangeAccounts(b.Name)
+	exp, err := accounts.GetStore().GetExchangeAccounts(b.Name)
 	require.NoError(t, err, "GetExchangeAccounts must not error")
 	assert.Same(t, exp, b.Accounts, "SetupDefaults should default accounts from the global accounts store")
-	b.Accounts = account.MustNewAccounts(b.Name, dispatch.GetNewMux(nil))
+	b.Accounts = accounts.MustNewAccounts(b.Name, dispatch.GetNewMux(nil))
 	a := b.Accounts
 	require.NoError(t, err, "NewAccounts must not error")
 	require.NoError(t, b.SetupDefaults(&cfg))
@@ -2904,19 +2904,19 @@ func TestGetCachedAccountInfo(t *testing.T) {
 		Key:    "test",
 		Secret: "test",
 	}
-	ctx := account.DeployCredentialsToContext(t.Context(), &accounts.Credentials{
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{
 		Key:    "test",
 		Secret: "test",
 	})
 	_, err := b.GetCachedAccountInfo(ctx, asset.Spot)
 	assert.ErrorIs(t, err, common.ErrNilPointer)
 
-	b.Accounts = account.MustNewAccounts(b.Name, dispatch.GetNewMux(nil))
+	b.Accounts = accounts.MustNewAccounts(b.Name, dispatch.GetNewMux(nil))
 	_, err = b.GetCachedAccountInfo(ctx, asset.Spot)
-	assert.ErrorIs(t, err, account.ErrExchangeHoldingsNotFound)
+	assert.ErrorIs(t, err, accounts.ErrExchangeHoldingsNotFound)
 
-	err = b.Accounts.Save(&account.Holdings{Exchange: "test", Accounts: accounts.SubAccounts{
-		{AssetType: asset.Spot, Currencies: []account.Balance{{Currency: currency.BTC, Total: 1}}},
+	err = b.Accounts.Save(&accounts.Holdings{Exchange: "test", Accounts: accounts.SubAccounts{
+		{AssetType: asset.Spot, Currencies: []accounts.Balance{{Currency: currency.BTC, Total: 1}}},
 	}}, creds)
 	require.NoError(t, err, "b.Accounts.Save must not error")
 
@@ -2964,8 +2964,8 @@ func (f *FakeBase) CancelOrder(context.Context, *order.Cancel) error {
 	return nil
 }
 
-func (f *FakeBase) GetCachedAccountInfo(context.Context, asset.Item) (account.Holdings, error) {
-	return account.Holdings{}, nil
+func (f *FakeBase) GetCachedAccountInfo(context.Context, asset.Item) (accounts.Holdings, error) {
+	return accounts.Holdings{}, nil
 }
 
 func (f *FakeBase) GetCachedOrderbook(currency.Pair, asset.Item) (*orderbook.Base, error) {
@@ -3000,8 +3000,8 @@ func (f *FakeBase) UpdateOrderbook(context.Context, currency.Pair, asset.Item) (
 	return nil, nil
 }
 
-func (f *FakeBase) UpdateAccountHoldings(context.Context, asset.Item) (account.Holdings, error) {
-	return account.Holdings{}, nil
+func (f *FakeBase) UpdateAccountHoldings(context.Context, asset.Item) (accounts.Holdings, error) {
+	return accounts.Holdings{}, nil
 }
 
 func (f *FakeBase) GetRecentTrades(context.Context, currency.Pair, asset.Item) ([]trade.Data, error) {

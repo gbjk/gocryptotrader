@@ -16,7 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -342,34 +342,34 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Poloniex exchange
-func (p *Poloniex) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var response account.Holdings
+func (p *Poloniex) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
+	var response accounts.Holdings
 	response.Exchange = p.Name
 	accountBalance, err := p.GetBalances(ctx)
 	if err != nil {
 		return response, err
 	}
 
-	currencies := make([]account.Balance, 0, len(accountBalance.Currency))
+	currencies := make([]accounts.Balance, 0, len(accountBalance.Currency))
 	for x, y := range accountBalance.Currency {
-		currencies = append(currencies, account.Balance{
+		currencies = append(currencies, accounts.Balance{
 			Currency: currency.NewCode(x),
 			Total:    y,
 		})
 	}
 
-	response.Accounts = append(response.Accounts, account.SubAccount{
+	response.Accounts = append(response.Accounts, accounts.SubAccount{
 		AssetType:  assetType,
 		Currencies: currencies,
 	})
 
 	creds, err := p.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 	err = p.Accounts.Save(&response, creds)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 
 	return response, nil

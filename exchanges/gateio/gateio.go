@@ -535,7 +535,7 @@ func (g *Gateio) GetTradingFeeRatio(ctx context.Context, currencyPair currency.P
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotTradingFeeEPL, http.MethodGet, gateioSpotFeeRate, params, nil, &response)
 }
 
-// GetSpotAccounts retrieves spot account.
+// GetSpotAccounts retrieves spot accounts.
 func (g *Gateio) GetSpotAccounts(ctx context.Context, ccy currency.Code) ([]SpotAccount, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -545,7 +545,7 @@ func (g *Gateio) GetSpotAccounts(ctx context.Context, ccy currency.Code) ([]Spot
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotAccountsEPL, http.MethodGet, gateioSpotAccounts, params, nil, &response)
 }
 
-// GetUnifiedAccount retrieves unified account.
+// GetUnifiedAccount retrieves unified accounts.
 func (g *Gateio) GetUnifiedAccount(ctx context.Context, ccy currency.Code) (*UnifiedUserAccount, error) {
 	params := url.Values{}
 	if !ccy.IsEmpty() {
@@ -687,7 +687,7 @@ func (g *Gateio) CancelAllOpenOrdersSpecifiedCurrencyPair(ctx context.Context, c
 		params.Set("side", strings.ToLower(side.Title()))
 	}
 	if account == asset.Spot || account == asset.Margin || account == asset.CrossMargin {
-		params.Set("account", account.String())
+		params.Set("account", accounts.String())
 	}
 	var response []SpotOrder
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotCancelAllOpenOrdersEPL, http.MethodDelete, gateioSpotOrders, params, nil, &response)
@@ -720,7 +720,7 @@ func (g *Gateio) GetSpotOrder(ctx context.Context, orderID string, currencyPair 
 	}
 	params := url.Values{}
 	params.Set("currency_pair", currencyPair.String())
-	if accountType := account.String(); accountType != "" {
+	if accountType := accounts.String(); accountType != "" {
 		params.Set("account", accountType)
 	}
 	var response *SpotOrder
@@ -876,7 +876,7 @@ func (g *Gateio) GetPriceTriggeredOrderList(ctx context.Context, status string, 
 		params.Set("market", market.String())
 	}
 	if account == asset.CrossMargin {
-		params.Set("account", account.String())
+		params.Set("account", accounts.String())
 	}
 	if limit > 0 {
 		params.Set("limit", strconv.FormatUint(limit, 10))
@@ -900,7 +900,7 @@ func (g *Gateio) CancelMultipleSpotOpenOrders(ctx context.Context, currencyPair 
 	case asset.Spot:
 		params.Set("account", "normal")
 	default:
-		params.Set("account", account.String())
+		params.Set("account", accounts.String())
 	}
 	var response []SpotPriceTriggeredOrder
 	return response, g.SendAuthenticatedHTTPRequest(ctx, exchange.RestSpot, spotCancelTriggerOrdersEPL, http.MethodDelete, gateioSpotPriceOrders, params, nil, &response)
@@ -1177,7 +1177,7 @@ func (g *Gateio) assetTypeToString(acc asset.Item) string {
 }
 
 // SubAccountTransfer to transfer between main and sub accounts
-// Support transferring with sub user's spot or futures account. Note that only main user's spot account is used no matter which sub user's account is operated.
+// Support transferring with sub user's spot or futures accounts. Note that only main user's spot account is used no matter which sub user's account is operated.
 func (g *Gateio) SubAccountTransfer(ctx context.Context, arg SubAccountTransferParam) error {
 	if arg.Currency.IsEmpty() {
 		return currency.ErrCurrencyCodeEmpty

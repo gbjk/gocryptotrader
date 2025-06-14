@@ -14,7 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -219,8 +219,8 @@ func (c *CoinbasePro) UpdateTradablePairs(ctx context.Context, forceUpdate bool)
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // coinbasepro exchange
-func (c *CoinbasePro) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.SubAccounts, error) {
-	var subAccts account.SubAccounts
+func (c *CoinbasePro) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	var subAccts accounts.SubAccounts
 	accountBalance, err := c.GetAccounts(ctx)
 	if err != nil {
 		return subAccts, err
@@ -231,8 +231,8 @@ func (c *CoinbasePro) UpdateAccountHoldings(ctx context.Context, assetType asset
 		subAccts.Merge(accounts.SubAccount{
 			AssetType: assetType,
 			ID:        accountBalance[i].ProfileID,
-			Balances: account.CurrencyBalances{
-				curr: account.Balance{
+			Balances: accounts.CurrencyBalances{
+				curr: accounts.Balance{
 					Currency:               curr,
 					Total:                  accountBalance[i].Balance,
 					Hold:                   accountBalance[i].Hold,
@@ -246,7 +246,7 @@ func (c *CoinbasePro) UpdateAccountHoldings(ctx context.Context, assetType asset
 
 	creds, err := c.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 
 	return subAccts, c.Accounts.Save(subAccts, creds)

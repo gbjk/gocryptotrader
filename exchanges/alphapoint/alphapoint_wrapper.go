@@ -10,7 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -102,17 +102,17 @@ func (a *Alphapoint) UpdateTradablePairs(_ context.Context, _ bool) error {
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies on the
 // Alphapoint exchange
-func (a *Alphapoint) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var response account.Holdings
+func (a *Alphapoint) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
+	var response accounts.Holdings
 	response.Exchange = a.Name
 	acc, err := a.GetAccountInformation(ctx)
 	if err != nil {
 		return response, err
 	}
 
-	balances := make([]account.Balance, len(acc.Currencies))
+	balances := make([]accounts.Balance, len(acc.Currencies))
 	for i := range acc.Currencies {
-		balances[i] = account.Balance{
+		balances[i] = accounts.Balance{
 			Currency: currency.NewCode(acc.Currencies[i].Name),
 			Total:    float64(acc.Currencies[i].Balance),
 			Hold:     float64(acc.Currencies[i].Hold),
@@ -120,19 +120,19 @@ func (a *Alphapoint) UpdateAccountHoldings(ctx context.Context, assetType asset.
 		}
 	}
 
-	response.Accounts = append(response.Accounts, account.SubAccount{
+	response.Accounts = append(response.Accounts, accounts.SubAccount{
 		Currencies: balances,
 		AssetType:  assetType,
 	})
 
 	creds, err := a.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 
 	err = a.Accounts.Save(&response, creds)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 
 	return response, nil

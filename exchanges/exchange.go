@@ -21,7 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
@@ -599,7 +599,7 @@ func (b *Base) SetupDefaults(exch *config.Exchange) error {
 
 	if b.Accounts == nil {
 		var err error
-		if b.Accounts, err = account.GetStore().GetExchangeAccounts(b.Name); err != nil {
+		if b.Accounts, err = accounts.GetStore().GetExchangeAccounts(b.Name); err != nil {
 			return err
 		}
 	}
@@ -1931,10 +1931,10 @@ func (b *Base) GetCachedOrderbook(p currency.Pair, assetType asset.Item) (*order
 
 // GetCachedAccountInfo retrieves cached balances for all enabled currencies
 // NOTE: Accounts.Save method should be called first to populate the local cache store
-func (b *Base) GetCachedAccountInfo(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+func (b *Base) GetCachedAccountInfo(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 	return b.Accounts.GetHoldings(creds, assetType)
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -92,8 +92,8 @@ func (c *CustomEx) GetAvailablePairs(_ asset.Item) (currency.Pairs, error) {
 }
 
 // UpdateAccountHoldings is a mock method for CustomEx
-func (c *CustomEx) UpdateAccountHoldings(_ context.Context, _ asset.Item) (account.Holdings, error) {
-	return account.Holdings{}, nil
+func (c *CustomEx) UpdateAccountHoldings(_ context.Context, _ asset.Item) (accounts.Holdings, error) {
+	return accounts.Holdings{}, nil
 }
 
 // SetPairs is a mock method for CustomEx

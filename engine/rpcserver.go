@@ -33,7 +33,7 @@ import (
 	exchangeDB "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -115,7 +115,7 @@ func (s *RPCServer) authenticateClient(ctx context.Context) (context.Context, er
 		password != s.Config.RemoteControl.Password {
 		return ctx, errors.New("username/password mismatch")
 	}
-	ctx, err = account.ParseCredentialsMetadata(ctx, md)
+	ctx, err = accounts.ParseCredentialsMetadata(ctx, md)
 	if err != nil {
 		return ctx, err
 	}
@@ -607,7 +607,7 @@ func (s *RPCServer) UpdateAccountHoldings(ctx context.Context, r *gctrpc.GetAcco
 	return createAccountInfoRequest(resp)
 }
 
-func createAccountInfoRequest(h account.Holdings) (*gctrpc.GetAccountInfoResponse, error) {
+func createAccountInfoRequest(h accounts.Holdings) (*gctrpc.GetAccountInfoResponse, error) {
 	accounts := make([]*gctrpc.Account, len(h.Accounts))
 	for x := range h.Accounts {
 		var a gctrpc.Account
@@ -4783,7 +4783,7 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	}
 
 	subAccounts := make([]string, len(ai.Accounts))
-	var acc *account.SubAccount
+	var acc *accounts.SubAccount
 	for i := range ai.Accounts {
 		subAccounts[i] = ai.Accounts[i].ID
 		if ai.Accounts[i].ID == "main" && creds.SubAccount == "" {

@@ -18,7 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -523,9 +523,9 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Kraken exchange - to-do
-func (k *Kraken) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var info account.Holdings
-	var balances []account.Balance
+func (k *Kraken) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
+	var info accounts.Holdings
+	var balances []accounts.Balance
 	info.Exchange = k.Name
 	if !assetTranslator.Seeded() {
 		if err := k.SeedAssets(ctx); err != nil {
@@ -546,14 +546,14 @@ func (k *Kraken) UpdateAccountHoldings(ctx context.Context, assetType asset.Item
 					key)
 				continue
 			}
-			balances = append(balances, account.Balance{
+			balances = append(balances, accounts.Balance{
 				Currency: currency.NewCode(translatedCurrency),
 				Total:    bal[key].Total,
 				Hold:     bal[key].Hold,
 				Free:     bal[key].Total - bal[key].Hold,
 			})
 		}
-		info.Accounts = append(info.Accounts, account.SubAccount{
+		info.Accounts = append(info.Accounts, accounts.SubAccount{
 			Currencies: balances,
 			AssetType:  assetType,
 		})
@@ -564,12 +564,12 @@ func (k *Kraken) UpdateAccountHoldings(ctx context.Context, assetType asset.Item
 		}
 		for name := range bal.Accounts {
 			for code := range bal.Accounts[name].Balances {
-				balances = append(balances, account.Balance{
+				balances = append(balances, accounts.Balance{
 					Currency: currency.NewCode(code).Upper(),
 					Total:    bal.Accounts[name].Balances[code],
 				})
 			}
-			info.Accounts = append(info.Accounts, account.SubAccount{
+			info.Accounts = append(info.Accounts, accounts.SubAccount{
 				ID:         name,
 				AssetType:  asset.Futures,
 				Currencies: balances,
@@ -578,10 +578,10 @@ func (k *Kraken) UpdateAccountHoldings(ctx context.Context, assetType asset.Item
 	}
 	creds, err := k.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 	if err := k.Accounts.Save(&info, creds); err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 	return info, nil
 }

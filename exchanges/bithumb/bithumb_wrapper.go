@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -301,14 +301,14 @@ func (b *Bithumb) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Bithumb exchange
-func (b *Bithumb) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var info account.Holdings
+func (b *Bithumb) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
+	var info accounts.Holdings
 	bal, err := b.GetAccountBalance(ctx, "ALL")
 	if err != nil {
 		return info, err
 	}
 
-	exchangeBalances := make([]account.Balance, 0, len(bal.Total))
+	exchangeBalances := make([]accounts.Balance, 0, len(bal.Total))
 	for key, totalAmount := range bal.Total {
 		hold, ok := bal.InUse[key]
 		if !ok {
@@ -321,7 +321,7 @@ func (b *Bithumb) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 			avail = totalAmount - hold
 		}
 
-		exchangeBalances = append(exchangeBalances, account.Balance{
+		exchangeBalances = append(exchangeBalances, accounts.Balance{
 			Currency: currency.NewCode(key),
 			Total:    totalAmount,
 			Hold:     hold,
@@ -329,7 +329,7 @@ func (b *Bithumb) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 		})
 	}
 
-	info.Accounts = append(info.Accounts, account.SubAccount{
+	info.Accounts = append(info.Accounts, accounts.SubAccount{
 		Currencies: exchangeBalances,
 		AssetType:  assetType,
 	})
@@ -337,11 +337,11 @@ func (b *Bithumb) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 	info.Exchange = b.Name
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 	err = b.Accounts.Save(&info, creds)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 
 	return info, nil

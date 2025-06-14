@@ -17,7 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -656,9 +656,9 @@ func (h *HUOBI) GetAccountID(ctx context.Context) ([]Account, error) {
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // HUOBI exchange - to-do
-func (h *HUOBI) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var info account.Holdings
-	var acc account.SubAccount
+func (h *HUOBI) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
+	var info accounts.Holdings
+	var acc accounts.SubAccount
 	info.Exchange = h.Name
 	switch assetType {
 	case asset.Spot:
@@ -676,7 +676,7 @@ func (h *HUOBI) UpdateAccountHoldings(ctx context.Context, assetType asset.Item)
 				return info, err
 			}
 
-			var currencyDetails []account.Balance
+			var currencyDetails []accounts.Balance
 		balance:
 			for j := range balances {
 				frozen := balances[j].Type == "frozen"
@@ -693,13 +693,13 @@ func (h *HUOBI) UpdateAccountHoldings(ctx context.Context, assetType asset.Item)
 
 				if frozen {
 					currencyDetails = append(currencyDetails,
-						account.Balance{
+						accounts.Balance{
 							Currency: currency.NewCode(balances[j].Currency),
 							Hold:     balances[j].Balance,
 						})
 				} else {
 					currencyDetails = append(currencyDetails,
-						account.Balance{
+						accounts.Balance{
 							Currency: currency.NewCode(balances[j].Currency),
 							Total:    balances[j].Balance,
 						})
@@ -715,9 +715,9 @@ func (h *HUOBI) UpdateAccountHoldings(ctx context.Context, assetType asset.Item)
 			return info, err
 		}
 
-		var mainAcctBalances []account.Balance
+		var mainAcctBalances []accounts.Balance
 		for x := range acctInfo.Data {
-			mainAcctBalances = append(mainAcctBalances, account.Balance{
+			mainAcctBalances = append(mainAcctBalances, accounts.Balance{
 				Currency: currency.NewCode(acctInfo.Data[x].Symbol),
 				Total:    acctInfo.Data[x].MarginBalance,
 				Hold:     acctInfo.Data[x].MarginFrozen,
@@ -725,7 +725,7 @@ func (h *HUOBI) UpdateAccountHoldings(ctx context.Context, assetType asset.Item)
 			})
 		}
 
-		info.Accounts = append(info.Accounts, account.SubAccount{
+		info.Accounts = append(info.Accounts, accounts.SubAccount{
 			Currencies: mainAcctBalances,
 			AssetType:  assetType,
 		})
@@ -735,7 +735,7 @@ func (h *HUOBI) UpdateAccountHoldings(ctx context.Context, assetType asset.Item)
 		if err != nil {
 			return info, err
 		}
-		var currencyDetails []account.Balance
+		var currencyDetails []accounts.Balance
 		for x := range subAccsData.Data {
 			a, err := h.SwapSingleSubAccAssets(ctx,
 				currency.EMPTYPAIR,
@@ -744,7 +744,7 @@ func (h *HUOBI) UpdateAccountHoldings(ctx context.Context, assetType asset.Item)
 				return info, err
 			}
 			for y := range a.Data {
-				currencyDetails = append(currencyDetails, account.Balance{
+				currencyDetails = append(currencyDetails, accounts.Balance{
 					Currency: currency.NewCode(a.Data[y].Symbol),
 					Total:    a.Data[y].MarginBalance,
 					Hold:     a.Data[y].MarginFrozen,
@@ -760,9 +760,9 @@ func (h *HUOBI) UpdateAccountHoldings(ctx context.Context, assetType asset.Item)
 			return info, err
 		}
 
-		var mainAcctBalances []account.Balance
+		var mainAcctBalances []accounts.Balance
 		for x := range mainAcctData.AccData {
-			mainAcctBalances = append(mainAcctBalances, account.Balance{
+			mainAcctBalances = append(mainAcctBalances, accounts.Balance{
 				Currency: currency.NewCode(mainAcctData.AccData[x].Symbol),
 				Total:    mainAcctData.AccData[x].MarginBalance,
 				Hold:     mainAcctData.AccData[x].MarginFrozen,
@@ -770,7 +770,7 @@ func (h *HUOBI) UpdateAccountHoldings(ctx context.Context, assetType asset.Item)
 			})
 		}
 
-		info.Accounts = append(info.Accounts, account.SubAccount{
+		info.Accounts = append(info.Accounts, accounts.SubAccount{
 			Currencies: mainAcctBalances,
 			AssetType:  assetType,
 		})
@@ -780,7 +780,7 @@ func (h *HUOBI) UpdateAccountHoldings(ctx context.Context, assetType asset.Item)
 		if err != nil {
 			return info, err
 		}
-		var currencyDetails []account.Balance
+		var currencyDetails []accounts.Balance
 		for x := range subAccsData.Data {
 			a, err := h.FGetSingleSubAccountInfo(ctx,
 				"",
@@ -789,7 +789,7 @@ func (h *HUOBI) UpdateAccountHoldings(ctx context.Context, assetType asset.Item)
 				return info, err
 			}
 			for y := range a.AssetsData {
-				currencyDetails = append(currencyDetails, account.Balance{
+				currencyDetails = append(currencyDetails, accounts.Balance{
 					Currency: currency.NewCode(a.AssetsData[y].Symbol),
 					Total:    a.AssetsData[y].MarginBalance,
 					Hold:     a.AssetsData[y].MarginFrozen,
@@ -803,7 +803,7 @@ func (h *HUOBI) UpdateAccountHoldings(ctx context.Context, assetType asset.Item)
 	info.Accounts = append(info.Accounts, acc)
 	creds, err := h.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 	if err := h.Accounts.Save(&info, creds); err != nil {
 		return info, err

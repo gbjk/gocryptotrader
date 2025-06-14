@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -243,8 +243,8 @@ func (b *Bitflyer) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies on the
 // Bitflyer exchange
-func (b *Bitflyer) UpdateAccountHoldings(_ context.Context, _ asset.Item) (account.Holdings, error) {
-	return account.Holdings{}, common.ErrNotYetImplemented
+func (b *Bitflyer) UpdateAccountHoldings(_ context.Context, _ asset.Item) (accounts.Holdings, error) {
+	return accounts.Holdings{}, common.ErrNotYetImplemented
 }
 
 // GetAccountFundingHistory returns funding history, deposits and

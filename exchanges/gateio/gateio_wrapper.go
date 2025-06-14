@@ -18,7 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -712,8 +712,8 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 }
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
-func (g *Gateio) UpdateAccountHoldings(ctx context.Context, a asset.Item) (account.Holdings, error) {
-	info := account.Holdings{
+func (g *Gateio) UpdateAccountHoldings(ctx context.Context, a asset.Item) (accounts.Holdings, error) {
+	info := accounts.Holdings{
 		Exchange: g.Name,
 		Accounts: accounts.SubAccounts{{
 			AssetType: a,
@@ -725,9 +725,9 @@ func (g *Gateio) UpdateAccountHoldings(ctx context.Context, a asset.Item) (accou
 		if err != nil {
 			return info, err
 		}
-		currencies := make([]account.Balance, len(balances))
+		currencies := make([]accounts.Balance, len(balances))
 		for i := range balances {
-			currencies[i] = account.Balance{
+			currencies[i] = accounts.Balance{
 				Currency: currency.NewCode(balances[i].Currency),
 				Total:    balances[i].Available.Float64() + balances[i].Locked.Float64(),
 				Hold:     balances[i].Locked.Float64(),
@@ -740,16 +740,16 @@ func (g *Gateio) UpdateAccountHoldings(ctx context.Context, a asset.Item) (accou
 		if err != nil {
 			return info, err
 		}
-		currencies := make([]account.Balance, 0, 2*len(balances))
+		currencies := make([]accounts.Balance, 0, 2*len(balances))
 		for i := range balances {
 			currencies = append(currencies,
-				account.Balance{
+				accounts.Balance{
 					Currency: currency.NewCode(balances[i].Base.Currency),
 					Total:    balances[i].Base.Available.Float64() + balances[i].Base.LockedAmount.Float64(),
 					Hold:     balances[i].Base.LockedAmount.Float64(),
 					Free:     balances[i].Base.Available.Float64(),
 				},
-				account.Balance{
+				accounts.Balance{
 					Currency: currency.NewCode(balances[i].Quote.Currency),
 					Total:    balances[i].Quote.Available.Float64() + balances[i].Quote.LockedAmount.Float64(),
 					Hold:     balances[i].Quote.LockedAmount.Float64(),
@@ -771,7 +771,7 @@ func (g *Gateio) UpdateAccountHoldings(ctx context.Context, a asset.Item) (accou
 		if err != nil {
 			return info, err
 		}
-		info.Accounts[0].Currencies = []account.Balance{{
+		info.Accounts[0].Currencies = []accounts.Balance{{
 			Currency: currency.NewCode(acc.Currency),
 			Total:    acc.Total.Float64(),
 			Hold:     acc.Total.Float64() - acc.Available.Float64(),
@@ -782,7 +782,7 @@ func (g *Gateio) UpdateAccountHoldings(ctx context.Context, a asset.Item) (accou
 		if err != nil {
 			return info, err
 		}
-		info.Accounts[0].Currencies = []account.Balance{{
+		info.Accounts[0].Currencies = []accounts.Balance{{
 			Currency: currency.NewCode(balance.Currency),
 			Total:    balance.Total.Float64(),
 			Hold:     balance.Total.Float64() - balance.Available.Float64(),

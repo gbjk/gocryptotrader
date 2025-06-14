@@ -14,7 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -354,9 +354,9 @@ func (bi *Binanceus) UpdateOrderbook(ctx context.Context, pair currency.Pair, as
 }
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies
-func (bi *Binanceus) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var info account.Holdings
-	var acc account.SubAccount
+func (bi *Binanceus) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
+	var info accounts.Holdings
+	var acc accounts.SubAccount
 	info.Exchange = bi.Name
 	if assetType != asset.Spot {
 		return info, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
@@ -365,12 +365,12 @@ func (bi *Binanceus) UpdateAccountHoldings(ctx context.Context, assetType asset.
 	if err != nil {
 		return info, err
 	}
-	currencyBalance := make([]account.Balance, len(theAccount.Balances))
+	currencyBalance := make([]accounts.Balance, len(theAccount.Balances))
 	for i := range theAccount.Balances {
 		freeBalance := theAccount.Balances[i].Free.InexactFloat64()
 		locked := theAccount.Balances[i].Locked.InexactFloat64()
 
-		currencyBalance[i] = account.Balance{
+		currencyBalance[i] = accounts.Balance{
 			Currency: currency.NewCode(theAccount.Balances[i].Asset),
 			Total:    freeBalance + locked,
 			Hold:     locked,
@@ -385,7 +385,7 @@ func (bi *Binanceus) UpdateAccountHoldings(ctx context.Context, assetType asset.
 		return info, err
 	}
 	if err := bi.Accounts.Save(&info, creds); err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 	return info, nil
 }

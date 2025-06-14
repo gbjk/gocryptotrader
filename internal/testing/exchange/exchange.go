@@ -18,7 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
@@ -51,7 +51,7 @@ func Setup(e exchange.IBotExchange) error {
 		return fmt.Errorf("Setup() error: %w", err)
 	}
 
-	b.Accounts = account.MustNewAccounts(eName, dispatch.GetNewMux(nil))
+	b.Accounts = accounts.MustNewAccounts(eName, dispatch.GetNewMux(nil))
 
 	return err
 }

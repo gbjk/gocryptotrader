@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -307,17 +307,17 @@ func (h *HitBTC) UpdateOrderbook(ctx context.Context, c currency.Pair, assetType
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // HitBTC exchange
-func (h *HitBTC) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var response account.Holdings
+func (h *HitBTC) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
+	var response accounts.Holdings
 	response.Exchange = h.Name
 	accountBalance, err := h.GetBalances(ctx)
 	if err != nil {
 		return response, err
 	}
 
-	currencies := make([]account.Balance, 0, len(accountBalance))
+	currencies := make([]accounts.Balance, 0, len(accountBalance))
 	for i := range accountBalance {
-		currencies = append(currencies, account.Balance{
+		currencies = append(currencies, accounts.Balance{
 			Currency: currency.NewCode(accountBalance[i].Currency),
 			Total:    accountBalance[i].Available + accountBalance[i].Reserved,
 			Hold:     accountBalance[i].Reserved,
@@ -325,18 +325,18 @@ func (h *HitBTC) UpdateAccountHoldings(ctx context.Context, assetType asset.Item
 		})
 	}
 
-	response.Accounts = append(response.Accounts, account.SubAccount{
+	response.Accounts = append(response.Accounts, accounts.SubAccount{
 		AssetType:  assetType,
 		Currencies: currencies,
 	})
 
 	creds, err := h.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 	err = h.Accounts.Save(&response, creds)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 
 	return response, nil

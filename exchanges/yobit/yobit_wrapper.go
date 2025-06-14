@@ -13,7 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -238,17 +238,17 @@ func (y *Yobit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Yobit exchange
-func (y *Yobit) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var response account.Holdings
+func (y *Yobit) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
+	var response accounts.Holdings
 	response.Exchange = y.Name
 	accountBalance, err := y.GetAccountInformation(ctx)
 	if err != nil {
 		return response, err
 	}
 
-	currencies := make([]account.Balance, 0, len(accountBalance.FundsInclOrders))
+	currencies := make([]accounts.Balance, 0, len(accountBalance.FundsInclOrders))
 	for x, y := range accountBalance.FundsInclOrders {
-		var exchangeCurrency account.Balance
+		var exchangeCurrency accounts.Balance
 		exchangeCurrency.Currency = currency.NewCode(x)
 		exchangeCurrency.Total = y
 		for z, w := range accountBalance.Funds {
@@ -261,18 +261,18 @@ func (y *Yobit) UpdateAccountHoldings(ctx context.Context, assetType asset.Item)
 		currencies = append(currencies, exchangeCurrency)
 	}
 
-	response.Accounts = append(response.Accounts, account.SubAccount{
+	response.Accounts = append(response.Accounts, accounts.SubAccount{
 		AssetType:  assetType,
 		Currencies: currencies,
 	})
 
 	creds, err := y.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 	err = y.Accounts.Save(&response, creds)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 
 	return response, nil

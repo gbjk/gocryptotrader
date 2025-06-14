@@ -21,7 +21,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -551,7 +551,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			})
 		}
 
-		var GetCachedAccountInfoResponse account.Holdings
+		var GetCachedAccountInfoResponse accounts.Holdings
 		GetCachedAccountInfoResponse, err = e.GetCachedAccountInfo(ctx, assetTypes[i])
 		msg = ""
 		if err != nil {

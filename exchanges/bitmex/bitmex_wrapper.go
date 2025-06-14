@@ -19,7 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -450,7 +450,7 @@ func (b *Bitmex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 }
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the Bitmex exchange
-func (b *Bitmex) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.SubAccounts, error) {
+func (b *Bitmex) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	var subAccts accounts.SubAccounts
 	userMargins, err := b.GetAllUserMargin(ctx)
 	if err != nil {
@@ -467,8 +467,8 @@ func (b *Bitmex) UpdateAccountHoldings(ctx context.Context, assetType asset.Item
 		subAccts.Merge(accounts.SubAccount{
 			AssetType: assetType,
 			ID:        strconv.FormatInt(userMargins[i].Account, 10),
-			Balances: account.CurrencyBalances{
-				c: account.Balance{
+			Balances: accounts.CurrencyBalances{
+				c: accounts.Balance{
 					Currency: c,
 					Total:    wallet.Amount,
 				},
@@ -478,7 +478,7 @@ func (b *Bitmex) UpdateAccountHoldings(ctx context.Context, assetType asset.Item
 
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 	return subAccts, b.Accounts.Save(subAccts, creds)
 }

@@ -10,7 +10,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/currencystate"
@@ -150,8 +150,8 @@ type CurrencyStateManagement interface {
 
 // AccountManagement defines functionality for exchange account management
 type AccountManagement interface {
-	UpdateAccountHoldings(ctx context.Context, a asset.Item) (account.SubAccounts, error)
-	GetCachedAccountInfo(ctx context.Context, a asset.Item) (account.SubAccounts, error)
+	UpdateAccountHoldings(ctx context.Context, a asset.Item) (accounts.SubAccounts, error)
+	GetCachedAccountInfo(ctx context.Context, a asset.Item) (accounts.SubAccounts, error)
 	HasAssetTypeAccountSegregation() bool
 	SubscribeAccountHoldings() (dispatch.Pipe, error)
 }

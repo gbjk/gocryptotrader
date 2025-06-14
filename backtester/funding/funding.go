@@ -16,7 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/futures"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -577,7 +577,7 @@ func (f *FundManager) UpdateFundingFromLiveData(initialFundsSet bool) error {
 				// futures currency holdings are collateral in the collateral currency
 				continue
 			}
-			var acc account.Holdings
+			var acc accounts.Holdings
 			acc, err = exchanges[x].UpdateAccountHoldings(context.TODO(), assets[y])
 			if err != nil {
 				return err
@@ -799,7 +799,7 @@ func (f *FundManager) HasExchangeBeenLiquidated(ev common.Event) bool {
 // As external sources may have additional currencies and balances
 // versus the strategy currencies, they must be appended to
 // help calculate collateral
-func (f *FundManager) SetFunding(exchName string, item asset.Item, balance *account.Balance, initialFundsSet bool) error {
+func (f *FundManager) SetFunding(exchName string, item asset.Item, balance *accounts.Balance, initialFundsSet bool) error {
 	if exchName == "" {
 		return engine.ErrExchangeNameIsEmpty
 	}

@@ -17,7 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -337,8 +337,8 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 }
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies
-func (d *Deribit) UpdateAccountHoldings(ctx context.Context, _ asset.Item) (account.Holdings, error) {
-	var resp account.Holdings
+func (d *Deribit) UpdateAccountHoldings(ctx context.Context, _ asset.Item) (accounts.Holdings, error) {
+	var resp accounts.Holdings
 	resp.Exchange = d.Name
 	currencies, err := d.GetCurrencies(ctx)
 	if err != nil {
@@ -355,8 +355,8 @@ func (d *Deribit) UpdateAccountHoldings(ctx context.Context, _ asset.Item) (acco
 		if err != nil {
 			return resp, err
 		}
-		var subAcc account.SubAccount
-		subAcc.Currencies = append(subAcc.Currencies, account.Balance{
+		var subAcc accounts.SubAccount
+		subAcc.Currencies = append(subAcc.Currencies, accounts.Balance{
 			Currency: currency.NewCode(currencies[x].Currency),
 			Total:    data.Balance,
 			Hold:     data.Balance - data.AvailableFunds,

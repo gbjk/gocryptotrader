@@ -935,7 +935,7 @@ type OptionsUnderlyingTicker struct {
 	IndexPrice types.Number `json:"index_price"`
 }
 
-// OptionAccount represents option account.
+// OptionAccount represents option accounts.
 type OptionAccount struct {
 	User          int64        `json:"user"`
 	Currency      string       `json:"currency"`
@@ -2557,7 +2557,7 @@ type WsOptionsOrder struct {
 	CreationTime types.Time    `json:"time_ms"`
 }
 
-// WsOptionsUserTrade represents user's personal trades of option account.
+// WsOptionsUserTrade represents user's personal trades of option accounts.
 type WsOptionsUserTrade struct {
 	ID         string        `json:"id"`
 	Underlying string        `json:"underlying"`
@@ -2569,7 +2569,7 @@ type WsOptionsUserTrade struct {
 	Size       float64       `json:"size"`
 }
 
-// WsOptionsLiquidates represents the liquidates push data of option account.
+// WsOptionsLiquidates represents the liquidates push data of option accounts.
 type WsOptionsLiquidates struct {
 	User        string     `json:"user"`
 	InitMargin  float64    `json:"init_margin"`
@@ -2578,7 +2578,7 @@ type WsOptionsLiquidates struct {
 	Time        types.Time `json:"time_ms"`
 }
 
-// WsOptionsUserSettlement represents user's personal settlements push data of options account.
+// WsOptionsUserSettlement represents user's personal settlements push data of options accounts.
 type WsOptionsUserSettlement struct {
 	User         string     `json:"user"`
 	Contract     string     `json:"contract"`
@@ -2591,7 +2591,7 @@ type WsOptionsUserSettlement struct {
 	SettleTime   types.Time `json:"time_ms"`
 }
 
-// WsOptionsPosition represents positions push data for options account.
+// WsOptionsPosition represents positions push data for options accounts.
 type WsOptionsPosition struct {
 	EntryPrice  float64    `json:"entry_price"`
 	RealisedPnl float64    `json:"realised_pnl"`

@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -200,8 +200,8 @@ func (c *COINUT) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // COINUT exchange
-func (c *COINUT) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var info account.Holdings
+func (c *COINUT) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
+	var info accounts.Holdings
 	var bal *UserBalance
 	var err error
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
@@ -218,7 +218,7 @@ func (c *COINUT) UpdateAccountHoldings(ctx context.Context, assetType asset.Item
 		}
 	}
 
-	balances := []account.Balance{
+	balances := []accounts.Balance{
 		{
 			Currency: currency.BCH,
 			Total:    bal.BCH,
@@ -277,18 +277,18 @@ func (c *COINUT) UpdateAccountHoldings(ctx context.Context, assetType asset.Item
 		},
 	}
 	info.Exchange = c.Name
-	info.Accounts = append(info.Accounts, account.SubAccount{
+	info.Accounts = append(info.Accounts, accounts.SubAccount{
 		AssetType:  assetType,
 		Currencies: balances,
 	})
 
 	creds, err := c.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 	err = c.Accounts.Save(&info, creds)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 
 	return info, nil

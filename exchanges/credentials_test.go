@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 )
 
 func TestGetCredentials(t *testing.T) {
@@ -20,21 +20,21 @@ func TestGetCredentials(t *testing.T) {
 	}
 
 	b.API.CredentialsValidator.RequiresKey = true
-	ctx := account.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Secret: "wow"})
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Secret: "wow"})
 	_, err = b.GetCredentials(ctx)
 	if !errors.Is(err, errRequiresAPIKey) {
 		t.Fatalf("received: %v but expected: %v", err, errRequiresAPIKey)
 	}
 
 	b.API.CredentialsValidator.RequiresSecret = true
-	ctx = account.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "wow"})
+	ctx = accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "wow"})
 	_, err = b.GetCredentials(ctx)
 	if !errors.Is(err, errRequiresAPISecret) {
 		t.Fatalf("received: %v but expected: %v", err, errRequiresAPISecret)
 	}
 
 	b.API.CredentialsValidator.RequiresBase64DecodeSecret = true
-	ctx = account.DeployCredentialsToContext(t.Context(), &accounts.Credentials{
+	ctx = accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{
 		Key:    "meow",
 		Secret: "invalidb64",
 	})
@@ -43,7 +43,7 @@ func TestGetCredentials(t *testing.T) {
 	}
 
 	const expectedBase64DecodedOutput = "hello world"
-	ctx = account.DeployCredentialsToContext(t.Context(), &accounts.Credentials{
+	ctx = accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{
 		Key:    "meow",
 		Secret: "aGVsbG8gd29ybGQ=",
 	})
@@ -69,7 +69,7 @@ func TestGetCredentials(t *testing.T) {
 		OneTimePassword: "superOneTimePasssssss",
 	}
 
-	ctx = account.DeployCredentialsToContext(t.Context(), fullCred)
+	ctx = accounts.DeployCredentialsToContext(t.Context(), fullCred)
 	creds, err = b.GetCredentials(ctx)
 	if !errors.Is(err, nil) {
 		t.Fatalf("received: %v but expected: %v", err, nil)
@@ -92,7 +92,7 @@ func TestGetCredentials(t *testing.T) {
 		OneTimePassword: "superOneTimePasssssss",
 	}
 
-	ctx = account.DeployCredentialsToContext(t.Context(), lonelyCred)
+	ctx = accounts.DeployCredentialsToContext(t.Context(), lonelyCred)
 	b.API.CredentialsValidator.RequiresClientID = true
 	_, err = b.GetCredentials(ctx)
 	if !errors.Is(err, errRequiresAPIClientID) {
@@ -135,7 +135,7 @@ func TestAreCredentialsValid(t *testing.T) {
 	if b.AreCredentialsValid(t.Context()) {
 		t.Fatal("should not be valid")
 	}
-	ctx := account.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "hello"})
+	ctx := accounts.DeployCredentialsToContext(t.Context(), &accounts.Credentials{Key: "hello"})
 	if !b.AreCredentialsValid(ctx) {
 		t.Fatal("should be valid")
 	}
@@ -326,32 +326,32 @@ func TestCheckCredentials(t *testing.T) {
 func TestAPISetters(t *testing.T) {
 	t.Parallel()
 	api := API{}
-	api.SetKey(account.Key)
-	if api.credentials.Key != account.Key {
+	api.SetKey(accounts.Key)
+	if api.credentials.Key != accounts.Key {
 		t.Fatal("unexpected value")
 	}
 
 	api = API{}
-	api.SetSecret(account.Secret)
-	if api.credentials.Secret != account.Secret {
+	api.SetSecret(accounts.Secret)
+	if api.credentials.Secret != accounts.Secret {
 		t.Fatal("unexpected value")
 	}
 
 	api = API{}
-	api.SetClientID(account.ClientID)
-	if api.credentials.ClientID != account.ClientID {
+	api.SetClientID(accounts.ClientID)
+	if api.credentials.ClientID != accounts.ClientID {
 		t.Fatal("unexpected value")
 	}
 
 	api = API{}
-	api.SetPEMKey(account.PEMKey)
-	if api.credentials.PEMKey != account.PEMKey {
+	api.SetPEMKey(accounts.PEMKey)
+	if api.credentials.PEMKey != accounts.PEMKey {
 		t.Fatal("unexpected value")
 	}
 
 	api = API{}
-	api.SetSubAccount(account.SubAccountSTR)
-	if api.credentials.SubAccount != account.SubAccountSTR {
+	api.SetSubAccount(accounts.SubAccountSTR)
+	if api.credentials.SubAccount != accounts.SubAccountSTR {
 		t.Fatal("unexpected value")
 	}
 }

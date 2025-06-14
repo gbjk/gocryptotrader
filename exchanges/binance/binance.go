@@ -941,9 +941,9 @@ func (b *Binance) getMultiplier(ctx context.Context, isMaker bool) (float64, err
 		return 0, err
 	}
 	if isMaker {
-		multiplier = float64(account.MakerCommission)
+		multiplier = float64(accounts.MakerCommission)
 	} else {
-		multiplier = float64(account.TakerCommission)
+		multiplier = float64(accounts.TakerCommission)
 	}
 	return multiplier, nil
 }

@@ -93,7 +93,7 @@ func TestParseCredentialsMetadata(t *testing.T) {
 		SubAccount: "supersub",
 	}
 
-	flag, outGoing = subaccount.GetMetaData()
+	flag, outGoing = subaccounts.GetMetaData()
 	ctx = metadata.AppendToOutgoingContext(t.Context(), flag, outGoing)
 	lovelyMD, _ = metadata.FromOutgoingContext(ctx)
 

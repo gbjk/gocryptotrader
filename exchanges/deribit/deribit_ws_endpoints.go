@@ -2032,7 +2032,7 @@ func (d *Deribit) SayHello(clientName, clientVersion string) (*Info, error) {
 	return resp, d.SendWSRequest(nonMatchingEPL, "public/hello", input, &resp, false)
 }
 
-// WsRetrieveCancelOnDisconnect read current Cancel On Disconnect configuration for the account.
+// WsRetrieveCancelOnDisconnect read current Cancel On Disconnect configuration for the accounts.
 // 'scope': Specifies if Cancel On Disconnect change should be applied/checked for the current connection or the account (default - connection)
 // Scope connection can be used only when working via Websocket.
 func (d *Deribit) WsRetrieveCancelOnDisconnect(scope string) (*CancelOnDisconnect, error) {

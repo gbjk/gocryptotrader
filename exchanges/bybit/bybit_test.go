@@ -3609,7 +3609,7 @@ func TestRequiresUnifiedAccount(t *testing.T) {
 	err := b.RequiresUnifiedAccount(t.Context())
 	require.NoError(t, err)
 	b := &Bybit{} //nolint:govet // Intentional shadow to avoid future copy/paste mistakes. Also stops race below.
-	b.account.accountType = accountTypeNormal
+	b.accounts.accountType = accountTypeNormal
 	err = b.RequiresUnifiedAccount(t.Context())
 	require.ErrorIs(t, err, errAPIKeyIsNotUnified)
 }

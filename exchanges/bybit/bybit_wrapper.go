@@ -16,7 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -534,9 +534,9 @@ func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 }
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies
-func (by *Bybit) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var info account.Holdings
-	var acc account.SubAccount
+func (by *Bybit) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
+	var info accounts.Holdings
+	var acc accounts.SubAccount
 	var accountType string
 	at, err := by.FetchAccountType(ctx)
 	if err != nil {
@@ -565,10 +565,10 @@ func (by *Bybit) UpdateAccountHoldings(ctx context.Context, assetType asset.Item
 	if err != nil {
 		return info, err
 	}
-	currencyBalance := []account.Balance{}
+	currencyBalance := []accounts.Balance{}
 	for i := range balances.List {
 		for c := range balances.List[i].Coin {
-			balance := account.Balance{
+			balance := accounts.Balance{
 				Currency: balances.List[i].Coin[c].Coin,
 				Total:    balances.List[i].Coin[c].WalletBalance.Float64(),
 				Free:     balances.List[i].Coin[c].AvailableToWithdraw.Float64(),

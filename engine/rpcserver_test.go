@@ -35,7 +35,7 @@ import (
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -323,14 +323,14 @@ func (f fExchange) GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Price
 
 // GetCachedAccountInfo overrides testExchange's fetch account info function
 // to do the bare minimum required with no API calls or credentials required
-func (f fExchange) GetCachedAccountInfo(_ context.Context, a asset.Item) (account.Holdings, error) {
-	return account.Holdings{
+func (f fExchange) GetCachedAccountInfo(_ context.Context, a asset.Item) (accounts.Holdings, error) {
+	return accounts.Holdings{
 		Exchange: f.GetName(),
 		Accounts: accounts.SubAccounts{
 			{
 				ID:        "1337",
 				AssetType: a,
-				Currencies: []account.Balance{
+				Currencies: []accounts.Balance{
 					{
 						Currency: currency.USD,
 						Total:    1337,
@@ -393,11 +393,11 @@ func (f fExchange) CalculateTotalCollateral(context.Context, *futures.TotalColla
 
 // UpdateAccountHoldings overrides testExchange's update account info function
 // to do the bare minimum required with no API calls or credentials required
-func (f fExchange) UpdateAccountHoldings(_ context.Context, a asset.Item) (account.Holdings, error) {
+func (f fExchange) UpdateAccountHoldings(_ context.Context, a asset.Item) (accounts.Holdings, error) {
 	if a == asset.Futures {
-		return account.Holdings{}, asset.ErrNotSupported
+		return accounts.Holdings{}, asset.ErrNotSupported
 	}
-	return account.Holdings{
+	return accounts.Holdings{
 		Exchange: f.GetName(),
 		Accounts: accounts.SubAccounts{
 			{
@@ -2406,7 +2406,7 @@ func TestGetCollateral(t *testing.T) {
 		t.Fatalf("received '%v', expected '%v'", err, exchange.ErrCredentialsAreEmpty)
 	}
 
-	ctx := account.DeployCredentialsToContext(t.Context(),
+	ctx := accounts.DeployCredentialsToContext(t.Context(),
 		&accounts.Credentials{Key: "fakerino", Secret: "supafake"})
 
 	_, err = s.GetCollateral(ctx, &gctrpc.GetCollateralRequest{
@@ -2417,7 +2417,7 @@ func TestGetCollateral(t *testing.T) {
 		t.Fatalf("received '%v', expected '%v'", err, errNoAccountInformation)
 	}
 
-	ctx = account.DeployCredentialsToContext(t.Context(),
+	ctx = accounts.DeployCredentialsToContext(t.Context(),
 		&accounts.Credentials{Key: "fakerino", Secret: "supafake", SubAccount: "1337"})
 
 	r, err := s.GetCollateral(ctx, &gctrpc.GetCollateralRequest{

@@ -19,7 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -362,10 +362,10 @@ func (ku *Kucoin) processFuturesAccountBalanceEvent(respData []byte) error {
 	if err != nil {
 		return err
 	}
-	changes := []account.Change{
+	changes := []accounts.Change{
 		{
 			AssetType: asset.Futures,
-			Balance: &account.Balance{
+			Balance: &accounts.Balance{
 				Currency:  currency.NewCode(resp.Currency),
 				Total:     resp.AvailableBalance + resp.HoldBalance,
 				Hold:      resp.HoldBalance,
@@ -696,10 +696,10 @@ func (ku *Kucoin) processAccountBalanceChange(respData []byte) error {
 	if err != nil {
 		return err
 	}
-	changes := []account.Change{
+	changes := []accounts.Change{
 		{
 			AssetType: asset.Futures,
-			Balance: &account.Balance{
+			Balance: &accounts.Balance{
 				Currency:  currency.NewCode(response.Currency),
 				Total:     response.Total,
 				Hold:      response.Hold,

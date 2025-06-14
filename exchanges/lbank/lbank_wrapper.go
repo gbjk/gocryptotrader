@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -259,13 +259,13 @@ func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Lbank exchange
-func (l *Lbank) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var info account.Holdings
+func (l *Lbank) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
+	var info accounts.Holdings
 	data, err := l.GetUserInfo(ctx)
 	if err != nil {
 		return info, err
 	}
-	acc := account.SubAccount{AssetType: assetType}
+	acc := accounts.SubAccount{AssetType: assetType}
 	for key, val := range data.Info.Asset {
 		c := currency.NewCode(key)
 		hold, ok := data.Info.Freeze[key]
@@ -280,7 +280,7 @@ func (l *Lbank) UpdateAccountHoldings(ctx context.Context, assetType asset.Item)
 		if parseErr != nil {
 			return info, parseErr
 		}
-		acc.Currencies = append(acc.Currencies, account.Balance{
+		acc.Currencies = append(acc.Currencies, accounts.Balance{
 			Currency: c,
 			Total:    totalVal,
 			Hold:     totalHold,
@@ -293,11 +293,11 @@ func (l *Lbank) UpdateAccountHoldings(ctx context.Context, assetType asset.Item)
 
 	creds, err := l.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 	err = l.Accounts.Save(&info, creds)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 	return info, nil
 }

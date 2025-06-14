@@ -8,7 +8,7 @@ import (
 	"github.com/gorilla/mux"
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/config"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 )
@@ -146,7 +146,7 @@ type EnabledExchangeCurrencies struct {
 
 // AllEnabledExchangeAccounts holds all enabled accounts info
 type AllEnabledExchangeAccounts struct {
-	Data []account.Holdings `json:"data"`
+	Data []accounts.Holdings `json:"data"`
 }
 
 var wsHandlers = map[string]wsCommandHandler{

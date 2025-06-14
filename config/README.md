@@ -36,7 +36,7 @@ Join our slack to discuss all things related to GoCryptoTrader! [GoCryptoTrader 
 	cryptocurrency. [See Example](#enable-currency-via-config-example)
 
 	- Communication for utilisation of supported communication mediums e.g.
-	email events direct to your personal account. [See Example](#enable-communications-via-config-example)
+	email events direct to your personal accounts. [See Example](#enable-communications-via-config-example)
 
     - Websocket subscription channels. [See Example](#configure-exchange-websocket-subscriptions)
 

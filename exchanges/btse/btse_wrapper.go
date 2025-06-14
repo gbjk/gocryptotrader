@@ -16,7 +16,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -351,16 +351,16 @@ func (b *BTSE) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // BTSE exchange
-func (b *BTSE) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var a account.Holdings
+func (b *BTSE) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
+	var a accounts.Holdings
 	balance, err := b.GetWalletInformation(ctx)
 	if err != nil {
 		return a, err
 	}
 
-	currencies := make([]account.Balance, len(balance))
+	currencies := make([]accounts.Balance, len(balance))
 	for b := range balance {
-		currencies[b] = account.Balance{
+		currencies[b] = accounts.Balance{
 			Currency: currency.NewCode(balance[b].Currency),
 			Total:    balance[b].Total,
 			Hold:     balance[b].Total - balance[b].Available,
@@ -377,11 +377,11 @@ func (b *BTSE) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) 
 
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 	err = b.Accounts.Save(&a, creds)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 
 	return a, nil

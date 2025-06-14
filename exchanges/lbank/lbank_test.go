@@ -13,7 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -294,7 +294,7 @@ func TestLoadPrivKey(t *testing.T) {
 		t.Error(err)
 	}
 
-	ctx := account.DeployCredentialsToContext(t.Context(),
+	ctx := accounts.DeployCredentialsToContext(t.Context(),
 		&accounts.Credentials{Secret: "errortest"})
 	err = l.loadPrivKey(ctx)
 	if err == nil {

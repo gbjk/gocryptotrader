@@ -17,7 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
@@ -799,7 +799,7 @@ func TestWsLogin(t *testing.T) {
    "unverified_email":"",
    "username":"test"
 }`)
-	ctx := account.DeployCredentialsToContext(t.Context(),
+	ctx := accounts.DeployCredentialsToContext(t.Context(),
 		&accounts.Credentials{Key: "b46e658f-d4c4-433c-b032-093423b1aaa4", ClientID: "dummy"})
 	err := c.wsHandleData(ctx, pressXToJSON)
 	if err != nil {

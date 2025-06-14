@@ -18,7 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -636,13 +636,13 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 }
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies.
-func (ok *Okx) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
+func (ok *Okx) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
 	if err := ok.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 
-	var info account.Holdings
-	var acc account.SubAccount
+	var info accounts.Holdings
+	var acc accounts.SubAccount
 	info.Exchange = ok.Name
 	if !ok.SupportsAsset(assetType) {
 		return info, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
@@ -651,10 +651,10 @@ func (ok *Okx) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) 
 	if err != nil {
 		return info, err
 	}
-	currencyBalances := []account.Balance{}
+	currencyBalances := []accounts.Balance{}
 	for i := range accountBalances {
 		for j := range accountBalances[i].Details {
-			currencyBalances = append(currencyBalances, account.Balance{
+			currencyBalances = append(currencyBalances, accounts.Balance{
 				Currency: accountBalances[i].Details[j].Currency,
 				Total:    accountBalances[i].Details[j].EquityOfCurrency.Float64(),
 				Hold:     accountBalances[i].Details[j].FrozenBalance.Float64(),
@@ -670,7 +670,7 @@ func (ok *Okx) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) 
 		return info, err
 	}
 	if err := ok.Accounts.Save(&info, creds); err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 	return info, nil
 }

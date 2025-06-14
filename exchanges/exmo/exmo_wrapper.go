@@ -13,7 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -297,17 +297,17 @@ func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Exmo exchange
-func (e *EXMO) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var response account.Holdings
+func (e *EXMO) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
+	var response accounts.Holdings
 	response.Exchange = e.Name
 	result, err := e.GetUserInfo(ctx)
 	if err != nil {
 		return response, err
 	}
 
-	currencies := make([]account.Balance, 0, len(result.Balances))
+	currencies := make([]accounts.Balance, 0, len(result.Balances))
 	for x, y := range result.Balances {
-		var exchangeCurrency account.Balance
+		var exchangeCurrency accounts.Balance
 		exchangeCurrency.Currency = currency.NewCode(x)
 		for z, w := range result.Reserved {
 			if z != x {
@@ -329,18 +329,18 @@ func (e *EXMO) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) 
 		currencies = append(currencies, exchangeCurrency)
 	}
 
-	response.Accounts = append(response.Accounts, account.SubAccount{
+	response.Accounts = append(response.Accounts, accounts.SubAccount{
 		AssetType:  assetType,
 		Currencies: currencies,
 	})
 
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 	err = e.Accounts.Save(&response, creds)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 
 	return response, nil

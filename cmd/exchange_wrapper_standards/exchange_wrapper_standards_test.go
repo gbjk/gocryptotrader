@@ -19,7 +19,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/engine"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -651,7 +651,7 @@ var acceptableErrors = []error{
 	order.ErrCannotValidateAsset,         // Is thrown when attempting to get order limits from an asset that is not yet loaded
 	order.ErrCannotValidateBaseCurrency,  // Is thrown when attempting to get order limits from an base currency that is not yet loaded
 	order.ErrCannotValidateQuoteCurrency, // Is thrown when attempting to get order limits from an quote currency that is not yet loaded
-	account.ErrExchangeHoldingsNotFound,
+	accounts.ErrExchangeHoldingsNotFound,
 	ticker.ErrTickerNotFound,
 	orderbook.ErrOrderbookNotFound,
 	websocket.ErrNotConnected,

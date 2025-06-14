@@ -9,7 +9,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
@@ -144,12 +144,12 @@ func (m *portfolioManager) processPortfolio() {
 }
 
 // seedExchangeAccountInfo seeds account info
-func (m *portfolioManager) seedExchangeAccountInfo(accounts []account.Holdings) {
+func (m *portfolioManager) seedExchangeAccountInfo(accounts []accounts.Holdings) {
 	if len(accounts) == 0 {
 		return
 	}
 	for x := range accounts {
-		var currencies []account.Balance
+		var currencies []accounts.Balance
 		for y := range accounts[x].Accounts {
 		next:
 			for z := range accounts[x].Accounts[y].Currencies {
@@ -164,7 +164,7 @@ func (m *portfolioManager) seedExchangeAccountInfo(accounts []account.Holdings) 
 					currencies[i].Borrowed += accounts[x].Accounts[y].Currencies[z].Borrowed
 					continue next
 				}
-				currencies = append(currencies, account.Balance{
+				currencies = append(currencies, accounts.Balance{
 					Currency:               accounts[x].Accounts[y].Currencies[z].Currency,
 					Total:                  accounts[x].Accounts[y].Currencies[z].Total,
 					Hold:                   accounts[x].Accounts[y].Currencies[z].Hold,
@@ -225,8 +225,8 @@ func (m *portfolioManager) seedExchangeAccountInfo(accounts []account.Holdings) 
 }
 
 // getExchangeAccountInfo returns all the current enabled exchanges
-func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExchange) []account.Holdings {
-	response := make([]account.Holdings, 0, len(exchanges))
+func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExchange) []accounts.Holdings {
+	response := make([]accounts.Holdings, 0, len(exchanges))
 	for x := range exchanges {
 		if !exchanges[x].IsEnabled() {
 			continue
@@ -248,7 +248,7 @@ func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExcha
 			assetTypes = exchanges[x].GetAssetTypes(true)
 		}
 
-		exchangeHoldings := account.Holdings{
+		exchangeHoldings := accounts.Holdings{
 			Exchange: exchanges[x].GetName(),
 			Accounts: make(accounts.SubAccounts, 0, len(assetTypes)),
 		}

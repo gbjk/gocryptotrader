@@ -17,7 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -411,8 +411,8 @@ func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies on the
 // Bitfinex exchange
-func (b *Bitfinex) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var response account.Holdings
+func (b *Bitfinex) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
+	var response accounts.Holdings
 	response.Exchange = b.Name
 
 	accountBalance, err := b.GetAccountBalance(ctx)
@@ -432,7 +432,7 @@ func (b *Bitfinex) UpdateAccountHoldings(ctx context.Context, assetType asset.It
 		for i := range Accounts {
 			if Accounts[i].ID == accountBalance[x].Type {
 				Accounts[i].Currencies = append(Accounts[i].Currencies,
-					account.Balance{
+					accounts.Balance{
 						Currency: currency.NewCode(accountBalance[x].Currency),
 						Total:    accountBalance[x].Amount,
 						Hold:     accountBalance[x].Amount - accountBalance[x].Available,
@@ -445,11 +445,11 @@ func (b *Bitfinex) UpdateAccountHoldings(ctx context.Context, assetType asset.It
 	response.Accounts = Accounts
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 	err = b.Accounts.Save(&response, creds)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 
 	return response, nil

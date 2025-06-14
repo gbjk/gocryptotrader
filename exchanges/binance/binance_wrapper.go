@@ -18,7 +18,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -572,9 +572,9 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Binance exchange
-func (b *Binance) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (account.Holdings, error) {
-	var info account.Holdings
-	var acc account.SubAccount
+func (b *Binance) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
+	var info accounts.Holdings
+	var acc accounts.SubAccount
 	acc.AssetType = assetType
 	info.Exchange = b.Name
 	switch assetType {
@@ -592,12 +592,12 @@ func (b *Binance) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 			return info, err
 		}
 
-		var currencyBalance []account.Balance
+		var currencyBalance []accounts.Balance
 		for i := range raw.Balances {
 			free := raw.Balances[i].Free.InexactFloat64()
 			locked := raw.Balances[i].Locked.InexactFloat64()
 
-			currencyBalance = append(currencyBalance, account.Balance{
+			currencyBalance = append(currencyBalance, accounts.Balance{
 				Currency: currency.NewCode(raw.Balances[i].Asset),
 				Total:    free + locked,
 				Hold:     locked,
@@ -612,9 +612,9 @@ func (b *Binance) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 		if err != nil {
 			return info, err
 		}
-		var currencyDetails []account.Balance
+		var currencyDetails []accounts.Balance
 		for i := range accData.Assets {
-			currencyDetails = append(currencyDetails, account.Balance{
+			currencyDetails = append(currencyDetails, accounts.Balance{
 				Currency: currency.NewCode(accData.Assets[i].Asset),
 				Total:    accData.Assets[i].WalletBalance,
 				Hold:     accData.Assets[i].WalletBalance - accData.Assets[i].AvailableBalance,
@@ -627,12 +627,12 @@ func (b *Binance) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 		if err != nil {
 			return info, err
 		}
-		subAccts := make(account.SubAccounts, 0, len(accData))
+		subAccts := make(accounts.SubAccounts, 0, len(accData))
 		for i := range accData {
 			subAccts = append(subAccts, accounts.SubAccount{
 				AssetType: assetType,
 				ID:        accData[i].AccountAlias,
-				Currencies: []account.Balance{{
+				Currencies: []accounts.Balance{{
 					Currency: currency.NewCode(accData[i].Asset),
 					Total:    accData[i].Balance,
 					Hold:     accData[i].Balance - accData[i].AvailableBalance,
@@ -646,9 +646,9 @@ func (b *Binance) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 		if err != nil {
 			return info, err
 		}
-		var currencyDetails []account.Balance
+		var currencyDetails []accounts.Balance
 		for i := range accData.UserAssets {
-			currencyDetails = append(currencyDetails, account.Balance{
+			currencyDetails = append(currencyDetails, accounts.Balance{
 				Currency:               currency.NewCode(accData.UserAssets[i].Asset),
 				Total:                  accData.UserAssets[i].Free + accData.UserAssets[i].Locked,
 				Hold:                   accData.UserAssets[i].Locked,
@@ -667,7 +667,7 @@ func (b *Binance) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 	info.Accounts = append(info.Accounts, acc)
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
-		return account.Holdings{}, err
+		return accounts.Holdings{}, err
 	}
 	return info, b.Accounts.Save(&info, creds)
 }

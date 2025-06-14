@@ -12,7 +12,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -667,16 +667,16 @@ func (g *Gateio) processBalancePushData(ctx context.Context, data []byte, assetT
 	if err != nil {
 		return err
 	}
-	changes := make([]account.Change, len(resp.Result))
+	changes := make([]accounts.Change, len(resp.Result))
 	for x, bal := range resp.Result {
 		info := strings.Split(bal.Text, currency.UnderscoreDelimiter)
 		if len(info) != 2 {
 			return errors.New("malformed text")
 		}
-		changes[x] = account.Change{
+		changes[x] = accounts.Change{
 			AssetType: assetType,
 			Account:   bal.User,
-			Balance: &account.Balance{
+			Balance: &accounts.Balance{
 				Currency:  currency.NewCode(info[0]),
 				Total:     bal.Balance,
 				Free:      bal.Balance,

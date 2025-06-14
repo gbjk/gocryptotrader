@@ -15,7 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -947,10 +947,10 @@ func (p *Poloniex) processAccountBalanceUpdate(notification []any) error {
 	// TODO: Integrate with exchange account system
 	// NOTES: This will affect free amount, a rest call might be needed to get
 	// locked and total amounts periodically.
-	p.Websocket.DataHandler <- account.Change{
+	p.Websocket.DataHandler <- accounts.Change{
 		Account:   deriveWalletType(walletType),
 		AssetType: asset.Spot,
-		Balance: &account.Balance{
+		Balance: &accounts.Balance{
 			Currency: code,
 			Total:    amount,
 			Free:     amount,

@@ -20,7 +20,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
@@ -1474,13 +1474,13 @@ func (ok *Okx) wsProcessBalanceAndPosition(data []byte) error {
 	if err != nil {
 		return err
 	}
-	var changes []account.Change
+	var changes []accounts.Change
 	for i := range resp.Data {
 		for j := range resp.Data[i].BalanceData {
-			changes = append(changes, account.Change{
+			changes = append(changes, accounts.Change{
 				AssetType: asset.Spot,
 				Account:   resp.Argument.UID,
-				Balance: &account.Balance{
+				Balance: &accounts.Balance{
 					Currency:  currency.NewCode(resp.Data[i].BalanceData[j].Currency),
 					Total:     resp.Data[i].BalanceData[j].CashBalance.Float64(),
 					Free:      resp.Data[i].BalanceData[j].CashBalance.Float64(),
