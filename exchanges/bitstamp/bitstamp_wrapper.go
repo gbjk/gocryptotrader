@@ -338,11 +338,10 @@ func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Bitstamp exchange
-func (b *Bitstamp) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
-	var subAccts accounts.SubAccounts
+func (b *Bitstamp) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
 	accountBalance, err := b.GetBalance(ctx)
 	if err != nil {
-		return nil, err
+		return subAccts, err
 	}
 
 	for k, v := range accountBalance {
@@ -361,7 +360,7 @@ func (b *Bitstamp) UpdateAccountHoldings(ctx context.Context, assetType asset.It
 	}
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
-		return nil, err
+		return subAccts, err
 	}
 	return subAccts, b.Accounts.Save(subAccts, creds)
 }
