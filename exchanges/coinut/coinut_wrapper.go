@@ -12,10 +12,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -198,100 +198,45 @@ func (c *COINUT) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 	return c.EnsureOnePairEnabled()
 }
 
-// UpdateAccountHoldings retrieves balances for all enabled currencies for the
-// COINUT exchange
-func (c *COINUT) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
-	var info accounts.SubAccounts
+// UpdateAccountHoldings retrieves balances for all enabled currencies for the COINUT exchange
+func (c *COINUT) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
 	var bal *UserBalance
-	var err error
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-		var resp *UserBalance
-		resp, err = c.wsGetAccountBalance()
-		if err != nil {
-			return info, err
+		if bal, err = c.wsGetAccountBalance(); err != nil {
+			return subAccts, err
 		}
-		bal = resp
 	} else {
-		bal, err = c.GetUserBalance(ctx)
-		if err != nil {
-			return info, err
+		if bal, err = c.GetUserBalance(ctx); err != nil {
+			return subAccts, err
 		}
 	}
 
-	balances := []accounts.Balance{
-		{
-			Currency: currency.BCH,
-			Total:    bal.BCH,
+	subAccts.Merge(accounts.SubAccount{
+		AssetType: assetType,
+		Balances: accounts.CurrencyBalances{
+			currency.BCH:  {Currency: currency.BCH, Total: bal.BCH},
+			currency.BTC:  {Currency: currency.BTC, Total: bal.BTC},
+			currency.BTG:  {Currency: currency.BTG, Total: bal.BTG},
+			currency.CAD:  {Currency: currency.CAD, Total: bal.CAD},
+			currency.ETC:  {Currency: currency.ETC, Total: bal.ETC},
+			currency.ETH:  {Currency: currency.ETH, Total: bal.ETH},
+			currency.LCH:  {Currency: currency.LCH, Total: bal.LCH},
+			currency.LTC:  {Currency: currency.LTC, Total: bal.LTC},
+			currency.MYR:  {Currency: currency.MYR, Total: bal.MYR},
+			currency.SGD:  {Currency: currency.SGD, Total: bal.SGD},
+			currency.USD:  {Currency: currency.USD, Total: bal.USD},
+			currency.XMR:  {Currency: currency.XMR, Total: bal.XMR},
+			currency.ZEC:  {Currency: currency.ZEC, Total: bal.ZEC},
+			currency.USDT: {Currency: currency.USDT, Total: bal.USDT},
 		},
-		{
-			Currency: currency.BTC,
-			Total:    bal.BTC,
-		},
-		{
-			Currency: currency.BTG,
-			Total:    bal.BTG,
-		},
-		{
-			Currency: currency.CAD,
-			Total:    bal.CAD,
-		},
-		{
-			Currency: currency.ETC,
-			Total:    bal.ETC,
-		},
-		{
-			Currency: currency.ETH,
-			Total:    bal.ETH,
-		},
-		{
-			Currency: currency.LCH,
-			Total:    bal.LCH,
-		},
-		{
-			Currency: currency.LTC,
-			Total:    bal.LTC,
-		},
-		{
-			Currency: currency.MYR,
-			Total:    bal.MYR,
-		},
-		{
-			Currency: currency.SGD,
-			Total:    bal.SGD,
-		},
-		{
-			Currency: currency.USD,
-			Total:    bal.USD,
-		},
-		{
-			Currency: currency.USDT,
-			Total:    bal.USDT,
-		},
-		{
-			Currency: currency.XMR,
-			Total:    bal.XMR,
-		},
-		{
-			Currency: currency.ZEC,
-			Total:    bal.ZEC,
-		},
-	}
-	info.Exchange = c.Name
-	info.Accounts = append(info.Accounts, accounts.SubAccount{
-		AssetType:  assetType,
-		Currencies: balances,
 	})
 
 	creds, err := c.GetCredentials(ctx)
 	if err != nil {
 		return accounts.SubAccounts{}, err
 	}
-	err = c.Accounts.Save(&info, creds)
-	if err != nil {
-		return accounts.SubAccounts{}, err
-	}
 
-	return info, nil
+	return subAccts, c.Accounts.Save(subAccts, creds)
 }
 
 // UpdateTickers updates the ticker for all currency pairs of a given asset type
