@@ -11,10 +11,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -355,39 +355,36 @@ func (bi *Binanceus) UpdateOrderbook(ctx context.Context, pair currency.Pair, as
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies
 func (bi *Binanceus) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
-	var info accounts.SubAccounts
-	var acc accounts.SubAccount
-	info.Exchange = bi.Name
+	var subAccts accounts.SubAccounts
 	if assetType != asset.Spot {
-		return info, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	theAccount, err := bi.GetAccount(ctx)
+	resp, err := bi.GetAccount(ctx)
 	if err != nil {
-		return info, err
+		return nil, err
 	}
-	currencyBalance := make([]accounts.Balance, len(theAccount.Balances))
-	for i := range theAccount.Balances {
-		freeBalance := theAccount.Balances[i].Free.InexactFloat64()
-		locked := theAccount.Balances[i].Locked.InexactFloat64()
 
-		currencyBalance[i] = accounts.Balance{
-			Currency: currency.NewCode(theAccount.Balances[i].Asset),
-			Total:    freeBalance + locked,
-			Hold:     locked,
-			Free:     freeBalance,
-		}
+	for i := range resp.Balances {
+		c := currency.NewCode(resp.Balances[i].Asset)
+		freeBalance := resp.Balances[i].Free.InexactFloat64()
+		locked := resp.Balances[i].Locked.InexactFloat64()
+		subAccts.Merge(accounts.SubAccount{
+			AssetType: assetType,
+			Balances: accounts.CurrencyBalances{
+				c: accounts.Balance{
+					Currency: c,
+					Total:    freeBalance + locked,
+					Hold:     locked,
+					Free:     freeBalance,
+				},
+			},
+		})
 	}
-	acc.Currencies = currencyBalance
-	acc.AssetType = assetType
-	info.Accounts = append(info.Accounts, acc)
 	creds, err := bi.GetCredentials(ctx)
 	if err != nil {
-		return info, err
+		return nil, err
 	}
-	if err := bi.Accounts.Save(&info, creds); err != nil {
-		return accounts.SubAccounts{}, err
-	}
-	return info, nil
+	return subAccts, bi.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and withdrawals
