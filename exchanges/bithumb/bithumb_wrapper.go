@@ -301,17 +301,16 @@ func (b *Bithumb) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Bithumb exchange
-func (b *Bithumb) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
-	var subAccts accounts.SubAccounts
+func (b *Bithumb) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
 	bal, err := b.GetAccountBalance(ctx, "ALL")
 	if err != nil {
-		return nil, err
+		return subAccts, err
 	}
 
 	for k, totalAmount := range bal.Total {
 		hold, ok := bal.InUse[k]
 		if !ok {
-			return nil, fmt.Errorf("getAccountInfo error - in use item not found for currency %s", k)
+			return subAccts, fmt.Errorf("getAccountInfo error - in use item not found for currency %s", k)
 		}
 
 		avail, ok := bal.Available[k]
@@ -335,7 +334,7 @@ func (b *Bithumb) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
-		return nil, err
+		return subAccts, err
 	}
 
 	return subAccts, b.Accounts.Save(subAccts, creds)
