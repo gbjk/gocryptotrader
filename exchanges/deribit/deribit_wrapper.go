@@ -337,8 +337,8 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 }
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies
-func (d *Deribit) UpdateAccountHoldings(ctx context.Context, _ asset.Item) (accounts.Holdings, error) {
-	var resp accounts.Holdings
+func (d *Deribit) UpdateAccountHoldings(ctx context.Context, _ asset.Item) (accounts.SubAccounts, error) {
+	var resp accounts.SubAccounts
 	resp.Exchange = d.Name
 	currencies, err := d.GetCurrencies(ctx)
 	if err != nil {

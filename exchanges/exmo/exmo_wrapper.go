@@ -297,8 +297,8 @@ func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Exmo exchange
-func (e *EXMO) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
-	var response accounts.Holdings
+func (e *EXMO) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	var response accounts.SubAccounts
 	response.Exchange = e.Name
 	result, err := e.GetUserInfo(ctx)
 	if err != nil {
@@ -336,11 +336,11 @@ func (e *EXMO) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) 
 
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
-		return accounts.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 	err = e.Accounts.Save(&response, creds)
 	if err != nil {
-		return accounts.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 
 	return response, nil

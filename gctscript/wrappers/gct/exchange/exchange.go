@@ -131,15 +131,15 @@ func (e Exchange) CancelOrder(ctx context.Context, exch, orderID string, cp curr
 }
 
 // AccountInformation returns account information (balance etc) for requested exchange
-func (e Exchange) AccountInformation(ctx context.Context, exch string, assetType asset.Item) (accounts.Holdings, error) {
+func (e Exchange) AccountInformation(ctx context.Context, exch string, assetType asset.Item) (accounts.SubAccounts, error) {
 	ex, err := e.GetExchange(exch)
 	if err != nil {
-		return accounts.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 
 	accountInfo, err := ex.GetCachedAccountInfo(ctx, assetType)
 	if err != nil {
-		return accounts.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 
 	return accountInfo, nil

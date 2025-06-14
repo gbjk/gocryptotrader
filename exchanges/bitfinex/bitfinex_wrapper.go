@@ -411,8 +411,8 @@ func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies on the
 // Bitfinex exchange
-func (b *Bitfinex) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
-	var response accounts.Holdings
+func (b *Bitfinex) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	var response accounts.SubAccounts
 	response.Exchange = b.Name
 
 	accountBalance, err := b.GetAccountBalance(ctx)
@@ -445,11 +445,11 @@ func (b *Bitfinex) UpdateAccountHoldings(ctx context.Context, assetType asset.It
 	response.Accounts = Accounts
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
-		return accounts.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 	err = b.Accounts.Save(&response, creds)
 	if err != nil {
-		return accounts.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 
 	return response, nil

@@ -243,8 +243,8 @@ func (b *Bitflyer) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies on the
 // Bitflyer exchange
-func (b *Bitflyer) UpdateAccountHoldings(_ context.Context, _ asset.Item) (accounts.Holdings, error) {
-	return accounts.Holdings{}, common.ErrNotYetImplemented
+func (b *Bitflyer) UpdateAccountHoldings(_ context.Context, _ asset.Item) (accounts.SubAccounts, error) {
+	return accounts.SubAccounts{}, common.ErrNotYetImplemented
 }
 
 // GetAccountFundingHistory returns funding history, deposits and

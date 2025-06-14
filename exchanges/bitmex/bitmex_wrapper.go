@@ -478,7 +478,7 @@ func (b *Bitmex) UpdateAccountHoldings(ctx context.Context, assetType asset.Item
 
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
-		return accounts.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 	return subAccts, b.Accounts.Save(subAccts, creds)
 }

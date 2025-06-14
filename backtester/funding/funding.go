@@ -577,7 +577,7 @@ func (f *FundManager) UpdateFundingFromLiveData(initialFundsSet bool) error {
 				// futures currency holdings are collateral in the collateral currency
 				continue
 			}
-			var acc accounts.Holdings
+			var acc accounts.SubAccounts
 			acc, err = exchanges[x].UpdateAccountHoldings(context.TODO(), assets[y])
 			if err != nil {
 				return err

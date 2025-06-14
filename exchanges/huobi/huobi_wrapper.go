@@ -656,8 +656,8 @@ func (h *HUOBI) GetAccountID(ctx context.Context) ([]Account, error) {
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // HUOBI exchange - to-do
-func (h *HUOBI) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
-	var info accounts.Holdings
+func (h *HUOBI) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	var info accounts.SubAccounts
 	var acc accounts.SubAccount
 	info.Exchange = h.Name
 	switch assetType {
@@ -803,7 +803,7 @@ func (h *HUOBI) UpdateAccountHoldings(ctx context.Context, assetType asset.Item)
 	info.Accounts = append(info.Accounts, acc)
 	creds, err := h.GetCredentials(ctx)
 	if err != nil {
-		return accounts.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 	if err := h.Accounts.Save(&info, creds); err != nil {
 		return info, err

@@ -246,7 +246,7 @@ func (c *CoinbasePro) UpdateAccountHoldings(ctx context.Context, assetType asset
 
 	creds, err := c.GetCredentials(ctx)
 	if err != nil {
-		return accounts.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 
 	return subAccts, c.Accounts.Save(subAccts, creds)

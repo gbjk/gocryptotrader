@@ -259,8 +259,8 @@ func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Lbank exchange
-func (l *Lbank) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
-	var info accounts.Holdings
+func (l *Lbank) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	var info accounts.SubAccounts
 	data, err := l.GetUserInfo(ctx)
 	if err != nil {
 		return info, err
@@ -293,11 +293,11 @@ func (l *Lbank) UpdateAccountHoldings(ctx context.Context, assetType asset.Item)
 
 	creds, err := l.GetCredentials(ctx)
 	if err != nil {
-		return accounts.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 	err = l.Accounts.Save(&info, creds)
 	if err != nil {
-		return accounts.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 	return info, nil
 }

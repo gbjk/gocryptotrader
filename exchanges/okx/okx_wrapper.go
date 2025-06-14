@@ -636,12 +636,12 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 }
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies.
-func (ok *Okx) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
+func (ok *Okx) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	if err := ok.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
-		return accounts.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 
-	var info accounts.Holdings
+	var info accounts.SubAccounts
 	var acc accounts.SubAccount
 	info.Exchange = ok.Name
 	if !ok.SupportsAsset(assetType) {
@@ -670,7 +670,7 @@ func (ok *Okx) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) 
 		return info, err
 	}
 	if err := ok.Accounts.Save(&info, creds); err != nil {
-		return accounts.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 	return info, nil
 }

@@ -551,7 +551,7 @@ func testWrappers(e exchange.IBotExchange, base *exchange.Base, config *Config) 
 			})
 		}
 
-		var GetCachedAccountInfoResponse accounts.Holdings
+		var GetCachedAccountInfoResponse accounts.SubAccounts
 		GetCachedAccountInfoResponse, err = e.GetCachedAccountInfo(ctx, assetTypes[i])
 		msg = ""
 		if err != nil {

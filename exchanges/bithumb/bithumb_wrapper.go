@@ -301,8 +301,8 @@ func (b *Bithumb) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Bithumb exchange
-func (b *Bithumb) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
-	var info accounts.Holdings
+func (b *Bithumb) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	var info accounts.SubAccounts
 	bal, err := b.GetAccountBalance(ctx, "ALL")
 	if err != nil {
 		return info, err
@@ -337,11 +337,11 @@ func (b *Bithumb) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 	info.Exchange = b.Name
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
-		return accounts.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 	err = b.Accounts.Save(&info, creds)
 	if err != nil {
-		return accounts.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 
 	return info, nil

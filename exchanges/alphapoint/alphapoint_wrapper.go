@@ -102,8 +102,8 @@ func (a *Alphapoint) UpdateTradablePairs(_ context.Context, _ bool) error {
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies on the
 // Alphapoint exchange
-func (a *Alphapoint) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
-	var response accounts.Holdings
+func (a *Alphapoint) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	var response accounts.SubAccounts
 	response.Exchange = a.Name
 	acc, err := a.GetAccountInformation(ctx)
 	if err != nil {
@@ -127,12 +127,12 @@ func (a *Alphapoint) UpdateAccountHoldings(ctx context.Context, assetType asset.
 
 	creds, err := a.GetCredentials(ctx)
 	if err != nil {
-		return accounts.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 
 	err = a.Accounts.Save(&response, creds)
 	if err != nil {
-		return accounts.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 
 	return response, nil

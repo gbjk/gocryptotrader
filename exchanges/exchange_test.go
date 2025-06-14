@@ -2915,7 +2915,7 @@ func TestGetCachedAccountInfo(t *testing.T) {
 	_, err = b.GetCachedAccountInfo(ctx, asset.Spot)
 	assert.ErrorIs(t, err, accounts.ErrExchangeHoldingsNotFound)
 
-	err = b.Accounts.Save(&accounts.Holdings{Exchange: "test", Accounts: accounts.SubAccounts{
+	err = b.Accounts.Save(&accounts.SubAccounts{Exchange: "test", Accounts: accounts.SubAccounts{
 		{AssetType: asset.Spot, Currencies: []accounts.Balance{{Currency: currency.BTC, Total: 1}}},
 	}}, creds)
 	require.NoError(t, err, "b.Accounts.Save must not error")
@@ -2964,8 +2964,8 @@ func (f *FakeBase) CancelOrder(context.Context, *order.Cancel) error {
 	return nil
 }
 
-func (f *FakeBase) GetCachedAccountInfo(context.Context, asset.Item) (accounts.Holdings, error) {
-	return accounts.Holdings{}, nil
+func (f *FakeBase) GetCachedAccountInfo(context.Context, asset.Item) (accounts.SubAccounts, error) {
+	return accounts.SubAccounts{}, nil
 }
 
 func (f *FakeBase) GetCachedOrderbook(currency.Pair, asset.Item) (*orderbook.Base, error) {
@@ -3000,8 +3000,8 @@ func (f *FakeBase) UpdateOrderbook(context.Context, currency.Pair, asset.Item) (
 	return nil, nil
 }
 
-func (f *FakeBase) UpdateAccountHoldings(context.Context, asset.Item) (accounts.Holdings, error) {
-	return accounts.Holdings{}, nil
+func (f *FakeBase) UpdateAccountHoldings(context.Context, asset.Item) (accounts.SubAccounts, error) {
+	return accounts.SubAccounts{}, nil
 }
 
 func (f *FakeBase) GetRecentTrades(context.Context, currency.Pair, asset.Item) ([]trade.Data, error) {

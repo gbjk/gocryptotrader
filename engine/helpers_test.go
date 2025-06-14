@@ -758,9 +758,9 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 	t.Parallel()
 	CreateTestBot(t)
 
-	var exchangeInfo []accounts.Holdings
+	var exchangeInfo []accounts.SubAccounts
 
-	var bitfinexHoldings accounts.Holdings
+	var bitfinexHoldings accounts.SubAccounts
 	bitfinexHoldings.Exchange = "Bitfinex"
 	bitfinexHoldings.Accounts = append(bitfinexHoldings.Accounts,
 		accounts.SubAccount{
@@ -775,7 +775,7 @@ func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
 
 	exchangeInfo = append(exchangeInfo, bitfinexHoldings)
 
-	var bitstampHoldings accounts.Holdings
+	var bitstampHoldings accounts.SubAccounts
 	bitstampHoldings.Exchange = testExchange
 	bitstampHoldings.Accounts = append(bitstampHoldings.Accounts,
 		accounts.SubAccount{

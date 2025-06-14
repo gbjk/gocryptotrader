@@ -323,8 +323,8 @@ func (f fExchange) GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Price
 
 // GetCachedAccountInfo overrides testExchange's fetch account info function
 // to do the bare minimum required with no API calls or credentials required
-func (f fExchange) GetCachedAccountInfo(_ context.Context, a asset.Item) (accounts.Holdings, error) {
-	return accounts.Holdings{
+func (f fExchange) GetCachedAccountInfo(_ context.Context, a asset.Item) (accounts.SubAccounts, error) {
+	return accounts.SubAccounts{
 		Exchange: f.GetName(),
 		Accounts: accounts.SubAccounts{
 			{
@@ -393,11 +393,11 @@ func (f fExchange) CalculateTotalCollateral(context.Context, *futures.TotalColla
 
 // UpdateAccountHoldings overrides testExchange's update account info function
 // to do the bare minimum required with no API calls or credentials required
-func (f fExchange) UpdateAccountHoldings(_ context.Context, a asset.Item) (accounts.Holdings, error) {
+func (f fExchange) UpdateAccountHoldings(_ context.Context, a asset.Item) (accounts.SubAccounts, error) {
 	if a == asset.Futures {
-		return accounts.Holdings{}, asset.ErrNotSupported
+		return accounts.SubAccounts{}, asset.ErrNotSupported
 	}
-	return accounts.Holdings{
+	return accounts.SubAccounts{
 		Exchange: f.GetName(),
 		Accounts: accounts.SubAccounts{
 			{

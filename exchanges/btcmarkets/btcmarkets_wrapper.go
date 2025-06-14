@@ -315,8 +315,8 @@ func (b *BTCMarkets) UpdateOrderbook(ctx context.Context, p currency.Pair, asset
 }
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies
-func (b *BTCMarkets) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
-	var resp accounts.Holdings
+func (b *BTCMarkets) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	var resp accounts.SubAccounts
 	data, err := b.GetAccountBalance(ctx)
 	if err != nil {
 		return resp, err
@@ -336,11 +336,11 @@ func (b *BTCMarkets) UpdateAccountHoldings(ctx context.Context, assetType asset.
 
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
-		return accounts.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 	err = b.Accounts.Save(&resp, creds)
 	if err != nil {
-		return accounts.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 
 	return resp, nil

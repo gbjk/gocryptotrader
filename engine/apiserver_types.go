@@ -146,7 +146,7 @@ type EnabledExchangeCurrencies struct {
 
 // AllEnabledExchangeAccounts holds all enabled accounts info
 type AllEnabledExchangeAccounts struct {
-	Data []accounts.Holdings `json:"data"`
+	Data []accounts.SubAccounts `json:"data"`
 }
 
 var wsHandlers = map[string]wsCommandHandler{

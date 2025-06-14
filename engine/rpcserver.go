@@ -607,7 +607,7 @@ func (s *RPCServer) UpdateAccountHoldings(ctx context.Context, r *gctrpc.GetAcco
 	return createAccountInfoRequest(resp)
 }
 
-func createAccountInfoRequest(h accounts.Holdings) (*gctrpc.GetAccountInfoResponse, error) {
+func createAccountInfoRequest(h accounts.SubAccounts) (*gctrpc.GetAccountInfoResponse, error) {
 	accounts := make([]*gctrpc.Account, len(h.Accounts))
 	for x := range h.Accounts {
 		var a gctrpc.Account

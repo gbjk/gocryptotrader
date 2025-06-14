@@ -572,8 +572,8 @@ func (b *Binance) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Binance exchange
-func (b *Binance) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
-	var info accounts.Holdings
+func (b *Binance) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	var info accounts.SubAccounts
 	var acc accounts.SubAccount
 	acc.AssetType = assetType
 	info.Exchange = b.Name
@@ -667,7 +667,7 @@ func (b *Binance) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 	info.Accounts = append(info.Accounts, acc)
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
-		return accounts.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 	return info, b.Accounts.Save(&info, creds)
 }

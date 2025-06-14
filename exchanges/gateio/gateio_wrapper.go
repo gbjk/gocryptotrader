@@ -712,8 +712,8 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 }
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
-func (g *Gateio) UpdateAccountHoldings(ctx context.Context, a asset.Item) (accounts.Holdings, error) {
-	info := accounts.Holdings{
+func (g *Gateio) UpdateAccountHoldings(ctx context.Context, a asset.Item) (accounts.SubAccounts, error) {
+	info := accounts.SubAccounts{
 		Exchange: g.Name,
 		Accounts: accounts.SubAccounts{{
 			AssetType: a,

@@ -523,8 +523,8 @@ func (k *Kraken) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Kraken exchange - to-do
-func (k *Kraken) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
-	var info accounts.Holdings
+func (k *Kraken) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	var info accounts.SubAccounts
 	var balances []accounts.Balance
 	info.Exchange = k.Name
 	if !assetTranslator.Seeded() {
@@ -578,10 +578,10 @@ func (k *Kraken) UpdateAccountHoldings(ctx context.Context, assetType asset.Item
 	}
 	creds, err := k.GetCredentials(ctx)
 	if err != nil {
-		return accounts.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 	if err := k.Accounts.Save(&info, creds); err != nil {
-		return accounts.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 	return info, nil
 }

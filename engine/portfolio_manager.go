@@ -144,7 +144,7 @@ func (m *portfolioManager) processPortfolio() {
 }
 
 // seedExchangeAccountInfo seeds account info
-func (m *portfolioManager) seedExchangeAccountInfo(accounts []accounts.Holdings) {
+func (m *portfolioManager) seedExchangeAccountInfo(accounts []accounts.SubAccounts) {
 	if len(accounts) == 0 {
 		return
 	}
@@ -225,8 +225,8 @@ func (m *portfolioManager) seedExchangeAccountInfo(accounts []accounts.Holdings)
 }
 
 // getExchangeAccountInfo returns all the current enabled exchanges
-func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExchange) []accounts.Holdings {
-	response := make([]accounts.Holdings, 0, len(exchanges))
+func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExchange) []accounts.SubAccounts {
+	response := make([]accounts.SubAccounts, 0, len(exchanges))
 	for x := range exchanges {
 		if !exchanges[x].IsEnabled() {
 			continue
@@ -248,7 +248,7 @@ func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExcha
 			assetTypes = exchanges[x].GetAssetTypes(true)
 		}
 
-		exchangeHoldings := accounts.Holdings{
+		exchangeHoldings := accounts.SubAccounts{
 			Exchange: exchanges[x].GetName(),
 			Accounts: make(accounts.SubAccounts, 0, len(assetTypes)),
 		}

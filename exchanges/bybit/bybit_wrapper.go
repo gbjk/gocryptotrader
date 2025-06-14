@@ -534,8 +534,8 @@ func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 }
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies
-func (by *Bybit) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
-	var info accounts.Holdings
+func (by *Bybit) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	var info accounts.SubAccounts
 	var acc accounts.SubAccount
 	var accountType string
 	at, err := by.FetchAccountType(ctx)

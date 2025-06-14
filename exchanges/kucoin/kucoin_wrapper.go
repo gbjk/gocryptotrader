@@ -410,8 +410,8 @@ func (ku *Kucoin) UpdateOrderbook(ctx context.Context, pair currency.Pair, asset
 }
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies
-func (ku *Kucoin) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
-	holding := accounts.Holdings{Exchange: ku.Name}
+func (ku *Kucoin) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	holding := accounts.SubAccounts{Exchange: ku.Name}
 	err := ku.CurrencyPairs.IsAssetEnabled(assetType)
 	if err != nil {
 		return holding, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
@@ -422,7 +422,7 @@ func (ku *Kucoin) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 		for i, settlement := range []string{"XBT", "USDT"} {
 			accountH, err := ku.GetFuturesAccountOverview(ctx, settlement)
 			if err != nil {
-				return accounts.Holdings{}, err
+				return accounts.SubAccounts{}, err
 			}
 
 			balances[i] = accounts.Balance{
@@ -439,7 +439,7 @@ func (ku *Kucoin) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 	case asset.Spot, asset.Margin:
 		accountH, err := ku.GetAllAccounts(ctx, currency.EMPTYCODE, "")
 		if err != nil {
-			return accounts.Holdings{}, err
+			return accounts.SubAccounts{}, err
 		}
 		for x := range accountH {
 			if accountH[x].AccountType == "margin" && assetType == asset.Spot {

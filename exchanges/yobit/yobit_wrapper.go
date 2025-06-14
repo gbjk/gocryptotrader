@@ -238,8 +238,8 @@ func (y *Yobit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Yobit exchange
-func (y *Yobit) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.Holdings, error) {
-	var response accounts.Holdings
+func (y *Yobit) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	var response accounts.SubAccounts
 	response.Exchange = y.Name
 	accountBalance, err := y.GetAccountInformation(ctx)
 	if err != nil {
@@ -268,11 +268,11 @@ func (y *Yobit) UpdateAccountHoldings(ctx context.Context, assetType asset.Item)
 
 	creds, err := y.GetCredentials(ctx)
 	if err != nil {
-		return accounts.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 	err = y.Accounts.Save(&response, creds)
 	if err != nil {
-		return accounts.Holdings{}, err
+		return accounts.SubAccounts{}, err
 	}
 
 	return response, nil
