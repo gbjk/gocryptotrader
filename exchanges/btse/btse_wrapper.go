@@ -14,9 +14,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -352,39 +352,32 @@ func (b *BTSE) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // BTSE exchange
 func (b *BTSE) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
-	var a accounts.SubAccounts
-	balance, err := b.GetWalletInformation(ctx)
+	var subAccts accounts.SubAccounts
+	balances, err := b.GetWalletInformation(ctx)
 	if err != nil {
-		return a, err
+		return nil, err
 	}
 
-	currencies := make([]accounts.Balance, len(balance))
-	for b := range balance {
-		currencies[b] = accounts.Balance{
-			Currency: currency.NewCode(balance[b].Currency),
-			Total:    balance[b].Total,
-			Hold:     balance[b].Total - balance[b].Available,
-			Free:     balance[b].Available,
-		}
-	}
-	a.Exchange = b.Name
-	a.Accounts = accounts.SubAccounts{
-		{
-			AssetType:  assetType,
-			Currencies: currencies,
-		},
+	for i := range balances {
+		c := currency.NewCode(balances[i].Currency)
+		subAccts.Merge(accounts.SubAccount{
+			AssetType: assetType,
+			Balances: accounts.CurrencyBalances{
+				c: accounts.Balance{
+					Currency: c,
+					Total:    balances[i].Total,
+					Hold:     balances[i].Total - balances[i].Available,
+					Free:     balances[i].Available,
+				},
+			},
+		})
 	}
 
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
-		return accounts.SubAccounts{}, err
+		return nil, err
 	}
-	err = b.Accounts.Save(&a, creds)
-	if err != nil {
-		return accounts.SubAccounts{}, err
-	}
-
-	return a, nil
+	return subAccts, b.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
