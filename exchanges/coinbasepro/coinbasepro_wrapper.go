@@ -218,8 +218,7 @@ func (c *CoinbasePro) UpdateTradablePairs(ctx context.Context, forceUpdate bool)
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // coinbasepro exchange
-func (c *CoinbasePro) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
-	var subAccts accounts.SubAccounts
+func (c *CoinbasePro) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
 	accountBalance, err := c.GetAccounts(ctx)
 	if err != nil {
 		return subAccts, err
@@ -245,9 +244,8 @@ func (c *CoinbasePro) UpdateAccountHoldings(ctx context.Context, assetType asset
 
 	creds, err := c.GetCredentials(ctx)
 	if err != nil {
-		return accounts.SubAccounts{}, err
+		return subAccts, err
 	}
-
 	return subAccts, c.Accounts.Save(subAccts, creds)
 }
 
