@@ -216,27 +216,19 @@ func (g *Gemini) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 
 // UpdateAccountHoldings Retrieves balances for all enabled currencies for the
 // Gemini exchange
-func (g *Gemini) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
-	accountBalance, err := g.GetBalances(ctx)
+func (g *Gemini) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+	resp, err := g.GetBalances(ctx)
 	if err != nil {
-		return subAccts, err
+		return nil, err
 	}
-
-	for i := range accountBalance {
-		c := currency.NewCode(accountBalance[i].Currency)
-		subAccts.Merge(accounts.SubAccount{
-			AssetType: assetType,
-			Balances: accounts.CurrencyBalances{
-				c: accounts.Balance{
-					Currency: c,
-					Total:    accountBalance[i].Amount,
-					Hold:     accountBalance[i].Amount - accountBalance[i].Available,
-					Free:     accountBalance[i].Available,
-				},
-			},
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+	for i := range resp {
+		subAccts[0].Balances.Set(resp[i].Currency, accounts.Balance{
+			Total: resp[i].Amount,
+			Hold:  resp[i].Amount - resp[i].Available,
+			Free:  resp[i].Available,
 		})
 	}
-
 	creds, err := g.GetCredentials(ctx)
 	if err != nil {
 		return subAccts, err
