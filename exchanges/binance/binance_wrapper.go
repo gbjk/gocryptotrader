@@ -586,7 +586,7 @@ func (b *Binance) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 		if err != nil {
 			return subAccts, err
 		}
-		subAccts.Merge(accounts.NewSubAccount(assetType, ""))
+		subAccts = accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
 		for i := range resp.Balances {
 			free := resp.Balances[i].Free.InexactFloat64()
 			locked := resp.Balances[i].Locked.InexactFloat64()
@@ -601,7 +601,7 @@ func (b *Binance) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 		if err != nil {
 			return subAccts, err
 		}
-		subAccts.Merge(accounts.NewSubAccount(assetType, ""))
+		subAccts = accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
 		for i := range resp.Assets {
 			subAccts[0].Balances.Set(resp.Assets[i].Asset, accounts.Balance{
 				Total: resp.Assets[i].WalletBalance,
@@ -614,44 +614,34 @@ func (b *Binance) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 		if err != nil {
 			return subAccts, err
 		}
-		subAccts := make(accounts.SubAccounts, 0, len(resp))
+		subAccts = make(accounts.SubAccounts, 0, len(resp))
 		for i := range resp {
-			subAccts.Merge(&accounts.SubAccount{
-				AssetType: assetType,
-				ID:        resp[i].AccountAlias,
-				Balances: accounts.Balance{{
-					Currency: currency.NewCode(resp[i].Asset),
-					Total:    resp[i].Balance,
-					Hold:     resp[i].Balance - resp[i].AvailableBalance,
-					Free:     resp[i].AvailableBalance,
-				}},
+			a := accounts.NewSubAccount(assetType, resp[i].AccountAlias)
+			a.Balances.Set(resp[i].Asset, accounts.Balance{
+				Total: resp[i].Balance,
+				Hold:  resp[i].Balance - resp[i].AvailableBalance,
+				Free:  resp[i].AvailableBalance,
 			})
+			subAccts = subAccts.Merge(a)
 		}
-		subAccts.Accounts = subAccts.Group()
 	case asset.Margin:
-		accData, err := b.GetMarginAccount(ctx)
+		resp, err := b.GetMarginAccount(ctx)
 		if err != nil {
 			return subAccts, err
 		}
-		var currencyDetails []accounts.Balance
-		for i := range accData.UserAssets {
-			currencyDetails = append(currencyDetails, accounts.Balance{
-				Currency:               currency.NewCode(accData.UserAssets[i].Asset),
-				Total:                  accData.UserAssets[i].Free + accData.UserAssets[i].Locked,
-				Hold:                   accData.UserAssets[i].Locked,
-				Free:                   accData.UserAssets[i].Free,
-				AvailableWithoutBorrow: accData.UserAssets[i].Free - accData.UserAssets[i].Borrowed,
-				Borrowed:               accData.UserAssets[i].Borrowed,
+		subAccts = accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+		for i := range resp.UserAssets {
+			subAccts[0].Balances.Set(resp.UserAssets[i].Asset, accounts.Balance{
+				Total:                  resp.UserAssets[i].Free + resp.UserAssets[i].Locked,
+				Hold:                   resp.UserAssets[i].Locked,
+				Free:                   resp.UserAssets[i].Free,
+				AvailableWithoutBorrow: resp.UserAssets[i].Free - resp.UserAssets[i].Borrowed,
+				Borrowed:               resp.UserAssets[i].Borrowed,
 			})
 		}
-
-		acc.Currencies = currencyDetails
-
 	default:
-		return subAccts, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	acc.AssetType = assetType
-	subAccts.Accounts = append(subAccts.Accounts, acc)
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return subAccts, err

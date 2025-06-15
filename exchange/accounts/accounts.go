@@ -283,8 +283,6 @@ func NewSubAccount(a asset.Item, id string) *SubAccount {
 // Merge adds CurrencyBalances in s to the SubAccount in l with a matching AssetType and ID
 // If no SubAccount matches, s is appended
 // Duplicate Currency Balances are added together
-// Returns the existing or added SubAccount
-// TODO: This might not be needed
 func (l SubAccounts) Merge(s *SubAccount) SubAccounts {
 	i := slices.IndexFunc(l, func(b *SubAccount) bool { return s.AssetType == b.AssetType && s.ID == b.ID })
 	if i == -1 {
