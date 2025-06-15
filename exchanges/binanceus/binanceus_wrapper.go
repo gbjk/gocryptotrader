@@ -362,21 +362,14 @@ func (bi *Binanceus) UpdateAccountHoldings(ctx context.Context, assetType asset.
 	if err != nil {
 		return subAccts, err
 	}
-
+	subAccts.Merge(accounts.NewSubAccount(assetType, ""))
 	for i := range resp.Balances {
-		c := currency.NewCode(resp.Balances[i].Asset)
 		freeBalance := resp.Balances[i].Free.InexactFloat64()
 		locked := resp.Balances[i].Locked.InexactFloat64()
-		subAccts.Merge(accounts.SubAccount{
-			AssetType: assetType,
-			Balances: accounts.CurrencyBalances{
-				c: accounts.Balance{
-					Currency: c,
-					Total:    freeBalance + locked,
-					Hold:     locked,
-					Free:     freeBalance,
-				},
-			},
+		subAccts[0].Balances.Set(resp.Balances[i].Asset, accounts.Balance{
+			Total: freeBalance + locked,
+			Hold:  locked,
+			Free:  freeBalance,
 		})
 	}
 	creds, err := bi.GetCredentials(ctx)

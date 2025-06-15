@@ -270,10 +270,20 @@ func (a *Accounts) Update(changes []Change, creds *Credentials) error {
 	return errs
 }
 
+// NewSUbAccount returns a new sub account
+// id may be empty
+func NewSubAccount(a asset.Item, id string) *SubAccount {
+	return &SubAccount{
+		AssetType: a,
+		ID:        id,
+		Balances:  CurrencyBalances{},
+	}
+}
+
 // Merge adds CurrencyBalances in s to the SubAccount in l with a matching AssetType and ID
 // If no SubAccount matches, s is appended
-// Duplicate Currency Balances are added
-func (l *SubAccounts) Merge(s SubAccount) {
+// Duplicate Currency Balances are added together
+func (l *SubAccounts) Merge(s *SubAccount) {
 	if i := slices.IndexFunc(*l, func(b SubAccount) bool { return s.AssetType == b.AssetType && s.ID == b.ID }); i == -1 {
 		*l = append(*l, s)
 	} else {

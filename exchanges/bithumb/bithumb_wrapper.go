@@ -306,37 +306,26 @@ func (b *Bithumb) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 	if err != nil {
 		return subAccts, err
 	}
-
+	subAccts.Merge(accounts.NewSubAccount(assetType, ""))
 	for k, totalAmount := range bal.Total {
 		hold, ok := bal.InUse[k]
 		if !ok {
 			return subAccts, fmt.Errorf("getAccountInfo error - in use item not found for currency %s", k)
 		}
-
 		avail, ok := bal.Available[k]
 		if !ok {
 			avail = totalAmount - hold
 		}
-
-		c := currency.NewCode(k)
-		subAccts.Merge(accounts.SubAccount{
-			AssetType: assetType,
-			Balances: accounts.CurrencyBalances{
-				c: accounts.Balance{
-					Currency: c,
-					Total:    totalAmount,
-					Hold:     hold,
-					Free:     avail,
-				},
-			},
+		subAccts[0].Balances.Set(k, accounts.Balance{
+			Total: totalAmount,
+			Hold:  hold,
+			Free:  avail,
 		})
 	}
-
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return subAccts, err
 	}
-
 	return subAccts, b.Accounts.Save(subAccts, creds)
 }
 

@@ -341,26 +341,19 @@ func (b *Bitstamp) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 func (b *Bitstamp) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
 	accountBalance, err := b.GetBalance(ctx)
 	if err != nil {
-		return subAccts, err
+		return nil, err
 	}
-
+	subAccts.Merge(accounts.NewSubAccount(assetType, ""))
 	for k, v := range accountBalance {
-		c := currency.NewCode(k)
-		subAccts.Merge(accounts.SubAccount{
-			AssetType: assetType,
-			Balances: accounts.CurrencyBalances{
-				c: accounts.Balance{
-					Currency: c,
-					Total:    v.Balance,
-					Hold:     v.Reserved,
-					Free:     v.Available,
-				},
-			},
+		subAccts[0].Balances.Set(k, accounts.Balance{
+			Total: v.Balance,
+			Hold:  v.Reserved,
+			Free:  v.Available,
 		})
 	}
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
-		return subAccts, err
+		return nil, err
 	}
 	return subAccts, b.Accounts.Save(subAccts, creds)
 }

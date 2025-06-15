@@ -47,6 +47,14 @@ func (c *currencyBalances) Public() CurrencyBalances {
 	return n
 }
 
+// Add will Set a currency balance, overwriting any previous Balance
+// b.Currency will be set to curr
+func (c *CurrencyBalances) Set(currStr string, b Balance) {
+	curr := currency.NewCode(currStr)
+	b.Currency = curr
+	(*c)[curr] = b
+}
+
 // Balance returns a snapshot copy of the Balance
 func (l *balance) Balance() Balance {
 	l.m.RLock()

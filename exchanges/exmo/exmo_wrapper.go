@@ -302,9 +302,8 @@ func (e *EXMO) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) 
 	if err != nil {
 		return subAccts, err
 	}
-
+	subAccts.Merge(accounts.NewSubAccount(assetType, ""))
 	for k, bal := range resp.Balances {
-		c := currency.NewCode(k)
 		avail, err := strconv.ParseFloat(bal, 64)
 		if err != nil {
 			return subAccts, err
@@ -315,16 +314,10 @@ func (e *EXMO) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) 
 				return subAccts, err
 			}
 		}
-		subAccts.Merge(accounts.SubAccount{
-			AssetType: assetType,
-			Balances: accounts.CurrencyBalances{
-				c: accounts.Balance{
-					Currency: c,
-					Total:    avail + reserved,
-					Hold:     reserved,
-					Free:     avail,
-				},
-			},
+		subAccts[0].Balances.Set(k, accounts.Balance{
+			Total: avail + reserved,
+			Hold:  reserved,
+			Free:  avail,
 		})
 	}
 

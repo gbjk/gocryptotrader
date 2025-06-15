@@ -356,22 +356,14 @@ func (b *BTSE) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) 
 	if err != nil {
 		return subAccts, err
 	}
-
+	subAccts.Merge(accounts.NewSubAccount(assetType, ""))
 	for i := range balances {
-		c := currency.NewCode(balances[i].Currency)
-		subAccts.Merge(accounts.SubAccount{
-			AssetType: assetType,
-			Balances: accounts.CurrencyBalances{
-				c: accounts.Balance{
-					Currency: c,
-					Total:    balances[i].Total,
-					Hold:     balances[i].Total - balances[i].Available,
-					Free:     balances[i].Available,
-				},
-			},
+		subAccts[0].Balances.Set(balances[i].Currency, accounts.Balance{
+			Total: balances[i].Total,
+			Hold:  balances[i].Total - balances[i].Available,
+			Free:  balances[i].Available,
 		})
 	}
-
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return subAccts, err

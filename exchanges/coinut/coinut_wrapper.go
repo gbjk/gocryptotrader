@@ -210,8 +210,7 @@ func (c *COINUT) UpdateAccountHoldings(ctx context.Context, assetType asset.Item
 			return subAccts, err
 		}
 	}
-
-	subAccts.Merge(accounts.SubAccount{
+	subAccts.Merge(&accounts.SubAccount{
 		AssetType: assetType,
 		Balances: accounts.CurrencyBalances{
 			currency.BCH:  {Currency: currency.BCH, Total: bal.BCH},
@@ -230,12 +229,10 @@ func (c *COINUT) UpdateAccountHoldings(ctx context.Context, assetType asset.Item
 			currency.USDT: {Currency: currency.USDT, Total: bal.USDT},
 		},
 	})
-
 	creds, err := c.GetCredentials(ctx)
 	if err != nil {
 		return accounts.SubAccounts{}, err
 	}
-
 	return subAccts, c.Accounts.Save(subAccts, creds)
 }
 
