@@ -12,10 +12,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -308,38 +308,26 @@ func (h *HitBTC) UpdateOrderbook(ctx context.Context, c currency.Pair, assetType
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // HitBTC exchange
 func (h *HitBTC) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
-	var response accounts.SubAccounts
-	response.Exchange = h.Name
-	accountBalance, err := h.GetBalances(ctx)
+	resp, err := h.GetBalances(ctx)
 	if err != nil {
-		return response, err
+		return nil, err
 	}
-
-	currencies := make([]accounts.Balance, 0, len(accountBalance))
-	for i := range accountBalance {
-		currencies = append(currencies, accounts.Balance{
-			Currency: currency.NewCode(accountBalance[i].Currency),
-			Total:    accountBalance[i].Available + accountBalance[i].Reserved,
-			Hold:     accountBalance[i].Reserved,
-			Free:     accountBalance[i].Available,
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+	for i := range resp {
+		subAccts[0].Balances.Set(resp[i].Currency, accounts.Balance{
+			Total: resp[i].Available + resp[i].Reserved,
+			Hold:  resp[i].Reserved,
+			Free:  resp[i].Available,
 		})
 	}
-
-	response.Accounts = append(response.Accounts, accounts.SubAccount{
-		AssetType:  assetType,
-		Currencies: currencies,
-	})
-
 	creds, err := h.GetCredentials(ctx)
 	if err != nil {
-		return accounts.SubAccounts{}, err
+		return nil, err
 	}
-	err = h.Accounts.Save(&response, creds)
 	if err != nil {
-		return accounts.SubAccounts{}, err
+		return nil, err
 	}
-
-	return response, nil
+	return subAccts, h.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
