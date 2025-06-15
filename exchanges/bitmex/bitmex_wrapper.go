@@ -455,26 +455,16 @@ func (b *Bitmex) UpdateAccountHoldings(ctx context.Context, assetType asset.Item
 	if err != nil {
 		return subAccts, err
 	}
-
 	// Need to update to add Margin/Liquidity availability
 	for i := range userMargins {
 		wallet, err := b.GetWalletInfo(ctx, userMargins[i].Currency)
 		if err != nil {
 			continue
 		}
-		c := currency.NewCode(wallet.Currency)
-		subAccts.Merge(accounts.SubAccount{
-			AssetType: assetType,
-			ID:        strconv.FormatInt(userMargins[i].Account, 10),
-			Balances: accounts.CurrencyBalances{
-				c: accounts.Balance{
-					Currency: c,
-					Total:    wallet.Amount,
-				},
-			},
-		})
+		a := accounts.NewSubAccount(assetType, strconv.FormatInt(userMargins[i].Account, 10))
+		a.Balances.Set(wallet.Currency, accounts.Balance{Total: wallet.Amount})
+		subAccts = subAccts.Merge(a)
 	}
-
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return accounts.SubAccounts{}, err
