@@ -2705,18 +2705,18 @@ func getSign(sign, secret string) (string, error) {
 
 // FetchAccountType if not set fetches the account type from the API, stores it and returns it. Else returns the stored account type.
 func (by *Bybit) FetchAccountType(ctx context.Context) (AccountType, error) {
-	by.accounts.m.Lock()
-	defer by.accounts.m.Unlock()
-	if by.accounts.accountType == 0 {
+	by.account.m.Lock()
+	defer by.account.m.Unlock()
+	if by.account.accountType == 0 {
 		accInfo, err := by.GetAPIKeyInformation(ctx)
 		if err != nil {
 			return 0, err
 		}
 		// From endpoint 0：regular account; 1：unified trade account
 		// + 1 to make it 1 and 2 so that a zero value can be used to check if the account type has been set or not.
-		by.accounts.accountType = AccountType(accInfo.IsUnifiedTradeAccount + 1)
+		by.account.accountType = AccountType(accInfo.IsUnifiedTradeAccount + 1)
 	}
-	return by.accounts.accountType, nil
+	return by.account.accountType, nil
 }
 
 // RequiresUnifiedAccount checks account type and returns error if not unified

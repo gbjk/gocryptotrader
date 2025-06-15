@@ -13,10 +13,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -535,17 +535,13 @@ func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies
 func (by *Bybit) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
-	var info accounts.SubAccounts
-	var acc accounts.SubAccount
-	var accountType string
 	at, err := by.FetchAccountType(ctx)
 	if err != nil {
-		return info, err
+		return nil, err
 	}
+	var accountType string
 	switch assetType {
-	case asset.Spot, asset.Options,
-		asset.USDCMarginedFutures,
-		asset.USDTMarginedFutures:
+	case asset.Spot, asset.Options, asset.USDCMarginedFutures, asset.USDTMarginedFutures:
 		switch at {
 		case accountTypeUnified:
 			accountType = "UNIFIED"
@@ -559,36 +555,32 @@ func (by *Bybit) UpdateAccountHoldings(ctx context.Context, assetType asset.Item
 	case asset.CoinMarginedFutures:
 		accountType = "CONTRACT"
 	default:
-		return info, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
+		return nil, fmt.Errorf("%s %w", assetType, asset.ErrNotSupported)
 	}
-	balances, err := by.GetWalletBalance(ctx, accountType, "")
+	resp, err := by.GetWalletBalance(ctx, accountType, "")
 	if err != nil {
-		return info, err
+		return nil, err
 	}
-	currencyBalance := []accounts.Balance{}
-	for i := range balances.List {
-		for c := range balances.List[i].Coin {
-			balance := accounts.Balance{
-				Currency: balances.List[i].Coin[c].Coin,
-				Total:    balances.List[i].Coin[c].WalletBalance.Float64(),
-				Free:     balances.List[i].Coin[c].AvailableToWithdraw.Float64(),
-				Borrowed: balances.List[i].Coin[c].BorrowAmount.Float64(),
-				Hold:     balances.List[i].Coin[c].WalletBalance.Float64() - balances.List[i].Coin[c].AvailableToWithdraw.Float64(),
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+	for i := range resp.List {
+		for _, c := range resp.List[i].Coin {
+			f := c.AvailableToWithdraw.Float64()
+			if assetType == asset.Spot && c.AvailableBalanceForSpot.Float64() != 0 {
+				f = c.AvailableBalanceForSpot.Float64()
 			}
-			if assetType == asset.Spot && balances.List[i].Coin[c].AvailableBalanceForSpot.Float64() != 0 {
-				balance.Free = balances.List[i].Coin[c].AvailableBalanceForSpot.Float64()
-			}
-			currencyBalance = append(currencyBalance, balance)
+			subAccts[0].Balances.Set(c.Coin.String(), accounts.Balance{
+				Total:    c.WalletBalance.Float64(),
+				Borrowed: c.BorrowAmount.Float64(),
+				Free:     f,
+				Hold:     c.WalletBalance.Float64() - c.AvailableToWithdraw.Float64(),
+			})
 		}
 	}
-	acc.Currencies = currencyBalance
-	acc.AssetType = assetType
-	info.Accounts = append(info.Accounts, acc)
 	creds, err := by.GetCredentials(ctx)
 	if err == nil {
-		err = by.Accounts.Save(&info, creds)
+		return nil, err
 	}
-	return info, err
+	return nil, by.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
