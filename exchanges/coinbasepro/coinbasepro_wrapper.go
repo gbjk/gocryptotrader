@@ -216,32 +216,23 @@ func (c *CoinbasePro) UpdateTradablePairs(ctx context.Context, forceUpdate bool)
 	return c.EnsureOnePairEnabled()
 }
 
-// UpdateAccountHoldings retrieves balances for all enabled currencies for the
-// coinbasepro exchange
+// UpdateAccountHoldings retrieves balances for all enabled currencies
 func (c *CoinbasePro) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
-	accountBalance, err := c.GetAccounts(ctx)
+	resp, err := c.GetAccounts(ctx)
 	if err != nil {
 		return subAccts, err
 	}
-
-	for i := range accountBalance {
-		curr := currency.NewCode(accountBalance[i].Currency)
-		subAccts.Merge(accounts.SubAccount{
-			AssetType: assetType,
-			ID:        accountBalance[i].ProfileID,
-			Balances: accounts.CurrencyBalances{
-				curr: accounts.Balance{
-					Currency:               curr,
-					Total:                  accountBalance[i].Balance,
-					Hold:                   accountBalance[i].Hold,
-					Free:                   accountBalance[i].Available,
-					Borrowed:               accountBalance[i].FundedAmount,
-					AvailableWithoutBorrow: accountBalance[i].Available - accountBalance[i].FundedAmount,
-				},
-			},
+	for i := range resp {
+		a := accounts.NewSubAccount(assetType, resp[i].ProfileID)
+		a.Balances.Set(resp[i].Currency, accounts.Balance{
+			Total:                  resp[i].Balance,
+			Hold:                   resp[i].Hold,
+			Free:                   resp[i].Available,
+			Borrowed:               resp[i].FundedAmount,
+			AvailableWithoutBorrow: resp[i].Available - resp[i].FundedAmount,
 		})
+		subAccts = subAccts.Merge(a)
 	}
-
 	creds, err := c.GetCredentials(ctx)
 	if err != nil {
 		return subAccts, err
