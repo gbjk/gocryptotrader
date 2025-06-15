@@ -14,10 +14,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -412,47 +412,28 @@ func (b *Bitfinex) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTy
 // UpdateAccountHoldings retrieves balances for all enabled currencies on the
 // Bitfinex exchange
 func (b *Bitfinex) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
-	var response accounts.SubAccounts
-	response.Exchange = b.Name
-
-	accountBalance, err := b.GetAccountBalance(ctx)
+	resp, err := b.GetAccountBalance(ctx)
 	if err != nil {
-		return response, err
+		return nil, err
 	}
-
-	Accounts := accounts.SubAccounts{
-		{ID: "deposit", AssetType: assetType},
-		{ID: "exchange", AssetType: assetType},
-		{ID: "trading", AssetType: assetType},
-		{ID: "margin", AssetType: assetType},
-		{ID: "funding", AssetType: assetType},
+	subAccts := accounts.SubAccounts{}
+	for i := range resp {
+		a := accounts.NewSubAccount(assetType, resp[i].Type)
+		a.Balances.Set(resp[i].Currency, accounts.Balance{
+			Total: resp[i].Amount,
+			Hold:  resp[i].Amount - resp[i].Available,
+			Free:  resp[i].Available,
+		})
+		subAccts = subAccts.Merge(a)
 	}
-
-	for x := range accountBalance {
-		for i := range Accounts {
-			if Accounts[i].ID == accountBalance[x].Type {
-				Accounts[i].Currencies = append(Accounts[i].Currencies,
-					accounts.Balance{
-						Currency: currency.NewCode(accountBalance[x].Currency),
-						Total:    accountBalance[x].Amount,
-						Hold:     accountBalance[x].Amount - accountBalance[x].Available,
-						Free:     accountBalance[x].Available,
-					})
-			}
-		}
-	}
-
-	response.Accounts = Accounts
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return accounts.SubAccounts{}, err
 	}
-	err = b.Accounts.Save(&response, creds)
 	if err != nil {
 		return accounts.SubAccounts{}, err
 	}
-
-	return response, nil
+	return subAccts, b.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
