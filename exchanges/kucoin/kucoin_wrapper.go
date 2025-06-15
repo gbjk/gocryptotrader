@@ -13,10 +13,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -411,50 +411,43 @@ func (ku *Kucoin) UpdateOrderbook(ctx context.Context, pair currency.Pair, asset
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies
 func (ku *Kucoin) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
-	holding := accounts.SubAccounts{Exchange: ku.Name}
-	err := ku.CurrencyPairs.IsAssetEnabled(assetType)
-	if err != nil {
-		return holding, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+	if err := ku.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
+		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, assetType)
 	}
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
 	switch assetType {
 	case asset.Futures:
-		balances := make([]accounts.Balance, 2)
-		for i, settlement := range []string{"XBT", "USDT"} {
-			accountH, err := ku.GetFuturesAccountOverview(ctx, settlement)
+		for _, settlement := range []string{"XBT", "USDT"} {
+			resp, err := ku.GetFuturesAccountOverview(ctx, settlement)
 			if err != nil {
-				return accounts.SubAccounts{}, err
+				return nil, err
 			}
-
-			balances[i] = accounts.Balance{
-				Currency: currency.NewCode(accountH.Currency),
-				Total:    accountH.AvailableBalance + accountH.FrozenFunds,
-				Hold:     accountH.FrozenFunds,
-				Free:     accountH.AvailableBalance,
-			}
+			subAccts[0].Balances.Set(resp.Currency, accounts.Balance{
+				Total: resp.AvailableBalance + resp.FrozenFunds,
+				Hold:  resp.FrozenFunds,
+				Free:  resp.AvailableBalance,
+			})
 		}
-		holding.Accounts = append(holding.Accounts, accounts.SubAccount{
-			AssetType:  assetType,
-			Currencies: balances,
-		})
 	case asset.Spot, asset.Margin:
-		accountH, err := ku.GetAllAccounts(ctx, currency.EMPTYCODE, "")
+		resp, err := ku.GetAllAccounts(ctx, currency.EMPTYCODE, "")
 		if err != nil {
-			return accounts.SubAccounts{}, err
+			return nil, err
 		}
-		for x := range accountH {
-			if accountH[x].AccountType == "margin" && assetType == asset.Spot {
+		for i := range resp {
+			if resp[i].AccountType == "margin" && assetType == asset.Spot {
 				continue
-			} else if accountH[x].AccountType == "trade" && assetType == asset.Margin {
+			} else if resp[i].AccountType == "trade" && assetType == asset.Margin {
 				continue
 			}
+			subAccts[0].Balances.Set(k, accounts.Balance{
 			holding.Accounts = append(holding.Accounts, accounts.SubAccount{
 				AssetType: assetType,
 				Currencies: []accounts.Balance{
 					{
-						Currency: currency.NewCode(accountH[x].Currency),
-						Total:    accountH[x].Balance.Float64(),
-						Hold:     accountH[x].Holds.Float64(),
-						Free:     accountH[x].Available.Float64(),
+						Currency: currency.NewCode(resp[i].Currency),
+						Total:    resp[i].Balance.Float64(),
+						Hold:     resp[i].Holds.Float64(),
+						Free:     resp[i].Available.Float64(),
 					},
 				},
 			})
