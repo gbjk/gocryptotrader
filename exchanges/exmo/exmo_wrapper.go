@@ -297,21 +297,21 @@ func (e *EXMO) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Exmo exchange
-func (e *EXMO) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
+func (e *EXMO) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	resp, err := e.GetUserInfo(ctx)
 	if err != nil {
-		return subAccts, err
+		return nil, err
 	}
-	subAccts.Merge(accounts.NewSubAccount(assetType, ""))
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
 	for k, bal := range resp.Balances {
 		avail, err := strconv.ParseFloat(bal, 64)
 		if err != nil {
-			return subAccts, err
+			return nil, err
 		}
 		reserved := 0.0
 		if reservedStr, ok := resp.Reserved[k]; ok {
 			if reserved, err = strconv.ParseFloat(reservedStr, 64); err != nil {
-				return subAccts, err
+				return nil, err
 			}
 		}
 		subAccts[0].Balances.Set(k, accounts.Balance{
@@ -323,7 +323,7 @@ func (e *EXMO) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) 
 
 	creds, err := e.GetCredentials(ctx)
 	if err != nil {
-		return subAccts, err
+		return nil, err
 	}
 	return subAccts, e.Accounts.Save(subAccts, creds)
 }

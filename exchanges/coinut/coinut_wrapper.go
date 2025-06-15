@@ -203,14 +203,14 @@ func (c *COINUT) UpdateAccountHoldings(ctx context.Context, assetType asset.Item
 	var bal *UserBalance
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		if bal, err = c.wsGetAccountBalance(); err != nil {
-			return subAccts, err
+			return nil, err
 		}
 	} else {
 		if bal, err = c.GetUserBalance(ctx); err != nil {
-			return subAccts, err
+			return nil, err
 		}
 	}
-	subAccts.Merge(&accounts.SubAccount{
+	subAccts = accounts.SubAccounts{&accounts.SubAccount{
 		AssetType: assetType,
 		Balances: accounts.CurrencyBalances{
 			currency.BCH:  {Currency: currency.BCH, Total: bal.BCH},
@@ -228,7 +228,7 @@ func (c *COINUT) UpdateAccountHoldings(ctx context.Context, assetType asset.Item
 			currency.ZEC:  {Currency: currency.ZEC, Total: bal.ZEC},
 			currency.USDT: {Currency: currency.USDT, Total: bal.USDT},
 		},
-	})
+	}}
 	creds, err := c.GetCredentials(ctx)
 	if err != nil {
 		return accounts.SubAccounts{}, err

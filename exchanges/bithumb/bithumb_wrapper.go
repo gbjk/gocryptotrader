@@ -301,12 +301,12 @@ func (b *Bithumb) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Bithumb exchange
-func (b *Bithumb) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
+func (b *Bithumb) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	bal, err := b.GetAccountBalance(ctx, "ALL")
 	if err != nil {
-		return subAccts, err
+		return nil, err
 	}
-	subAccts.Merge(accounts.NewSubAccount(assetType, ""))
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
 	for k, totalAmount := range bal.Total {
 		hold, ok := bal.InUse[k]
 		if !ok {

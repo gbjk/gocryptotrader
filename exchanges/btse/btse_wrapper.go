@@ -351,12 +351,12 @@ func (b *BTSE) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType a
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // BTSE exchange
-func (b *BTSE) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
+func (b *BTSE) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	balances, err := b.GetWalletInformation(ctx)
 	if err != nil {
-		return subAccts, err
+		return nil, err
 	}
-	subAccts.Merge(accounts.NewSubAccount(assetType, ""))
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
 	for i := range balances {
 		subAccts[0].Balances.Set(balances[i].Currency, accounts.Balance{
 			Total: balances[i].Total,

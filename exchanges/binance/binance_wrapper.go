@@ -586,20 +586,14 @@ func (b *Binance) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 		if err != nil {
 			return subAccts, err
 		}
+		subAccts.Merge(accounts.NewSubAccount(assetType, ""))
 		for i := range resp.Balances {
-			c := currency.NewCode(resp.Balances[i].Asset)
 			free := resp.Balances[i].Free.InexactFloat64()
 			locked := resp.Balances[i].Locked.InexactFloat64()
-			subAccts.Merge(accounts.SubAccount{
-				AssetType: assetType,
-				Balances: accounts.CurrencyBalances{
-					c: accounts.Balance{
-						Currency: c,
-						Total:    free + locked,
-						Hold:     locked,
-						Free:     free,
-					},
-				},
+			subAccts[0].Balances.Set(resp.Balances[i].Asset, accounts.Balance{
+				Total: free + locked,
+				Hold:  locked,
+				Free:  free,
 			})
 		}
 	case asset.CoinMarginedFutures:
@@ -607,35 +601,29 @@ func (b *Binance) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 		if err != nil {
 			return subAccts, err
 		}
+		subAccts.Merge(accounts.NewSubAccount(assetType, ""))
 		for i := range resp.Assets {
-			c:= currency.NewCode(resp.Assets[i].Asset)
-			subAccts.Merge(accounts.SubAccount{
-				AssetType: assetType,
-				Balances: accounts.CurrencyBalances{
-					c: accounts.Balance{
-				Currency: c,
-				Total:    resp.Assets[i].WalletBalance,
-				Hold:     resp.Assets[i].WalletBalance - resp.Assets[i].AvailableBalance,
-				Free:     resp.Assets[i].AvailableBalance,
-					},
+			subAccts[0].Balances.Set(resp.Assets[i].Asset, accounts.Balance{
+				Total: resp.Assets[i].WalletBalance,
+				Hold:  resp.Assets[i].WalletBalance - resp.Assets[i].AvailableBalance,
+				Free:  resp.Assets[i].AvailableBalance,
 			})
 		}
-		acc.Currencies = currencyDetails
 	case asset.USDTMarginedFutures:
-		accData, err := b.UAccountBalanceV2(ctx)
+		resp, err := b.UAccountBalanceV2(ctx)
 		if err != nil {
 			return subAccts, err
 		}
-		subAccts := make(accounts.SubAccounts, 0, len(accData))
-		for i := range accData {
-			subAccts = append(subAccts, accounts.SubAccount{
+		subAccts := make(accounts.SubAccounts, 0, len(resp))
+		for i := range resp {
+			subAccts.Merge(&accounts.SubAccount{
 				AssetType: assetType,
-				ID:        accData[i].AccountAlias,
-				Currencies: []accounts.Balance{{
-					Currency: currency.NewCode(accData[i].Asset),
-					Total:    accData[i].Balance,
-					Hold:     accData[i].Balance - accData[i].AvailableBalance,
-					Free:     accData[i].AvailableBalance,
+				ID:        resp[i].AccountAlias,
+				Balances: accounts.Balance{{
+					Currency: currency.NewCode(resp[i].Asset),
+					Total:    resp[i].Balance,
+					Hold:     resp[i].Balance - resp[i].AvailableBalance,
+					Free:     resp[i].AvailableBalance,
 				}},
 			})
 		}

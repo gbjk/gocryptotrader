@@ -354,15 +354,15 @@ func (bi *Binanceus) UpdateOrderbook(ctx context.Context, pair currency.Pair, as
 }
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies
-func (bi *Binanceus) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
+func (bi *Binanceus) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	if assetType != asset.Spot {
-		return subAccts, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
 	resp, err := bi.GetAccount(ctx)
 	if err != nil {
-		return subAccts, err
+		return nil, err
 	}
-	subAccts.Merge(accounts.NewSubAccount(assetType, ""))
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
 	for i := range resp.Balances {
 		freeBalance := resp.Balances[i].Free.InexactFloat64()
 		locked := resp.Balances[i].Locked.InexactFloat64()
@@ -374,7 +374,7 @@ func (bi *Binanceus) UpdateAccountHoldings(ctx context.Context, assetType asset.
 	}
 	creds, err := bi.GetCredentials(ctx)
 	if err != nil {
-		return subAccts, err
+		return nil, err
 	}
 	return subAccts, bi.Accounts.Save(subAccts, creds)
 }

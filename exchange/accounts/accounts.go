@@ -54,7 +54,7 @@ type SubAccount struct {
 }
 
 // SubAccounts contains a list of public SubAccounts
-type SubAccounts []SubAccount
+type SubAccounts []*SubAccount
 
 // MustNewAccounts returns an initialized Accounts store for use in isolation from a global exchange accounts store
 // Any errors in mux ID generation will panic, so users should balance risk vs utility accordingly depending on use-case
@@ -111,7 +111,7 @@ func (a *Accounts) GetBalances(creds *Credentials, assetType asset.Item) (SubAcc
 
 	for subAcctKey, currBals := range subAccounts {
 		if subAcctKey.Asset == assetType {
-			s = append(s, SubAccount{
+			s = append(s, &SubAccount{
 				ID:        subAcctKey.SubAccount,
 				AssetType: subAcctKey.Asset,
 				Balances:  currBals.Public(),
@@ -179,7 +179,7 @@ func (a *Accounts) CurrencyBalances() map[currency.Code]Balance {
 
 // Save saves the holdings with a new snapshot of account balances; Any missing currencies will be removed
 // Each SubAccount change is Published if it changes the balance for that currency
-func (a *Accounts) Save(s []SubAccount, creds *Credentials) error {
+func (a *Accounts) Save(s SubAccounts, creds *Credentials) error {
 	if err := common.NilGuard(a); err != nil {
 		return fmt.Errorf("cannot save holdings: %w", err)
 	}
@@ -283,14 +283,17 @@ func NewSubAccount(a asset.Item, id string) *SubAccount {
 // Merge adds CurrencyBalances in s to the SubAccount in l with a matching AssetType and ID
 // If no SubAccount matches, s is appended
 // Duplicate Currency Balances are added together
-func (l *SubAccounts) Merge(s *SubAccount) {
-	if i := slices.IndexFunc(*l, func(b SubAccount) bool { return s.AssetType == b.AssetType && s.ID == b.ID }); i == -1 {
-		*l = append(*l, s)
-	} else {
-		for curr, newBal := range s.Balances {
-			(*l)[i].Balances[curr] = newBal.Add((*l)[i].Balances[curr])
-		}
+// Returns the existing or added SubAccount
+// TODO: This might not be needed
+func (l SubAccounts) Merge(s *SubAccount) SubAccounts {
+	i := slices.IndexFunc(l, func(b *SubAccount) bool { return s.AssetType == b.AssetType && s.ID == b.ID })
+	if i == -1 {
+		return append(l, s)
 	}
+	for curr, newBal := range s.Balances {
+		l[i].Balances[curr] = newBal.Add(l[i].Balances[curr])
+	}
+	return l
 }
 
 func (a *Accounts) currencyBalances(c *Credentials, subAcct string, aType asset.Item) currencyBalances {
