@@ -11,8 +11,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -260,46 +260,35 @@ func (l *Lbank) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Lbank exchange
 func (l *Lbank) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
-	var info accounts.SubAccounts
-	data, err := l.GetUserInfo(ctx)
+	resp, err := l.GetUserInfo(ctx)
 	if err != nil {
-		return info, err
+		return nil, err
 	}
-	acc := accounts.SubAccount{AssetType: assetType}
-	for key, val := range data.Info.Asset {
-		c := currency.NewCode(key)
-		hold, ok := data.Info.Freeze[key]
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+	for k, val := range resp.Info.Asset {
+		hold, ok := resp.Info.Freeze[k]
 		if !ok {
-			return info, fmt.Errorf("hold data not found with %s", key)
+			return nil, fmt.Errorf("hold data not found with %s", k)
 		}
 		totalVal, parseErr := strconv.ParseFloat(val, 64)
 		if parseErr != nil {
-			return info, parseErr
+			return nil, parseErr
 		}
 		totalHold, parseErr := strconv.ParseFloat(hold, 64)
 		if parseErr != nil {
-			return info, parseErr
+			return nil, parseErr
 		}
-		acc.Currencies = append(acc.Currencies, accounts.Balance{
-			Currency: c,
-			Total:    totalVal,
-			Hold:     totalHold,
-			Free:     totalVal - totalHold,
+		subAccts[0].Balances.Set(k, accounts.Balance{
+			Total: totalVal,
+			Hold:  totalHold,
+			Free:  totalVal - totalHold,
 		})
 	}
-
-	info.Accounts = append(info.Accounts, acc)
-	info.Exchange = l.Name
-
 	creds, err := l.GetCredentials(ctx)
 	if err != nil {
-		return accounts.SubAccounts{}, err
+		return nil, err
 	}
-	err = l.Accounts.Save(&info, creds)
-	if err != nil {
-		return accounts.SubAccounts{}, err
-	}
-	return info, nil
+	return subAccts, l.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
