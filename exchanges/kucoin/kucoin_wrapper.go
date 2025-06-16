@@ -439,23 +439,20 @@ func (ku *Kucoin) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 			} else if resp[i].AccountType == "trade" && assetType == asset.Margin {
 				continue
 			}
-			subAccts[0].Balances.Set(k, accounts.Balance{
-			holding.Accounts = append(holding.Accounts, accounts.SubAccount{
-				AssetType: assetType,
-				Currencies: []accounts.Balance{
-					{
-						Currency: currency.NewCode(resp[i].Currency),
-						Total:    resp[i].Balance.Float64(),
-						Hold:     resp[i].Holds.Float64(),
-						Free:     resp[i].Available.Float64(),
-					},
-				},
+			subAccts[0].Balances.Set(resp[i].Currency, accounts.Balance{
+				Total: resp[i].Balance.Float64(),
+				Hold:  resp[i].Holds.Float64(),
+				Free:  resp[i].Available.Float64(),
 			})
 		}
 	default:
-		return holding, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
-	return holding, nil
+	creds, err := ku.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return subAccts, ku.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and

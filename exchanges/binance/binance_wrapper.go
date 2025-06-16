@@ -576,15 +576,15 @@ func (b *Binance) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 	case asset.Spot:
 		creds, err := b.GetCredentials(ctx)
 		if err != nil {
-			return subAccts, err
+			return nil, err
 		}
 		if creds.SubAccount != "" {
 			// TODO: implement sub-account endpoints
-			return subAccts, common.ErrNotYetImplemented
+			return nil, common.ErrNotYetImplemented
 		}
 		resp, err := b.GetAccount(ctx)
 		if err != nil {
-			return subAccts, err
+			return nil, err
 		}
 		subAccts = accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
 		for i := range resp.Balances {
@@ -599,7 +599,7 @@ func (b *Binance) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 	case asset.CoinMarginedFutures:
 		resp, err := b.GetFuturesAccountInfo(ctx)
 		if err != nil {
-			return subAccts, err
+			return nil, err
 		}
 		subAccts = accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
 		for i := range resp.Assets {
@@ -612,7 +612,7 @@ func (b *Binance) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 	case asset.USDTMarginedFutures:
 		resp, err := b.UAccountBalanceV2(ctx)
 		if err != nil {
-			return subAccts, err
+			return nil, err
 		}
 		subAccts = make(accounts.SubAccounts, 0, len(resp))
 		for i := range resp {
@@ -627,7 +627,7 @@ func (b *Binance) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 	case asset.Margin:
 		resp, err := b.GetMarginAccount(ctx)
 		if err != nil {
-			return subAccts, err
+			return nil, err
 		}
 		subAccts = accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
 		for i := range resp.UserAssets {
@@ -644,7 +644,7 @@ func (b *Binance) UpdateAccountHoldings(ctx context.Context, assetType asset.Ite
 	}
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
-		return subAccts, err
+		return nil, err
 	}
 	return subAccts, b.Accounts.Save(subAccts, creds)
 }
