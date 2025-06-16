@@ -305,8 +305,7 @@ func (h *HitBTC) UpdateOrderbook(ctx context.Context, c currency.Pair, assetType
 	return orderbook.Get(h.Name, c, assetType)
 }
 
-// UpdateAccountHoldings retrieves balances for all enabled currencies for the
-// HitBTC exchange
+// UpdateAccountHoldings retrieves balances for all enabled currencies
 func (h *HitBTC) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	resp, err := h.GetBalances(ctx)
 	if err != nil {

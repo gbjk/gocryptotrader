@@ -14,10 +14,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -338,32 +338,31 @@ func (d *Deribit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetTyp
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies
 func (d *Deribit) UpdateAccountHoldings(ctx context.Context, _ asset.Item) (accounts.SubAccounts, error) {
-	var resp accounts.SubAccounts
-	resp.Exchange = d.Name
 	currencies, err := d.GetCurrencies(ctx)
 	if err != nil {
-		return resp, err
+		return nil, err
 	}
-	resp.Accounts = make(accounts.SubAccounts, len(currencies))
-	for x := range currencies {
-		var data *AccountSummaryData
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.All, "")}
+	for i := range currencies {
+		var resp *AccountSummaryData
 		if d.Websocket.IsConnected() && d.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
-			data, err = d.WSRetrieveAccountSummary(currency.NewCode(currencies[x].Currency), false)
+			resp, err = d.WSRetrieveAccountSummary(currency.NewCode(currencies[i].Currency), false)
 		} else {
-			data, err = d.GetAccountSummary(ctx, currency.NewCode(currencies[x].Currency), false)
+			resp, err = d.GetAccountSummary(ctx, currency.NewCode(currencies[i].Currency), false)
 		}
 		if err != nil {
-			return resp, err
+			return nil, err
 		}
-		var subAcc accounts.SubAccount
-		subAcc.Currencies = append(subAcc.Currencies, accounts.Balance{
-			Currency: currency.NewCode(currencies[x].Currency),
-			Total:    data.Balance,
-			Hold:     data.Balance - data.AvailableFunds,
+		subAccts[0].Balances.Set(currencies[i].Currency, accounts.Balance{
+			Total: resp.Balance,
+			Hold:  resp.Balance - resp.AvailableFunds,
 		})
-		resp.Accounts[x] = subAcc
 	}
-	return resp, nil
+	creds, err := d.GetCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return subAccts, d.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and withdrawals
