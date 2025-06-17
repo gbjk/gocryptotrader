@@ -11,8 +11,8 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -676,7 +676,7 @@ func (g *Gateio) processBalancePushData(ctx context.Context, data []byte, assetT
 		changes[x] = accounts.Change{
 			AssetType: assetType,
 			Account:   bal.User,
-			Balance: &accounts.Balance{
+			Balance: accounts.Balance{
 				Currency:  currency.NewCode(info[0]),
 				Total:     bal.Balance,
 				Free:      bal.Balance,
