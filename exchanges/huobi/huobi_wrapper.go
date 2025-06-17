@@ -15,9 +15,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -656,60 +656,33 @@ func (h *HUOBI) GetAccountID(ctx context.Context) ([]Account, error) {
 
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // HUOBI exchange - to-do
-func (h *HUOBI) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
-	var info accounts.SubAccounts
-	var acc accounts.SubAccount
-	info.Exchange = h.Name
+func (h *HUOBI) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
 	switch assetType {
 	case asset.Spot:
-		accounts, err := h.GetAccountID(ctx)
+		resp, err := h.GetAccountID(ctx)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-		for i := range accounts {
-			if accounts[i].Type != "spot" {
+		subAccts = make(accounts.SubAccounts, 0, len(resp))
+		for i := range resp {
+			if resp[i].Type != "spot" {
 				continue
 			}
-			acc.ID = strconv.FormatInt(accounts[i].ID, 10)
-			balances, err := h.GetAccountBalance(ctx, acc.ID)
+			a := accounts.NewSubAccount(assetType, strconv.FormatInt(resp[i].ID, 10))
+			balances, err := h.GetAccountBalance(ctx, a.ID)
 			if err != nil {
-				return info, err
+				return nil, err
 			}
-
-			var currencyDetails []accounts.Balance
-		balance:
 			for j := range balances {
-				frozen := balances[j].Type == "frozen"
-				for i := range currencyDetails {
-					if currencyDetails[i].Currency.String() == balances[j].Currency {
-						if frozen {
-							currencyDetails[i].Hold = balances[j].Balance
-						} else {
-							currencyDetails[i].Total = balances[j].Balance
-						}
-						continue balance
-					}
-				}
-
-				if frozen {
-					currencyDetails = append(currencyDetails,
-						accounts.Balance{
-							Currency: currency.NewCode(balances[j].Currency),
-							Hold:     balances[j].Balance,
-						})
+				if balances[j].Type == "frozen" {
+					a.Balances.Set(balances[j].Currency, accounts.Balance{Hold: balances[j].Balance})
 				} else {
-					currencyDetails = append(currencyDetails,
-						accounts.Balance{
-							Currency: currency.NewCode(balances[j].Currency),
-							Total:    balances[j].Balance,
-						})
+					a.Balances.Set(balances[j].Currency, accounts.Balance{Total: balances[j].Balance})
 				}
+				subAccts = subAccts.Merge(a)
 			}
-			acc.Currencies = currencyDetails
 		}
-
 	case asset.CoinMarginedFutures:
-		// fetch swap account info
 		acctInfo, err := h.GetSwapAccountInfo(ctx, currency.EMPTYPAIR)
 		if err != nil {
 			return info, err
