@@ -12,8 +12,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -236,22 +236,27 @@ func (y *Yobit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 	return orderbook.Get(y.Name, p, assetType)
 }
 
-// UpdateAccountHoldings retrieves balances for all enabled currencies for the
-// Yobit exchange
+// UpdateAccountHoldings retrieves balances for all enabled currencies
 func (y *Yobit) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
-	var response accounts.SubAccounts
-	response.Exchange = y.Name
-	accountBalance, err := y.GetAccountInformation(ctx)
+	resp, err := y.GetAccountInformation(ctx)
 	if err != nil {
-		return response, err
+		return nil, err
 	}
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
 
-	currencies := make([]accounts.Balance, 0, len(accountBalance.FundsInclOrders))
-	for x, y := range accountBalance.FundsInclOrders {
-		var exchangeCurrency accounts.Balance
-		exchangeCurrency.Currency = currency.NewCode(x)
-		exchangeCurrency.Total = y
-		for z, w := range accountBalance.Funds {
+	/*
+	* Total: FundsIncOrders
+	* Free: Funds
+	* Hold: Total - Free
+	 */
+
+	for curr, bal := range resp.FundsInclOrders {
+		subAccts[0].Balances.Set(curr, accounts.Balance{
+			Total: bal,
+		})
+	}
+	for curr, bal := range resp.FundsInclOrders {
+		for z, w := range resp.Funds {
 			if z == x {
 				exchangeCurrency.Hold = y - w
 				exchangeCurrency.Free = w
