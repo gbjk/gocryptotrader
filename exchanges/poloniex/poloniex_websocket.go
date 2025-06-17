@@ -14,8 +14,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -925,7 +925,7 @@ func (p *Poloniex) processAccountBalanceUpdate(notification []any) error {
 	if !ok {
 		return fmt.Errorf("%w currency ID not float64", errTypeAssertionFailure)
 	}
-	code, err := p.details.GetCode(currencyID)
+	curr, err := p.details.GetCode(currencyID)
 	if err != nil {
 		return err
 	}
@@ -944,19 +944,27 @@ func (p *Poloniex) processAccountBalanceUpdate(notification []any) error {
 		return err
 	}
 
-	// TODO: Integrate with exchange account system
-	// NOTES: This will affect free amount, a rest call might be needed to get
-	// locked and total amounts periodically.
-	p.Websocket.DataHandler <- accounts.Change{
-		Account:   deriveWalletType(walletType),
-		AssetType: asset.Spot,
-		Balance: &accounts.Balance{
-			Currency: code,
-			Total:    amount,
-			Free:     amount,
-		},
+	bal := accounts.Balance{
+		Currency: curr,
+		Total:    amount,
+		Free:     amount,
 	}
-	return nil
+
+	id := deriveWalletType(walletType)
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Spot, id)}
+	subAccts[0].Balances.Set(curr, bal)
+
+	// TODO: This will affect free amount, a rest call might be needed to get locked and total amounts periodically
+	p.Websocket.DataHandler <- accounts.Change{
+		Account:   id,
+		AssetType: asset.Spot,
+		Balance:   bal,
+	}
+	creds, err := p.GetCredentials(context.TODO())
+	if err != nil {
+		return err
+	}
+	return p.Accounts.Save(subAccts, creds)
 }
 
 func deriveWalletType(s string) string {
