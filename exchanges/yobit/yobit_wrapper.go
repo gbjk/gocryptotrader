@@ -243,44 +243,26 @@ func (y *Yobit) UpdateAccountHoldings(ctx context.Context, assetType asset.Item)
 		return nil, err
 	}
 	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
-
-	/*
-	* Total: FundsIncOrders
-	* Free: Funds
-	* Hold: Total - Free
-	 */
-
 	for curr, bal := range resp.FundsInclOrders {
 		subAccts[0].Balances.Set(curr, accounts.Balance{
 			Total: bal,
+			Hold:  bal, // FundsInclOrders balance - Funds balance
 		})
 	}
-	for curr, bal := range resp.FundsInclOrders {
-		for z, w := range resp.Funds {
-			if z == x {
-				exchangeCurrency.Hold = y - w
-				exchangeCurrency.Free = w
-			}
-		}
-
-		currencies = append(currencies, exchangeCurrency)
+	for curr, bal := range resp.Funds {
+		subAccts[0].Balances.Add(curr, accounts.Balance{
+			Free: bal,
+			Hold: -bal, // FundsInclOrders balance - Funds balance
+		})
 	}
-
-	response.Accounts = append(response.Accounts, accounts.SubAccount{
-		AssetType:  assetType,
-		Currencies: currencies,
-	})
-
 	creds, err := y.GetCredentials(ctx)
 	if err != nil {
 		return accounts.SubAccounts{}, err
 	}
-	err = y.Accounts.Save(&response, creds)
 	if err != nil {
 		return accounts.SubAccounts{}, err
 	}
-
-	return response, nil
+	return subAccts, y.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
