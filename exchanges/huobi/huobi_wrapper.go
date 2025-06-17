@@ -683,105 +683,75 @@ func (h *HUOBI) UpdateAccountHoldings(ctx context.Context, assetType asset.Item)
 			}
 		}
 	case asset.CoinMarginedFutures:
-		acctInfo, err := h.GetSwapAccountInfo(ctx, currency.EMPTYPAIR)
+		mainResp, err := h.GetSwapAccountInfo(ctx, currency.EMPTYPAIR)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-
-		var mainAcctBalances []accounts.Balance
-		for x := range acctInfo.Data {
-			mainAcctBalances = append(mainAcctBalances, accounts.Balance{
-				Currency: currency.NewCode(acctInfo.Data[x].Symbol),
-				Total:    acctInfo.Data[x].MarginBalance,
-				Hold:     acctInfo.Data[x].MarginFrozen,
-				Free:     acctInfo.Data[x].MarginAvailable,
+		subAccts = accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+		for i := range mainResp.Data {
+			subAccts[0].Balances.Set(mainResp.Data[i].Symbol, accounts.Balance{
+				Total: mainResp.Data[i].MarginBalance,
+				Hold:  mainResp.Data[i].MarginFrozen,
+				Free:  mainResp.Data[i].MarginAvailable,
 			})
 		}
-
-		info.Accounts = append(info.Accounts, accounts.SubAccount{
-			Currencies: mainAcctBalances,
-			AssetType:  assetType,
-		})
-
-		// fetch subaccounts data
-		subAccsData, err := h.GetSwapAllSubAccAssets(ctx, currency.EMPTYPAIR)
+		subResp, err := h.GetSwapAllSubAccAssets(ctx, currency.EMPTYPAIR)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-		var currencyDetails []accounts.Balance
-		for x := range subAccsData.Data {
-			a, err := h.SwapSingleSubAccAssets(ctx,
-				currency.EMPTYPAIR,
-				subAccsData.Data[x].SubUID)
+		for i := range subResp.Data {
+			resp, err := h.SwapSingleSubAccAssets(ctx, currency.EMPTYPAIR, subResp.Data[i].SubUID)
 			if err != nil {
-				return info, err
+				return nil, err
 			}
-			for y := range a.Data {
-				currencyDetails = append(currencyDetails, accounts.Balance{
-					Currency: currency.NewCode(a.Data[y].Symbol),
-					Total:    a.Data[y].MarginBalance,
-					Hold:     a.Data[y].MarginFrozen,
-					Free:     a.Data[y].MarginAvailable,
+			a := accounts.NewSubAccount(assetType, strconv.FormatInt(subResp.Data[i].SubUID, 10))
+			for j := range resp.Data {
+				a.Balances.Set(resp.Data[j].Symbol, accounts.Balance{
+					Total: resp.Data[j].MarginBalance,
+					Hold:  resp.Data[j].MarginFrozen,
+					Free:  resp.Data[j].MarginAvailable,
 				})
 			}
+			subAccts = subAccts.Merge(a)
 		}
-		acc.Currencies = currencyDetails
 	case asset.Futures:
-		// fetch main account data
-		mainAcctData, err := h.FGetAccountInfo(ctx, currency.EMPTYCODE)
+		mainResp, err := h.FGetAccountInfo(ctx, currency.EMPTYCODE)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-
-		var mainAcctBalances []accounts.Balance
-		for x := range mainAcctData.AccData {
-			mainAcctBalances = append(mainAcctBalances, accounts.Balance{
-				Currency: currency.NewCode(mainAcctData.AccData[x].Symbol),
-				Total:    mainAcctData.AccData[x].MarginBalance,
-				Hold:     mainAcctData.AccData[x].MarginFrozen,
-				Free:     mainAcctData.AccData[x].MarginAvailable,
+		subAccts = accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+		for i := range mainResp.AccData {
+			subAccts[0].Balances.Set(mainResp.AccData[i].Symbol, accounts.Balance{
+				Total: mainResp.AccData[i].MarginBalance,
+				Hold:  mainResp.AccData[i].MarginFrozen,
+				Free:  mainResp.AccData[i].MarginAvailable,
 			})
 		}
-
-		info.Accounts = append(info.Accounts, accounts.SubAccount{
-			Currencies: mainAcctBalances,
-			AssetType:  assetType,
-		})
-
-		// fetch subaccounts data
-		subAccsData, err := h.FGetAllSubAccountAssets(ctx, currency.EMPTYCODE)
+		subResp, err := h.FGetAllSubAccountAssets(ctx, currency.EMPTYCODE)
 		if err != nil {
-			return info, err
+			return nil, err
 		}
-		var currencyDetails []accounts.Balance
-		for x := range subAccsData.Data {
-			a, err := h.FGetSingleSubAccountInfo(ctx,
-				"",
-				strconv.FormatInt(subAccsData.Data[x].SubUID, 10))
+		for i := range subResp.Data {
+			a := accounts.NewSubAccount(assetType, strconv.FormatInt(subResp.Data[i].SubUID, 10))
+			resp, err := h.FGetSingleSubAccountInfo(ctx, "", a.ID)
 			if err != nil {
-				return info, err
+				return nil, err
 			}
-			for y := range a.AssetsData {
-				currencyDetails = append(currencyDetails, accounts.Balance{
-					Currency: currency.NewCode(a.AssetsData[y].Symbol),
-					Total:    a.AssetsData[y].MarginBalance,
-					Hold:     a.AssetsData[y].MarginFrozen,
-					Free:     a.AssetsData[y].MarginAvailable,
+			for j := range resp.AssetsData {
+				a.Balances.Set(resp.AssetsData[j].Symbol, accounts.Balance{
+					Total: resp.AssetsData[j].MarginBalance,
+					Hold:  resp.AssetsData[j].MarginFrozen,
+					Free:  resp.AssetsData[j].MarginAvailable,
 				})
 			}
+			subAccts = subAccts.Merge(a)
 		}
-		acc.Currencies = currencyDetails
 	}
-	acc.AssetType = assetType
-	info.Accounts = append(info.Accounts, acc)
 	creds, err := h.GetCredentials(ctx)
 	if err != nil {
 		return accounts.SubAccounts{}, err
 	}
-	if err := h.Accounts.Save(&info, creds); err != nil {
-		return info, err
-	}
-	return info, nil
+	return subAccts, h.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
