@@ -14,8 +14,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/crypto"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -354,7 +354,7 @@ func (by *Bybit) wsProcessWalletPushData(assetType asset.Item, resp []byte) erro
 		for y := range result.Data[x].Coin {
 			changes = append(changes, accounts.Change{
 				AssetType: assetType,
-				Balance: &accounts.Balance{
+				Balance: accounts.Balance{
 					Currency:  currency.NewCode(result.Data[x].Coin[y].Coin),
 					Total:     result.Data[x].Coin[y].WalletBalance.Float64(),
 					Free:      result.Data[x].Coin[y].WalletBalance.Float64(),
