@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -124,152 +123,94 @@ func (m *portfolioManager) processPortfolio() {
 	}
 	m.m.Lock()
 	defer m.m.Unlock()
-	exchanges, err := m.exchangeManager.GetExchanges()
-	if err != nil {
-		log.Errorf(log.PortfolioMgr, "Portfolio manager cannot get exchanges: %v", err)
+	if err := m.updateExchangeBalances(); err != nil {
+		log.Error(log.PortfolioMgr, err)
 	}
-	allExchangesHoldings := m.getExchangeAccountInfo(exchanges)
-	m.seedExchangeAccountInfo(allExchangesHoldings)
 
 	data := m.base.GetPortfolioAddressesGroupedByCoin()
 	for key, value := range data {
 		if err := m.base.UpdatePortfolio(context.TODO(), value, key); err != nil {
-			log.Errorf(log.PortfolioMgr, "Portfolio manager: UpdatePortfolio error: %s for currency %s\n", err, key)
+			log.Errorf(log.PortfolioMgr, "Portfolio manager: UpdatePortfolio error: %s for currency %s", err, key)
 			continue
 		}
 
-		log.Debugf(log.PortfolioMgr, "Portfolio manager: Successfully updated address balance for %s address(es) %s\n", key, value)
+		log.Debugf(log.PortfolioMgr, "Portfolio manager: Successfully updated address balance for %s address(es) %s", key, value)
 	}
 	atomic.CompareAndSwapInt32(&m.processing, 1, 0)
 }
 
-// seedExchangeAccountInfo seeds account info
-func (m *portfolioManager) seedExchangeAccountInfo(accounts []accounts.SubAccounts) {
-	if len(accounts) == 0 {
-		return
+// updateExchangeBalances calls UpdateAccountBalance on each exchange, and transfers the account balances into portfolio
+func (m *portfolioManager) updateExchangeBalances() error {
+	exchanges, errs := m.exchangeManager.GetExchanges()
+	if errs != nil {
+		return fmt.Errorf("Portfolio manager cannot get exchanges: %w", errs)
 	}
-	for x := range accounts {
-		var currencies []accounts.Balance
-		for y := range accounts[x].Accounts {
-		next:
-			for z := range accounts[x].Accounts[y].Currencies {
-				for i := range currencies {
-					if !accounts[x].Accounts[y].Currencies[z].Currency.Equal(currencies[i].Currency) {
-						continue
-					}
-					currencies[i].Hold += accounts[x].Accounts[y].Currencies[z].Hold
-					currencies[i].Total += accounts[x].Accounts[y].Currencies[z].Total
-					currencies[i].AvailableWithoutBorrow += accounts[x].Accounts[y].Currencies[z].AvailableWithoutBorrow
-					currencies[i].Free += accounts[x].Accounts[y].Currencies[z].Free
-					currencies[i].Borrowed += accounts[x].Accounts[y].Currencies[z].Borrowed
-					continue next
-				}
-				currencies = append(currencies, accounts.Balance{
-					Currency:               accounts[x].Accounts[y].Currencies[z].Currency,
-					Total:                  accounts[x].Accounts[y].Currencies[z].Total,
-					Hold:                   accounts[x].Accounts[y].Currencies[z].Hold,
-					Free:                   accounts[x].Accounts[y].Currencies[z].Free,
-					AvailableWithoutBorrow: accounts[x].Accounts[y].Currencies[z].AvailableWithoutBorrow,
-					Borrowed:               accounts[x].Accounts[y].Currencies[z].Borrowed,
-				})
+	for _, e := range exchanges {
+		if !e.IsEnabled() {
+			continue
+		}
+		if !e.IsRESTAuthenticationSupported() {
+			if m.base.Verbose {
+				log.Debugf(log.PortfolioMgr, "skipping %s due to disabled authenticated API support", e.GetName())
 			}
+			continue
+		}
+		assetTypes := asset.Items{asset.Spot}
+		if e.HasAssetTypeAccountSegregation() {
+			assetTypes = e.GetAssetTypes(true)
 		}
 
+		for _, a := range assetTypes {
+			if _, err := e.UpdateAccountHoldings(context.TODO(), a); err != nil {
+				errs = common.AppendError(errs, fmt.Errorf("error updating %s %s account balances: %w", e.GetName(), a, err)
+			}
+		}
+		if err := m.updateExchangeAddressBalances(e); err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("error updating %s account balances: %w", e.GetName(),  err)
+		}
+	}
+	return errs
+}
+
+// updateExchangeAddressBalances transfer exchange account balances into porpfolio addresses for exchanges
+func (m *portfolioManager) updateExchangeAddressBalances(e exchange.IBotExchange) error{
+	currs, err := e.Accounts.GetBalances(nil, asset.All)
+	if err != nil {
+		return err
+	}
+	eName := e.GetName()
+	for c, b := range currs {
 		for j := range currencies {
-			if !m.base.ExchangeAddressCoinExists(accounts[x].Exchange, currencies[j].Currency) {
-				if currencies[j].Total <= 0 {
+			if !m.base.ExchangeAddressCoinExists(e.GetName(), c){
+				if b.Total <= 0 {
 					continue
 				}
 
-				log.Debugf(log.PortfolioMgr, "Portfolio: Adding new exchange address: %s, %s, %f, %s\n",
-					accounts[x].Exchange,
-					currencies[j].Currency,
-					currencies[j].Total,
-					portfolio.ExchangeAddress)
+				log.Debugf(log.PortfolioMgr, "Portfolio: Adding new exchange address: %s, %s, %f, %s", eName, c, b.Total, portfolio.ExchangeAddress)
 
 				m.base.Addresses = append(m.base.Addresses, portfolio.Address{
-					Address:     accounts[x].Exchange,
-					CoinType:    currencies[j].Currency,
-					Balance:     currencies[j].Total,
+					Address:     eName,
+					CoinType:    c,
+					Balance:     b.Total,
 					Description: portfolio.ExchangeAddress,
 				})
 				continue
 			}
 
-			if currencies[j].Total <= 0 {
-				log.Debugf(log.PortfolioMgr, "Portfolio: Removing %s %s entry.\n",
-					accounts[x].Exchange,
-					currencies[j].Currency)
-				m.base.RemoveExchangeAddress(accounts[x].Exchange, currencies[j].Currency)
+			if b.Total <= 0 {
+				log.Debugf(log.PortfolioMgr, "Portfolio: Removing %s %s entry", eName, c)
+				m.base.RemoveExchangeAddress(eName, c)
 				continue
 			}
 
-			balance, ok := m.base.GetAddressBalance(accounts[x].Exchange,
-				portfolio.ExchangeAddress,
-				currencies[j].Currency)
-			if !ok {
+			if balance, ok := m.base.GetAddressBalance(eName, portfolio.ExchangeAddress,c); !ok {
 				continue
-			}
-
-			if balance != currencies[j].Total {
-				log.Debugf(log.PortfolioMgr, "Portfolio: Updating %s %s entry with balance %f.\n",
-					accounts[x].Exchange,
-					currencies[j].Currency,
-					currencies[j].Total)
-				m.base.UpdateExchangeAddressBalance(accounts[x].Exchange,
-					currencies[j].Currency,
-					currencies[j].Total)
+			} else if balance != b.Total {
+				log.Debugf(log.PortfolioMgr, "Portfolio: Updating %s %s entry with balance %f", eName, c, b.Total)
+				m.base.UpdateExchangeAddressBalance(eName, c, b.Total)
 			}
 		}
 	}
-}
-
-// getExchangeAccountInfo returns all the current enabled exchanges
-func (m *portfolioManager) getExchangeAccountInfo(exchanges []exchange.IBotExchange) []accounts.SubAccounts {
-	response := make([]accounts.SubAccounts, 0, len(exchanges))
-	for x := range exchanges {
-		if !exchanges[x].IsEnabled() {
-			continue
-		}
-		if !exchanges[x].IsRESTAuthenticationSupported() {
-			if m.base.Verbose {
-				log.Debugf(log.PortfolioMgr,
-					"skipping %s due to disabled authenticated API support.\n",
-					exchanges[x].GetName())
-			}
-			continue
-		}
-
-		assetTypes := asset.Items{asset.Spot}
-		if exchanges[x].HasAssetTypeAccountSegregation() {
-			// Get enabled exchange asset types to sync account information.
-			// TODO: Update with further api key asset segration e.g. Kraken has
-			// individual keys associated with different asset types.
-			assetTypes = exchanges[x].GetAssetTypes(true)
-		}
-
-		exchangeHoldings := accounts.SubAccounts{
-			Exchange: exchanges[x].GetName(),
-			Accounts: make(accounts.SubAccounts, 0, len(assetTypes)),
-		}
-		for y := range assetTypes {
-			// Update account info to process account updates in memory on
-			// every fetch.
-			accountHoldings, err := exchanges[x].UpdateAccountHoldings(context.TODO(), assetTypes[y])
-			if err != nil {
-				log.Errorf(log.PortfolioMgr,
-					"Error encountered retrieving exchange account info for %s. Error %s\n",
-					exchanges[x].GetName(),
-					err)
-				continue
-			}
-			exchangeHoldings.Accounts = append(exchangeHoldings.Accounts, accountHoldings.Accounts...)
-		}
-		if len(exchangeHoldings.Accounts) > 0 {
-			response = append(response, exchangeHoldings)
-		}
-	}
-	return response
 }
 
 // AddAddress adds a new portfolio address for the portfolio manager to track
