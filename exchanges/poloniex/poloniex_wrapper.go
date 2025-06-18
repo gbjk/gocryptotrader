@@ -13,10 +13,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -343,36 +343,23 @@ func (p *Poloniex) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 // UpdateAccountHoldings retrieves balances for all enabled currencies for the
 // Poloniex exchange
 func (p *Poloniex) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
-	var response accounts.SubAccounts
-	response.Exchange = p.Name
-	accountBalance, err := p.GetBalances(ctx)
+	resp, err := p.GetBalances(ctx)
 	if err != nil {
-		return response, err
+		return nil, err
 	}
 
-	currencies := make([]accounts.Balance, 0, len(accountBalance.Currency))
-	for x, y := range accountBalance.Currency {
-		currencies = append(currencies, accounts.Balance{
-			Currency: currency.NewCode(x),
-			Total:    y,
-		})
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+	for curr, bal := range resp.Currency {
+		subAccts[0].Balances.Set(curr, accounts.Balance{Total: bal})
 	}
-
-	response.Accounts = append(response.Accounts, accounts.SubAccount{
-		AssetType:  assetType,
-		Currencies: currencies,
-	})
-
 	creds, err := p.GetCredentials(ctx)
 	if err != nil {
 		return accounts.SubAccounts{}, err
 	}
-	err = p.Accounts.Save(&response, creds)
 	if err != nil {
 		return accounts.SubAccounts{}, err
 	}
-
-	return response, nil
+	return subAccts, p.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and
