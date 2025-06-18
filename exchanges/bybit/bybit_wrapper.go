@@ -568,7 +568,7 @@ func (by *Bybit) UpdateAccountHoldings(ctx context.Context, assetType asset.Item
 			if assetType == asset.Spot && c.AvailableBalanceForSpot.Float64() != 0 {
 				f = c.AvailableBalanceForSpot.Float64()
 			}
-			subAccts[0].Balances.Set(c.Coin.String(), accounts.Balance{
+			subAccts[0].Balances.Set(c.Coin, accounts.Balance{
 				Total:    c.WalletBalance.Float64(),
 				Borrowed: c.BorrowAmount.Float64(),
 				Free:     f,
