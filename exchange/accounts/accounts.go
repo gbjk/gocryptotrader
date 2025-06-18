@@ -88,40 +88,37 @@ func (a *Accounts) Subscribe() (dispatch.Pipe, error) {
 	return a.mux.Subscribe(a.ID)
 }
 
-// GetBalances returns the Balances
-func (a *Accounts) GetBalances(creds *Credentials, assetType asset.Item) (SubAccounts, error) {
+// GetBalances returns the collated currency balances for the Accounts
+// If creds is nil, all credential SubAccounts will be collated
+// If assetType is asset.All, all assets will be collated
+func (a *Accounts) GetBalances(creds *Credentials, assetType asset.Item) (CurrencyBalances, error) {
 	if err := common.NilGuard(a); err != nil {
 		return nil, err
 	}
 
-	if creds.IsEmpty() {
-		return nil, fmt.Errorf("%s %s %w", a.Exchange.GetName(), assetType, errCredentialsEmpty)
-	}
-
-	if !assetType.IsValid() {
+	if !assetType.IsValid() && !assetType == asset.All {
 		return nil, fmt.Errorf("%s %s %w", a.Exchange.GetName(), assetType, asset.ErrNotSupported)
 	}
 
-	subAccounts, ok := a.subAccounts[*creds]
-	if !ok {
-		return nil, fmt.Errorf("%w for %s credentials %s", ErrBalancesNotFound, a.Exchange.GetName(), creds)
-	}
-
-	var s SubAccounts
-
-	for subAcctKey, currBals := range subAccounts {
-		if subAcctKey.Asset == assetType {
-			s = append(s, &SubAccount{
-				ID:        subAcctKey.SubAccount,
-				AssetType: subAcctKey.Asset,
-				Balances:  currBals.Public(),
-			})
+	currs := CurrencyBalances{}
+	for credsKey, subAccountsForCreds := range a.subAccounts {
+		if !creds.IsEmpty() && *creds != credsKey {
+			continue
+		}
+		for subAcctKey, balances := range subAccountsForCreds {
+			if assetType != asset.All && assetType != subAcctKey.Asset {
+				continue
+			}
+			for curr, bal := range balances {
+				currs.Add(curr, bal.Balance())
+			}
 		}
 	}
-	if len(s) == 0 {
+
+	if len(currs) == 0 {
 		return nil, fmt.Errorf("%w for %s credentials %s asset %s", ErrBalancesNotFound, a.Exchange.GetName(), assetType)
 	}
-	return s, nil
+	return currs, nil
 }
 
 // GetBalance returns a copy of the balance for that asset item
@@ -161,20 +158,16 @@ func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset
 }
 
 // CurrencyBalances returns the collated currency balances for all sub accounts
-func (a *Accounts) CurrencyBalances() map[currency.Code]Balance {
-	currMap := map[currency.Code]Balance{}
+func (a *Accounts) CurrencyBalances() CurrencyBalances
+	currs := CurrencyBalances{}
 	for _, subAcctMap := range a.subAccounts {
-		for _, currs := range subAcctMap {
-			for curr, bal := range currs {
-				if existing, ok := currMap[curr]; !ok {
-					currMap[curr] = bal.Balance()
-				} else {
-					currMap[curr] = existing.Add(bal.Balance())
-				}
+		for _, balances := range subAcctMap {
+			for curr, bal := range balances {
+				currs.Add(curr, bal.Balance())
 			}
 		}
 	}
-	return currMap
+	return currs
 }
 
 // Save saves the holdings with a new snapshot of account balances; Any missing currencies will be removed
