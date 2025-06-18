@@ -15,10 +15,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
@@ -638,41 +638,27 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 // UpdateAccountHoldings retrieves balances for all enabled currencies.
 func (ok *Okx) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	if err := ok.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
-		return accounts.SubAccounts{}, err
+		return nil, err
 	}
-
-	var info accounts.SubAccounts
-	var acc accounts.SubAccount
-	info.Exchange = ok.Name
-	if !ok.SupportsAsset(assetType) {
-		return info, fmt.Errorf("%w: %v", asset.ErrNotSupported, assetType)
-	}
-	accountBalances, err := ok.AccountBalance(ctx, currency.EMPTYCODE)
+	resp, err := ok.AccountBalance(ctx, currency.EMPTYCODE)
 	if err != nil {
-		return info, err
+		return nil, err
 	}
-	currencyBalances := []accounts.Balance{}
-	for i := range accountBalances {
-		for j := range accountBalances[i].Details {
-			currencyBalances = append(currencyBalances, accounts.Balance{
-				Currency: accountBalances[i].Details[j].Currency,
-				Total:    accountBalances[i].Details[j].EquityOfCurrency.Float64(),
-				Hold:     accountBalances[i].Details[j].FrozenBalance.Float64(),
-				Free:     accountBalances[i].Details[j].AvailableBalance.Float64(),
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(assetType, "")}
+	for i := range resp {
+		for j := range resp[i].Details {
+			subAccts[0].Balances.Set(resp[i].Details[j].Currency, accounts.Balance{
+				Total: resp[i].Details[j].EquityOfCurrency.Float64(),
+				Hold:  resp[i].Details[j].FrozenBalance.Float64(),
+				Free:  resp[i].Details[j].AvailableBalance.Float64(),
 			})
 		}
 	}
-	acc.Currencies = currencyBalances
-	acc.AssetType = assetType
-	info.Accounts = append(info.Accounts, acc)
 	creds, err := ok.GetCredentials(ctx)
 	if err != nil {
-		return info, err
+		return nil, err
 	}
-	if err := ok.Accounts.Save(&info, creds); err != nil {
-		return accounts.SubAccounts{}, err
-	}
-	return info, nil
+	return subAccts, ok.Accounts.Save(subAccts, creds)
 }
 
 // GetAccountFundingHistory returns funding history, deposits and withdrawals
