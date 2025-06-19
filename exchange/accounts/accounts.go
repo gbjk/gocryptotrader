@@ -158,7 +158,7 @@ func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset
 }
 
 // CurrencyBalances returns the collated currency balances for all sub accounts
-func (a *Accounts) CurrencyBalances() CurrencyBalances
+func (a *Accounts) CurrencyBalances() CurrencyBalances {
 	currs := CurrencyBalances{}
 	for _, subAcctMap := range a.subAccounts {
 		for _, balances := range subAcctMap {
