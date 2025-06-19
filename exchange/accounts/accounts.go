@@ -96,7 +96,7 @@ func (a *Accounts) GetBalances(creds *Credentials, assetType asset.Item) (Curren
 		return nil, err
 	}
 
-	if !assetType.IsValid() && !assetType == asset.All {
+	if !assetType.IsValid() && assetType != asset.All {
 		return nil, fmt.Errorf("%s %s %w", a.Exchange.GetName(), assetType, asset.ErrNotSupported)
 	}
 
