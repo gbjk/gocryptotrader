@@ -1930,8 +1930,8 @@ func (b *Base) GetCachedOrderbook(p currency.Pair, assetType asset.Item) (*order
 }
 
 // GetCachedAccountBalances retrieves cached balances for all enabled currencies
-// NOTE: Accounts.Save method should be called first to populate the local cache store
-func (b *Base) GetCachedAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+// NOTE: Accounts.Save method should be called first to populate the local cache
+func (b *Base) GetCachedAccountBalances(ctx context.Context, assetType asset.Item) (accounts.CurrencyBalances, error) {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return nil, err

@@ -7,8 +7,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/log"
 	"github.com/thrasher-corp/gocryptotrader/portfolio"
@@ -162,55 +163,52 @@ func (m *portfolioManager) updateExchangeBalances() error {
 
 		for _, a := range assetTypes {
 			if _, err := e.UpdateAccountHoldings(context.TODO(), a); err != nil {
-				errs = common.AppendError(errs, fmt.Errorf("error updating %s %s account balances: %w", e.GetName(), a, err)
+				errs = common.AppendError(errs, fmt.Errorf("error updating %s %s account balances: %w", e.GetName(), a, err))
 			}
 		}
 		if err := m.updateExchangeAddressBalances(e); err != nil {
-			errs = common.AppendError(errs, fmt.Errorf("error updating %s account balances: %w", e.GetName(),  err)
+			errs = common.AppendError(errs, fmt.Errorf("error updating %s account balances: %w", e.GetName(), err))
 		}
 	}
 	return errs
 }
 
 // updateExchangeAddressBalances transfer exchange account balances into porpfolio addresses for exchanges
-func (m *portfolioManager) updateExchangeAddressBalances(e exchange.IBotExchange) error{
-	currs, err := e.Accounts.GetBalances(nil, asset.All)
+func (m *portfolioManager) updateExchangeAddressBalances(e exchange.IBotExchange) error {
+	currs, err := e.GetBase().Accounts.GetBalances(nil, asset.All)
 	if err != nil {
 		return err
 	}
 	eName := e.GetName()
 	for c, b := range currs {
-		for j := range currencies {
-			if !m.base.ExchangeAddressCoinExists(e.GetName(), c){
-				if b.Total <= 0 {
-					continue
-				}
-
-				log.Debugf(log.PortfolioMgr, "Portfolio: Adding new exchange address: %s, %s, %f, %s", eName, c, b.Total, portfolio.ExchangeAddress)
-
-				m.base.Addresses = append(m.base.Addresses, portfolio.Address{
-					Address:     eName,
-					CoinType:    c,
-					Balance:     b.Total,
-					Description: portfolio.ExchangeAddress,
-				})
-				continue
-			}
-
+		if !m.base.ExchangeAddressCoinExists(e.GetName(), c) {
 			if b.Total <= 0 {
-				log.Debugf(log.PortfolioMgr, "Portfolio: Removing %s %s entry", eName, c)
-				m.base.RemoveExchangeAddress(eName, c)
 				continue
 			}
 
-			if balance, ok := m.base.GetAddressBalance(eName, portfolio.ExchangeAddress,c); !ok {
-				continue
-			} else if balance != b.Total {
-				log.Debugf(log.PortfolioMgr, "Portfolio: Updating %s %s entry with balance %f", eName, c, b.Total)
-				m.base.UpdateExchangeAddressBalance(eName, c, b.Total)
-			}
+			log.Debugf(log.PortfolioMgr, "Portfolio: Adding new exchange address: %s, %s, %f, %s", eName, c, b.Total, portfolio.ExchangeAddress)
+
+			m.base.Addresses = append(m.base.Addresses, portfolio.Address{
+				Address:     eName,
+				CoinType:    c,
+				Balance:     b.Total,
+				Description: portfolio.ExchangeAddress,
+			})
+			continue
+		}
+
+		if b.Total <= 0 {
+			log.Debugf(log.PortfolioMgr, "Portfolio: Removing %s %s entry", eName, c)
+			m.base.RemoveExchangeAddress(eName, c)
+			continue
+		}
+
+		if balance, ok := m.base.GetAddressBalance(eName, portfolio.ExchangeAddress, c); ok && balance != b.Total {
+			log.Debugf(log.PortfolioMgr, "Portfolio: Updating %s %s entry with balance %f", eName, c, b.Total)
+			m.base.UpdateExchangeAddressBalance(eName, c, b.Total)
 		}
 	}
+	return nil
 }
 
 // AddAddress adds a new portfolio address for the portfolio manager to track
