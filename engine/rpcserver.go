@@ -653,7 +653,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 		return err
 	}
 
-	pipe, err := exch.SubscribeAccountHoldings()
+	pipe, err := exch.SubscribeAccountBalances()
 	if err != nil {
 		return err
 	}

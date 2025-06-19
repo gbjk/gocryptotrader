@@ -1944,7 +1944,7 @@ func (*Base) WebsocketSubmitOrder(context.Context, *order.Submit) (*order.Submit
 	return nil, common.ErrFunctionNotSupported
 }
 
-// SubscribeAccountHoldings returns a pipe to stream account holding updates
-func (b *Base) SubscribeAccountHoldings() (dispatch.Pipe, error) {
+// SubscribeAccountBalances returns a pipe to stream account holding updates
+func (b *Base) SubscribeAccountBalances() (dispatch.Pipe, error) {
 	return b.Accounts.Subscribe()
 }

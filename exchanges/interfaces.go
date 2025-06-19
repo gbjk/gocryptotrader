@@ -153,7 +153,7 @@ type AccountManagement interface {
 	UpdateAccountHoldings(ctx context.Context, a asset.Item) (accounts.SubAccounts, error)
 	GetCachedAccountBalances(ctx context.Context, a asset.Item) (accounts.CurrencyBalances, error)
 	HasAssetTypeAccountSegregation() bool
-	SubscribeAccountHoldings() (dispatch.Pipe, error)
+	SubscribeAccountBalances() (dispatch.Pipe, error)
 }
 
 // FunctionalityChecker defines functionality for retrieving exchange
