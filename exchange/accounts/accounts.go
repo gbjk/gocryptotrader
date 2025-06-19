@@ -35,7 +35,7 @@ var (
 // Accounts holds a stream ID and a map to the exchange holdings
 type Accounts struct {
 	Exchange    exchange
-	ID          uuid.UUID
+	routingID   uuid.UUID // GCT internal routing mux id
 	subAccounts credSubAccounts
 	mu          sync.RWMutex
 	mux         *dispatch.Mux
@@ -78,14 +78,14 @@ func NewAccounts(e exchange, mux *dispatch.Mux) (*Accounts, error) {
 	return &Accounts{
 		Exchange:    e,
 		subAccounts: make(credSubAccounts),
-		ID:          id,
+		routingID:   id,
 		mux:         mux,
 	}, nil
 }
 
 // Subscribe subscribes to your exchange accounts
 func (a *Accounts) Subscribe() (dispatch.Pipe, error) {
-	return a.mux.Subscribe(a.ID)
+	return a.mux.Subscribe(a.routingID)
 }
 
 // GetBalances returns the collated currency balances for the Accounts
@@ -216,7 +216,7 @@ func (a *Accounts) Save(s SubAccounts, creds *Credentials) error {
 			updated = true
 		}
 		if updated {
-			if err := a.mux.Publish(update, a.ID); err != nil {
+			if err := a.mux.Publish(update, a.routingID); err != nil {
 				errs = common.AppendError(errs, fmt.Errorf("cannot publish load for %s %w", a.Exchange, err))
 			}
 		}
@@ -255,7 +255,7 @@ func (a *Accounts) Update(changes []Change, creds *Credentials) error {
 		if u, err := accBalances.balance(change.Balance.Currency).update(change.Balance); err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("%w for %s.%s.%s %w", errCannotUpdateBalance, change.Account, change.AssetType, change.Balance.Currency, err))
 		} else if u {
-			if err := a.mux.Publish(change, a.ID); err != nil {
+			if err := a.mux.Publish(change, a.routingID); err != nil {
 				errs = common.AppendError(errs, fmt.Errorf("cannot publish update balance for %s: %w", a.Exchange, err))
 			}
 		}
