@@ -46,7 +46,8 @@ type (
 	subAccounts     map[key.SubAccountAsset]currencyBalances
 )
 
-// SubAccount contains a sub account for a single asset type and it's Balances
+// SubAccount contains a account for an asset type and its balances
+// The subAccount may be the main account depending on exchange structure
 type SubAccount struct {
 	ID        string
 	AssetType asset.Item
@@ -172,7 +173,7 @@ func (a *Accounts) CurrencyBalances() CurrencyBalances {
 
 // Save saves the holdings with a new snapshot of account balances; Any missing currencies will be removed
 // Each SubAccount change is Published if it changes the balance for that currency
-func (a *Accounts) Save(s SubAccounts, creds *Credentials) error {
+func (a *Accounts) Save(subAccts SubAccounts, creds *Credentials) error {
 	if err := common.NilGuard(a); err != nil {
 		return fmt.Errorf("cannot save holdings: %w", err)
 	}
@@ -188,25 +189,24 @@ func (a *Accounts) Save(s SubAccounts, creds *Credentials) error {
 	defer a.mu.Unlock()
 
 	var errs error
-	for i := range s {
-		update := s[i]
-		if !update.AssetType.IsValid() {
-			errs = common.AppendError(errs, fmt.Errorf("error loading %s[%s] SubAccount holdings: %w", update.ID, update.AssetType, asset.ErrNotSupported))
+	for _, s := range subAccts {
+		if !s.AssetType.IsValid() {
+			errs = common.AppendError(errs, fmt.Errorf("error loading %s[%s] SubAccount holdings: %w", s.ID, s.AssetType, asset.ErrNotSupported))
 			continue
 		}
 
-		accBalances := a.currencyBalances(creds, update.ID, update.AssetType)
+		accBalances := a.currencyBalances(creds, s.ID, s.AssetType)
 
 		updated := false
 		missing := maps.Clone(accBalances)
-		for curr, newBal := range update.Balances {
+		for curr, newBal := range s.Balances {
 			delete(missing, curr)
 			if newBal.UpdatedAt.IsZero() {
 				newBal.UpdatedAt = time.Now()
 			}
 			b := accBalances.balance(newBal.Currency)
 			if u, err := b.update(newBal); err != nil {
-				errs = common.AppendError(errs, fmt.Errorf("%w for account ID `%s` [%s %s]: %w", errLoadingBalance, update.ID, update.AssetType, curr, err))
+				errs = common.AppendError(errs, fmt.Errorf("%w for account ID `%s` [%s %s]: %w", errLoadingBalance, s.ID, s.AssetType, curr, err))
 			} else if u {
 				updated = true
 			}
@@ -216,7 +216,7 @@ func (a *Accounts) Save(s SubAccounts, creds *Credentials) error {
 			updated = true
 		}
 		if updated {
-			if err := a.mux.Publish(update, a.routingID); err != nil {
+			if err := a.mux.Publish(s, a.routingID); err != nil {
 				errs = common.AppendError(errs, fmt.Errorf("cannot publish load for %s %w", a.Exchange, err))
 			}
 		}
