@@ -137,7 +137,7 @@ func (e Exchange) AccountInformation(ctx context.Context, exch string, assetType
 		return accounts.SubAccounts{}, err
 	}
 
-	accountInfo, err := ex.GetCachedAccountInfo(ctx, assetType)
+	accountInfo, err := ex.GetCachedAccountBalances(ctx, assetType)
 	if err != nil {
 		return accounts.SubAccounts{}, err
 	}

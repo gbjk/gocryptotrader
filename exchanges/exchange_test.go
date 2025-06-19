@@ -2896,7 +2896,7 @@ func TestGetCachedOrderbook(t *testing.T) {
 	assert.Equal(t, pair, ob.Pair)
 }
 
-func TestGetCachedAccountInfo(t *testing.T) {
+func TestGetCachedAccountBalances(t *testing.T) {
 	t.Parallel()
 	b := Base{Name: "test"}
 
@@ -2908,11 +2908,11 @@ func TestGetCachedAccountInfo(t *testing.T) {
 		Key:    "test",
 		Secret: "test",
 	})
-	_, err := b.GetCachedAccountInfo(ctx, asset.Spot)
+	_, err := b.GetCachedAccountBalances(ctx, asset.Spot)
 	assert.ErrorIs(t, err, common.ErrNilPointer)
 
 	b.Accounts = accounts.MustNewAccounts(b.Name, dispatch.GetNewMux(nil))
-	_, err = b.GetCachedAccountInfo(ctx, asset.Spot)
+	_, err = b.GetCachedAccountBalances(ctx, asset.Spot)
 	assert.ErrorIs(t, err, accounts.ErrExchangeHoldingsNotFound)
 
 	err = b.Accounts.Save(&accounts.SubAccounts{Exchange: "test", Accounts: accounts.SubAccounts{
@@ -2920,7 +2920,7 @@ func TestGetCachedAccountInfo(t *testing.T) {
 	}}, creds)
 	require.NoError(t, err, "b.Accounts.Save must not error")
 
-	_, err = b.GetCachedAccountInfo(ctx, asset.Spot)
+	_, err = b.GetCachedAccountBalances(ctx, asset.Spot)
 	assert.NoError(t, err)
 }
 
@@ -2964,7 +2964,7 @@ func (f *FakeBase) CancelOrder(context.Context, *order.Cancel) error {
 	return nil
 }
 
-func (f *FakeBase) GetCachedAccountInfo(context.Context, asset.Item) (accounts.SubAccounts, error) {
+func (f *FakeBase) GetCachedAccountBalances(context.Context, asset.Item) (accounts.SubAccounts, error) {
 	return accounts.SubAccounts{}, nil
 }
 
