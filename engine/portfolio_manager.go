@@ -125,7 +125,7 @@ func (m *portfolioManager) processPortfolio() {
 	m.m.Lock()
 	defer m.m.Unlock()
 	if err := m.updateExchangeBalances(); err != nil {
-		log.Error(log.PortfolioMgr, err)
+		log.Errorln(log.PortfolioMgr, err)
 	}
 
 	data := m.base.GetPortfolioAddressesGroupedByCoin()
