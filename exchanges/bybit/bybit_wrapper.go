@@ -533,8 +533,8 @@ func (by *Bybit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType
 	return orderbook.Get(by.Name, p, assetType)
 }
 
-// UpdateAccountHoldings retrieves balances for all enabled currencies
-func (by *Bybit) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+// UpdateAccountBalances retrieves balances for all enabled currencies
+func (by *Bybit) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	at, err := by.FetchAccountType(ctx)
 	if err != nil {
 		return nil, err
@@ -1382,7 +1382,7 @@ func (by *Bybit) getCategoryFromPair(pair currency.Pair) []asset.Item {
 
 // ValidateAPICredentials validates current credentials used for wrapper
 func (by *Bybit) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := by.UpdateAccountHoldings(ctx, assetType)
+	_, err := by.UpdateAccountBalances(ctx, assetType)
 	return by.CheckTransientError(err)
 }
 

@@ -395,7 +395,7 @@ func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, l)
 
-	_, err := l.UpdateAccountHoldings(t.Context(), asset.Spot)
+	_, err := l.UpdateAccountBalances(t.Context(), asset.Spot)
 	if err != nil {
 		t.Error(err)
 	}

@@ -55,7 +55,7 @@ func testInstance() *Bybit {
 		log.Fatal(err)
 	}
 
-	b.SetCredentials("mock", "tester", "", "", "", "") // Hack for UpdateAccountHoldings test
+	b.SetCredentials("mock", "tester", "", "", "", "") // Hack for UpdateAccountBalances test
 
 	if err := testexch.MockHTTPInstance(b); err != nil {
 		log.Fatal(err)

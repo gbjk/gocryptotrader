@@ -407,8 +407,8 @@ func TestGetAccountInfo(t *testing.T) {
 	t.Parallel()
 	sharedtestvalues.SkipTestIfCredentialsUnset(t, b)
 
-	_, err := b.UpdateAccountHoldings(t.Context(), asset.Spot)
-	require.NoError(t, err, "UpdateAccountHoldings must not error")
+	_, err := b.UpdateAccountBalances(t.Context(), asset.Spot)
+	require.NoError(t, err, "UpdateAccountBalances must not error")
 }
 
 func TestModifyOrder(t *testing.T) {

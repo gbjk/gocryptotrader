@@ -305,8 +305,8 @@ func (h *HitBTC) UpdateOrderbook(ctx context.Context, c currency.Pair, assetType
 	return orderbook.Get(h.Name, c, assetType)
 }
 
-// UpdateAccountHoldings retrieves balances for all enabled currencies
-func (h *HitBTC) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+// UpdateAccountBalances retrieves balances for all enabled currencies
+func (h *HitBTC) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	resp, err := h.GetBalances(ctx)
 	if err != nil {
 		return nil, err
@@ -732,7 +732,7 @@ func (h *HitBTC) AuthenticateWebsocket(ctx context.Context) error {
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (h *HitBTC) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := h.UpdateAccountHoldings(ctx, assetType)
+	_, err := h.UpdateAccountBalances(ctx, assetType)
 	return h.CheckTransientError(err)
 }
 

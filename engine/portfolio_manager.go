@@ -162,7 +162,7 @@ func (m *portfolioManager) updateExchangeBalances() error {
 		}
 
 		for _, a := range assetTypes {
-			if _, err := e.UpdateAccountHoldings(context.TODO(), a); err != nil {
+			if _, err := e.UpdateAccountBalances(context.TODO(), a); err != nil {
 				errs = common.AppendError(errs, fmt.Errorf("error updating %s %s account balances: %w", e.GetName(), a, err))
 			}
 		}

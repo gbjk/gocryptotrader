@@ -711,8 +711,8 @@ func (g *Gateio) UpdateOrderbook(ctx context.Context, p currency.Pair, a asset.I
 	return orderbook.Get(g.Name, book.Pair, a)
 }
 
-// UpdateAccountHoldings retrieves balances for all enabled currencies for the
-func (g *Gateio) UpdateAccountHoldings(ctx context.Context, a asset.Item) (accounts.SubAccounts, error) {
+// UpdateAccountBalances retrieves balances for all enabled currencies for the
+func (g *Gateio) UpdateAccountBalances(ctx context.Context, a asset.Item) (accounts.SubAccounts, error) {
 	subAccts := accounts.SubAccounts{accounts.NewSubAccount(a, "")}
 	switch a {
 	case asset.Spot:
@@ -1782,7 +1782,7 @@ func (g *Gateio) GetAvailableTransferChains(ctx context.Context, cryptocurrency 
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (g *Gateio) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := g.UpdateAccountHoldings(ctx, assetType)
+	_, err := g.UpdateAccountBalances(ctx, assetType)
 	return g.CheckTransientError(err)
 }
 

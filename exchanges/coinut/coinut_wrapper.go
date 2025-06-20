@@ -198,8 +198,8 @@ func (c *COINUT) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 	return c.EnsureOnePairEnabled()
 }
 
-// UpdateAccountHoldings retrieves balances for all enabled currencies for the COINUT exchange
-func (c *COINUT) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
+// UpdateAccountBalances retrieves balances for all enabled currencies for the COINUT exchange
+func (c *COINUT) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
 	var bal *UserBalance
 	if c.Websocket.CanUseAuthenticatedWebsocketForWrapper() {
 		if bal, err = c.wsGetAccountBalance(); err != nil {
@@ -986,7 +986,7 @@ func (c *COINUT) loadInstrumentsIfNotLoaded() error {
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (c *COINUT) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := c.UpdateAccountHoldings(ctx, assetType)
+	_, err := c.UpdateAccountBalances(ctx, assetType)
 	return c.CheckTransientError(err)
 }
 

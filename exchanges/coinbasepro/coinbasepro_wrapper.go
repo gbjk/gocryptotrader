@@ -216,8 +216,8 @@ func (c *CoinbasePro) UpdateTradablePairs(ctx context.Context, forceUpdate bool)
 	return c.EnsureOnePairEnabled()
 }
 
-// UpdateAccountHoldings retrieves balances for all enabled currencies
-func (c *CoinbasePro) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
+// UpdateAccountBalances retrieves balances for all enabled currencies
+func (c *CoinbasePro) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
 	resp, err := c.GetAccounts(ctx)
 	if err != nil {
 		return subAccts, err
@@ -819,7 +819,7 @@ func (c *CoinbasePro) GetHistoricCandlesExtended(ctx context.Context, pair curre
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (c *CoinbasePro) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := c.UpdateAccountHoldings(ctx, assetType)
+	_, err := c.UpdateAccountBalances(ctx, assetType)
 	return c.CheckTransientError(err)
 }
 

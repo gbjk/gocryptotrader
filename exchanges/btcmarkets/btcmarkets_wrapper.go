@@ -314,8 +314,8 @@ func (b *BTCMarkets) UpdateOrderbook(ctx context.Context, p currency.Pair, asset
 	return orderbook.Get(b.Name, p, assetType)
 }
 
-// UpdateAccountHoldings retrieves balances for all enabled currencies
-func (b *BTCMarkets) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+// UpdateAccountBalances retrieves balances for all enabled currencies
+func (b *BTCMarkets) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	resp, err := b.GetAccountBalance(ctx)
 	if err != nil {
 		return nil, err
@@ -883,7 +883,7 @@ func (b *BTCMarkets) GetOrderHistory(ctx context.Context, req *order.MultiOrderR
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (b *BTCMarkets) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := b.UpdateAccountHoldings(ctx, assetType)
+	_, err := b.UpdateAccountBalances(ctx, assetType)
 	if err != nil {
 		if b.CheckTransientError(err) == nil {
 			return nil

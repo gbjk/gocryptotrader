@@ -353,8 +353,8 @@ func (bi *Binanceus) UpdateOrderbook(ctx context.Context, pair currency.Pair, as
 	return orderbook.Get(bi.Name, pair, assetType)
 }
 
-// UpdateAccountHoldings retrieves balances for all enabled currencies
-func (bi *Binanceus) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+// UpdateAccountBalances retrieves balances for all enabled currencies
+func (bi *Binanceus) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	if assetType != asset.Spot {
 		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, assetType)
 	}
@@ -789,7 +789,7 @@ func (bi *Binanceus) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeB
 
 // ValidateAPICredentials validates current credentials used for wrapper
 func (bi *Binanceus) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := bi.UpdateAccountHoldings(ctx, assetType)
+	_, err := bi.UpdateAccountBalances(ctx, assetType)
 	return bi.CheckTransientError(err)
 }
 

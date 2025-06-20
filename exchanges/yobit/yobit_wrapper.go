@@ -236,8 +236,8 @@ func (y *Yobit) UpdateOrderbook(ctx context.Context, p currency.Pair, assetType 
 	return orderbook.Get(y.Name, p, assetType)
 }
 
-// UpdateAccountHoldings retrieves balances for all enabled currencies
-func (y *Yobit) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+// UpdateAccountBalances retrieves balances for all enabled currencies
+func (y *Yobit) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	resp, err := y.GetAccountInformation(ctx)
 	if err != nil {
 		return nil, err
@@ -640,7 +640,7 @@ func (y *Yobit) GetOrderHistory(ctx context.Context, req *order.MultiOrderReques
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (y *Yobit) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := y.UpdateAccountHoldings(ctx, assetType)
+	_, err := y.UpdateAccountBalances(ctx, assetType)
 	return y.CheckTransientError(err)
 }
 

@@ -654,9 +654,9 @@ func (h *HUOBI) GetAccountID(ctx context.Context) ([]Account, error) {
 	return acc, nil
 }
 
-// UpdateAccountHoldings retrieves balances for all enabled currencies for the
+// UpdateAccountBalances retrieves balances for all enabled currencies for the
 // HUOBI exchange - to-do
-func (h *HUOBI) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
+func (h *HUOBI) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (subAccts accounts.SubAccounts, err error) {
 	switch assetType {
 	case asset.Spot:
 		resp, err := h.GetAccountID(ctx)
@@ -1719,7 +1719,7 @@ func (h *HUOBI) AuthenticateWebsocket(ctx context.Context) error {
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (h *HUOBI) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := h.UpdateAccountHoldings(ctx, assetType)
+	_, err := h.UpdateAccountBalances(ctx, assetType)
 	return h.CheckTransientError(err)
 }
 

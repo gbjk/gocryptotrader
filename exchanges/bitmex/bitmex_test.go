@@ -577,19 +577,19 @@ func TestCancelAllExchangeOrders(t *testing.T) {
 	}
 }
 
-func TestUpdateAccountHoldings(t *testing.T) {
+func TestUpdateAccountBalances(t *testing.T) {
 	t.Parallel()
 	if sharedtestvalues.AreAPICredentialsSet(b) {
-		_, err := b.UpdateAccountHoldings(t.Context(), asset.Spot)
+		_, err := b.UpdateAccountBalances(t.Context(), asset.Spot)
 		require.NoError(t, err)
 
-		_, err = b.UpdateAccountHoldings(t.Context(), asset.Futures)
+		_, err = b.UpdateAccountBalances(t.Context(), asset.Futures)
 		require.NoError(t, err)
 	} else {
-		_, err := b.UpdateAccountHoldings(t.Context(), asset.Spot)
+		_, err := b.UpdateAccountBalances(t.Context(), asset.Spot)
 		require.Error(t, err)
 
-		_, err = b.UpdateAccountHoldings(t.Context(), asset.Futures)
+		_, err = b.UpdateAccountBalances(t.Context(), asset.Futures)
 		require.Error(t, err)
 	}
 }

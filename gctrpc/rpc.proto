@@ -1611,7 +1611,7 @@ service GoCryptoTraderService {
     option (google.api.http) = {get: "/v1/getaccountinfo"};
   }
 
-  rpc UpdateAccountHoldings(GetAccountInfoRequest) returns (GetAccountInfoResponse) {
+  rpc UpdateAccountBalances(GetAccountInfoRequest) returns (GetAccountInfoResponse) {
     option (google.api.http) = {get: "/v1/updateaccountinfo"};
   }
 

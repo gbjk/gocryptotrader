@@ -214,9 +214,9 @@ func (g *Gemini) UpdateTradablePairs(ctx context.Context, forceUpdate bool) erro
 	return g.EnsureOnePairEnabled()
 }
 
-// UpdateAccountHoldings Retrieves balances for all enabled currencies for the
+// UpdateAccountBalances Retrieves balances for all enabled currencies for the
 // Gemini exchange
-func (g *Gemini) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+func (g *Gemini) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	resp, err := g.GetBalances(ctx)
 	if err != nil {
 		return nil, err
@@ -753,7 +753,7 @@ func (g *Gemini) GetOrderHistory(ctx context.Context, req *order.MultiOrderReque
 // ValidateAPICredentials validates current credentials used for wrapper
 // functionality
 func (g *Gemini) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := g.UpdateAccountHoldings(ctx, assetType)
+	_, err := g.UpdateAccountBalances(ctx, assetType)
 	return g.CheckTransientError(err)
 }
 

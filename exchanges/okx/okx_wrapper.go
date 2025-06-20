@@ -635,8 +635,8 @@ func (ok *Okx) UpdateOrderbook(ctx context.Context, pair currency.Pair, assetTyp
 	return orderbook.Get(ok.Name, pair, assetType)
 }
 
-// UpdateAccountHoldings retrieves balances for all enabled currencies.
-func (ok *Okx) UpdateAccountHoldings(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
+// UpdateAccountBalances retrieves balances for all enabled currencies.
+func (ok *Okx) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	if err := ok.CurrencyPairs.IsAssetEnabled(assetType); err != nil {
 		return nil, err
 	}
@@ -1969,7 +1969,7 @@ func (ok *Okx) GetFeeByType(ctx context.Context, feeBuilder *exchange.FeeBuilder
 
 // ValidateAPICredentials validates current credentials used for wrapper
 func (ok *Okx) ValidateAPICredentials(ctx context.Context, assetType asset.Item) error {
-	_, err := ok.UpdateAccountHoldings(ctx, assetType)
+	_, err := ok.UpdateAccountBalances(ctx, assetType)
 	return ok.CheckTransientError(err)
 }
 

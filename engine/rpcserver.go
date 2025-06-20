@@ -582,8 +582,8 @@ func (s *RPCServer) GetAccountInfo(ctx context.Context, r *gctrpc.GetAccountInfo
 	return createAccountInfoRequest(resp)
 }
 
-// UpdateAccountHoldings forces an update of the account info
-func (s *RPCServer) UpdateAccountHoldings(ctx context.Context, r *gctrpc.GetAccountInfoRequest) (*gctrpc.GetAccountInfoResponse, error) {
+// UpdateAccountBalances forces an update of the account info
+func (s *RPCServer) UpdateAccountBalances(ctx context.Context, r *gctrpc.GetAccountInfoRequest) (*gctrpc.GetAccountInfoResponse, error) {
 	assetType, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
@@ -599,7 +599,7 @@ func (s *RPCServer) UpdateAccountHoldings(ctx context.Context, r *gctrpc.GetAcco
 		return nil, err
 	}
 
-	resp, err := exch.UpdateAccountHoldings(ctx, assetType)
+	resp, err := exch.UpdateAccountBalances(ctx, assetType)
 	if err != nil {
 		return nil, err
 	}
