@@ -32,8 +32,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository/audit"
 	exchangeDB "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
-	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fundingrate"
@@ -579,7 +579,7 @@ func (s *RPCServer) GetAccountInfo(ctx context.Context, r *gctrpc.GetAccountInfo
 		return nil, err
 	}
 
-	return createAccountInfoRequest(resp)
+	return accountBalanceResp(resp)
 }
 
 // UpdateAccountBalances forces an update of the account info
@@ -604,10 +604,10 @@ func (s *RPCServer) UpdateAccountBalances(ctx context.Context, r *gctrpc.GetAcco
 		return nil, err
 	}
 
-	return createAccountInfoRequest(resp)
+	return accountBalanceResp(resp)
 }
 
-func createAccountInfoRequest(h accounts.SubAccounts) (*gctrpc.GetAccountInfoResponse, error) {
+func accountBalanceResp(h accounts.SubAccounts) (*gctrpc.GetAccountInfoResponse, error) {
 	accounts := make([]*gctrpc.Account, len(h.Accounts))
 	for x := range h.Accounts {
 		var a gctrpc.Account
