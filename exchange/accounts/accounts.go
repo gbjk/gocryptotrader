@@ -89,10 +89,10 @@ func (a *Accounts) Subscribe() (dispatch.Pipe, error) {
 	return a.mux.Subscribe(a.routingID)
 }
 
-// GetBalances returns the collated currency balances for the Accounts
+// CurrencyBalances returns the currency balances for the Accounts grouped by currency
 // If creds is nil, all credential SubAccounts will be collated
 // If assetType is asset.All, all assets will be collated
-func (a *Accounts) GetBalances(creds *Credentials, assetType asset.Item) (CurrencyBalances, error) {
+func (a *Accounts) CurrencyBalances(creds *Credentials, assetType asset.Item) (CurrencyBalances, error) {
 	if err := common.NilGuard(a); err != nil {
 		return nil, err
 	}
@@ -122,10 +122,10 @@ func (a *Accounts) GetBalances(creds *Credentials, assetType asset.Item) (Curren
 	return currs, nil
 }
 
-// GetSubAccounts returns the SubAccounts
+// Balances returns the public SubAccounts and their balances
 // If creds is nil, all credential SubAccounts will be returned
 // If assetType is asset.All, all assets will be returned
-func (a *Accounts) GetSubAccounts(creds *Credentials, assetType asset.Item) (SubAccounts, error) {
+func (a *Accounts) Balances(creds *Credentials, assetType asset.Item) (SubAccounts, error) {
 	if err := common.NilGuard(a); err != nil {
 		return nil, err
 	}
@@ -191,19 +191,6 @@ func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset
 		return Balance{}, fmt.Errorf("%w for %s SubAccount %q %s %s", errNoExchangeSubAccountBalances, a.Exchange.GetName(), subAccount, aType, c)
 	}
 	return b.Balance(), nil
-}
-
-// CurrencyBalances returns the collated currency balances for all sub accounts
-func (a *Accounts) CurrencyBalances() CurrencyBalances {
-	currs := CurrencyBalances{}
-	for _, subAcctMap := range a.subAccounts {
-		for _, balances := range subAcctMap {
-			for curr, bal := range balances {
-				currs.Add(curr, bal.Balance())
-			}
-		}
-	}
-	return currs
 }
 
 // Save saves the holdings with a new snapshot of account balances; Any missing currencies will be removed

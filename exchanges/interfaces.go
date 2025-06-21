@@ -151,7 +151,7 @@ type CurrencyStateManagement interface {
 // AccountManagement defines functionality for exchange account management
 type AccountManagement interface {
 	UpdateAccountBalances(ctx context.Context, a asset.Item) (accounts.SubAccounts, error)
-	GetCachedAccountBalances(ctx context.Context, a asset.Item) (accounts.CurrencyBalances, error)
+	GetCachedAccountBalances(ctx context.Context, a asset.Item) (accounts.SubAccounts, error)
 	HasAssetTypeAccountSegregation() bool
 	SubscribeAccountBalances() (dispatch.Pipe, error)
 }

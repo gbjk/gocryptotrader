@@ -557,87 +557,78 @@ func (s *RPCServer) GetOrderbooks(_ context.Context, _ *gctrpc.GetOrderbooksRequ
 	return &gctrpc.GetOrderbooksResponse{Orderbooks: obResponse}, nil
 }
 
-// GetAccountInfo returns an account balance for a specific exchange
-func (s *RPCServer) GetAccountInfo(ctx context.Context, r *gctrpc.GetAccountInfoRequest) (*gctrpc.GetAccountInfoResponse, error) {
+// GetAccountBalances returns an account balance for a specific exchange
+func (s *RPCServer) GetAccountBalances(ctx context.Context, r *gctrpc.GetAccountBalancesRequest) (*gctrpc.GetAccountBalancesResponse, error) {
 	assetType, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
 	}
 
-	exch, err := s.GetExchangeByName(r.Exchange)
+	e, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
 	}
 
-	err = checkParams(r.Exchange, exch, assetType, currency.EMPTYPAIR)
+	if err = checkParams(r.Exchange, e, assetType, currency.EMPTYPAIR); err != nil {
+		return nil, err
+	}
+
+	resp, err := e.GetCachedAccountBalances(ctx, assetType)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := exch.GetCachedAccountBalances(ctx, assetType)
-	if err != nil {
-		return nil, err
-	}
-
-	return accountBalanceResp(resp)
+	return accountBalanceResp(resp), nil
 }
 
 // UpdateAccountBalances forces an update of the account info
-func (s *RPCServer) UpdateAccountBalances(ctx context.Context, r *gctrpc.GetAccountInfoRequest) (*gctrpc.GetAccountInfoResponse, error) {
+func (s *RPCServer) UpdateAccountBalances(ctx context.Context, r *gctrpc.GetAccountBalancesRequest) (*gctrpc.GetAccountBalancesResponse, error) {
 	assetType, err := asset.New(r.AssetType)
 	if err != nil {
 		return nil, err
 	}
 
-	exch, err := s.GetExchangeByName(r.Exchange)
+	e, err := s.GetExchangeByName(r.Exchange)
 	if err != nil {
 		return nil, err
 	}
 
-	err = checkParams(r.Exchange, exch, assetType, currency.EMPTYPAIR)
+	err = checkParams(r.Exchange, e, assetType, currency.EMPTYPAIR)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := exch.UpdateAccountBalances(ctx, assetType)
+	resp, err := e.UpdateAccountBalances(ctx, assetType)
 	if err != nil {
 		return nil, err
 	}
 
-	return accountBalanceResp(resp)
+	return accountBalanceResp(resp), nil
 }
 
-func accountBalanceResp(h accounts.SubAccounts) (*gctrpc.GetAccountInfoResponse, error) {
-	accounts := make([]*gctrpc.Account, len(h.Accounts))
-	for x := range h.Accounts {
-		var a gctrpc.Account
-		a.Id = h.Accounts[x].Credentials.String()
-		for _, y := range h.Accounts[x].Currencies {
-			if y.Total == 0 &&
-				y.Hold == 0 &&
-				y.Free == 0 &&
-				y.AvailableWithoutBorrow == 0 &&
-				y.Borrowed == 0 {
-				continue
-			}
-			a.Currencies = append(a.Currencies, &gctrpc.AccountCurrencyInfo{
-				Currency:          y.Currency.String(),
-				TotalValue:        y.Total,
-				Hold:              y.Hold,
-				Free:              y.Free,
-				FreeWithoutBorrow: y.AvailableWithoutBorrow,
-				Borrowed:          y.Borrowed,
-				UpdatedAt:         timestamppb.New(y.UpdatedAt),
+func accountBalanceResp(s accounts.SubAccounts) *gctrpc.GetAccountBalancesResponse {
+	subAccts := make([]*gctrpc.Account, len(s))
+	for i, sa := range s {
+		subAccts[i] = &gctrpc.Account{
+			Id: sa.ID,
+		}
+		for curr, bal := range sa.Balances {
+			subAccts[i].Currencies = append(subAccts[i].Currencies, &gctrpc.AccountCurrencyInfo{
+				Currency:          curr.String(),
+				TotalValue:        bal.Total,
+				Hold:              bal.Hold,
+				Free:              bal.Free,
+				FreeWithoutBorrow: bal.AvailableWithoutBorrow,
+				Borrowed:          bal.Borrowed,
+				UpdatedAt:         timestamppb.New(bal.UpdatedAt),
 			})
 		}
-		accounts[x] = &a
 	}
-
-	return &gctrpc.GetAccountInfoResponse{Exchange: h.Exchange, Accounts: accounts}, nil
+	return &gctrpc.GetAccountBalancesResponse{Accounts: subAccts}
 }
 
-// GetAccountInfoStream streams an account balance for a specific exchange
-func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream gctrpc.GoCryptoTraderService_GetAccountInfoStreamServer) error {
+// GetAccountBalancesStream streams an account balance for a specific exchange
+func (s *RPCServer) GetAccountBalancesStream(r *gctrpc.GetAccountBalancesRequest, stream gctrpc.GoCryptoTraderService_GetAccountBalancesStreamServer) error {
 	assetType, err := asset.New(r.AssetType)
 	if err != nil {
 		return err
@@ -700,7 +691,7 @@ func (s *RPCServer) GetAccountInfoStream(r *gctrpc.GetAccountInfoRequest, stream
 			}
 		}
 
-		if err := stream.Send(&gctrpc.GetAccountInfoResponse{
+		if err := stream.Send(&gctrpc.GetAccountBalancesResponse{
 			Exchange: holdings.Exchange,
 			Accounts: accounts,
 		}); err != nil {

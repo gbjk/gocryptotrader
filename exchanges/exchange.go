@@ -1931,12 +1931,12 @@ func (b *Base) GetCachedOrderbook(p currency.Pair, assetType asset.Item) (*order
 
 // GetCachedAccountBalances retrieves cached balances for all enabled currencies
 // NOTE: Accounts.Save method should be called first to populate the local cache
-func (b *Base) GetCachedAccountBalances(ctx context.Context, assetType asset.Item) (accounts.CurrencyBalances, error) {
+func (b *Base) GetCachedAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	creds, err := b.GetCredentials(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return b.Accounts.GetBalances(creds, assetType)
+	return b.Accounts.Balances(creds, assetType)
 }
 
 // WebsocketSubmitOrder submits an order to the exchange via a websocket connection
