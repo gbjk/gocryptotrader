@@ -578,7 +578,7 @@ func (s *RPCServer) GetAccountBalances(ctx context.Context, r *gctrpc.GetAccount
 		return nil, err
 	}
 
-	return accountBalanceResp(resp), nil
+	return accountBalanceResp(r.Exchange, resp), nil
 }
 
 // UpdateAccountBalances forces an update of the account info
@@ -603,10 +603,10 @@ func (s *RPCServer) UpdateAccountBalances(ctx context.Context, r *gctrpc.GetAcco
 		return nil, err
 	}
 
-	return accountBalanceResp(resp), nil
+	return accountBalanceResp(r.Exchange, resp), nil
 }
 
-func accountBalanceResp(s accounts.SubAccounts) *gctrpc.GetAccountBalancesResponse {
+func accountBalanceResp(eName string, s accounts.SubAccounts) *gctrpc.GetAccountBalancesResponse {
 	subAccts := make([]*gctrpc.Account, len(s))
 	for i, sa := range s {
 		subAccts[i] = &gctrpc.Account{
@@ -624,7 +624,10 @@ func accountBalanceResp(s accounts.SubAccounts) *gctrpc.GetAccountBalancesRespon
 			})
 		}
 	}
-	return &gctrpc.GetAccountBalancesResponse{Accounts: subAccts}
+	return &gctrpc.GetAccountBalancesResponse{
+		Exchange: eName,
+		Accounts: subAccts,
+	}
 }
 
 // GetAccountBalancesStream streams an account balance for a specific exchange
@@ -669,32 +672,12 @@ func (s *RPCServer) GetAccountBalancesStream(r *gctrpc.GetAccountBalancesRequest
 		case <-init:
 		}
 
-		holdings, err := exch.GetCachedAccountBalances(stream.Context(), assetType)
+		subAccts, err := exch.GetCachedAccountBalances(stream.Context(), assetType)
 		if err != nil {
 			return err
 		}
 
-		accounts := make([]*gctrpc.Account, len(holdings.Accounts))
-		for x := range holdings.Accounts {
-			subAccounts := make([]*gctrpc.AccountCurrencyInfo, len(holdings.Accounts[x].Currencies))
-			for y := range holdings.Accounts[x].Currencies {
-				subAccounts[y] = &gctrpc.AccountCurrencyInfo{
-					Currency:   holdings.Accounts[x].Currencies[y].Currency.String(),
-					TotalValue: holdings.Accounts[x].Currencies[y].Total,
-					Hold:       holdings.Accounts[x].Currencies[y].Hold,
-					UpdatedAt:  timestamppb.New(holdings.Accounts[x].Currencies[y].UpdatedAt),
-				}
-			}
-			accounts[x] = &gctrpc.Account{
-				Id:         holdings.Accounts[x].ID,
-				Currencies: subAccounts,
-			}
-		}
-
-		if err := stream.Send(&gctrpc.GetAccountBalancesResponse{
-			Exchange: holdings.Exchange,
-			Accounts: accounts,
-		}); err != nil {
+		if err := stream.Send(accountBalanceResp(r.Exchange, subAccts)); err != nil {
 			return err
 		}
 	}

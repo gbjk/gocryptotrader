@@ -185,6 +185,7 @@ message AccountCurrencyInfo {
 }
 
 message GetAccountBalancesResponse {
+  string exchange = 1;
   repeated Account accounts = 2;
 }
 

@@ -1917,6 +1917,7 @@ func (x *AccountCurrencyInfo) GetUpdatedAt() *timestamppb.Timestamp {
 
 type GetAccountBalancesResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	Exchange      string                 `protobuf:"bytes,1,opt,name=exchange,proto3" json:"exchange,omitempty"`
 	Accounts      []*Account             `protobuf:"bytes,2,rep,name=accounts,proto3" json:"accounts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1950,6 +1951,13 @@ func (x *GetAccountBalancesResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetAccountBalancesResponse.ProtoReflect.Descriptor instead.
 func (*GetAccountBalancesResponse) Descriptor() ([]byte, []int) {
 	return file_rpc_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *GetAccountBalancesResponse) GetExchange() string {
+	if x != nil {
+		return x.Exchange
+	}
+	return ""
 }
 
 func (x *GetAccountBalancesResponse) GetAccounts() []*Account {
@@ -15242,8 +15250,9 @@ const file_rpc_proto_rawDesc = "" +
 	"\x13free_without_borrow\x18\x05 \x01(\x01R\x11freeWithoutBorrow\x12\x1a\n" +
 	"\bborrowed\x18\x06 \x01(\x01R\bborrowed\x129\n" +
 	"\n" +
-	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"I\n" +
-	"\x1aGetAccountBalancesResponse\x12+\n" +
+	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"e\n" +
+	"\x1aGetAccountBalancesResponse\x12\x1a\n" +
+	"\bexchange\x18\x01 \x01(\tR\bexchange\x12+\n" +
 	"\baccounts\x18\x02 \x03(\v2\x0f.gctrpc.AccountR\baccounts\"\x12\n" +
 	"\x10GetConfigRequest\"'\n" +
 	"\x11GetConfigResponse\x12\x12\n" +

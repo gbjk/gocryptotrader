@@ -5855,6 +5855,9 @@
     "gctrpcGetAccountBalancesResponse": {
       "type": "object",
       "properties": {
+        "exchange": {
+          "type": "string"
+        },
         "accounts": {
           "type": "array",
           "items": {
