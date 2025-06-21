@@ -122,6 +122,41 @@ func (a *Accounts) GetBalances(creds *Credentials, assetType asset.Item) (Curren
 	return currs, nil
 }
 
+// GetSubAccounts returns the SubAccounts
+// If creds is nil, all credential SubAccounts will be returned
+// If assetType is asset.All, all assets will be returned
+func (a *Accounts) GetSubAccounts(creds *Credentials, assetType asset.Item) (SubAccounts, error) {
+	if err := common.NilGuard(a); err != nil {
+		return nil, err
+	}
+
+	if !assetType.IsValid() && assetType != asset.All {
+		return nil, fmt.Errorf("%s %s %w", a.Exchange.GetName(), assetType, asset.ErrNotSupported)
+	}
+
+	var subAccts SubAccounts
+	for credsKey, subAccountsForCreds := range a.subAccounts {
+		if !creds.IsEmpty() && *creds != credsKey {
+			continue
+		}
+		for subAcctKey, balances := range subAccountsForCreds {
+			if assetType != asset.All && assetType != subAcctKey.Asset {
+				continue
+			}
+			subAccts = append(subAccts, &SubAccount{
+				ID:        subAcctKey.SubAccount,
+				AssetType: subAcctKey.Asset,
+				Balances:  balances.Public(),
+			})
+		}
+	}
+
+	if len(subAccts) == 0 {
+		return nil, fmt.Errorf("%w for %s credentials %s asset %s", ErrBalancesNotFound, a.Exchange.GetName(), assetType)
+	}
+	return subAccts, nil
+}
+
 // GetBalance returns a copy of the balance for that asset item
 func (a *Accounts) GetBalance(subAccount string, creds *Credentials, aType asset.Item, c currency.Code) (Balance, error) {
 	if !aType.IsValid() {
