@@ -148,8 +148,8 @@ assets:
 	}
 	assetPairs = append(assetPairs, assetPair{})
 
-	err = dispatch.Start(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
-	require.NoError(t, err, "dispatch.Start must not error")
+	err = dispatch.EnsureRunning(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
+	require.NoError(t, err, "dispatch.EnsureRunning must not error")
 
 	return exch, assetPairs
 }
