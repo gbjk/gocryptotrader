@@ -58,9 +58,10 @@ type SubAccount struct {
 type SubAccounts []*SubAccount
 
 // MustNewAccounts returns an initialized Accounts store for use in isolation from a global exchange accounts store
+// mux is set to dispatch.GetNewMux(nil)
 // Any errors in mux ID generation will panic, so users should balance risk vs utility accordingly depending on use-case
-func MustNewAccounts(e exchange, mux *dispatch.Mux) *Accounts {
-	a, err := NewAccounts(e, mux)
+func MustNewAccounts(e exchange) *Accounts {
+	a, err := NewAccounts(e, dispatch.GetNewMux(nil))
 	if err != nil {
 		panic(err)
 	}

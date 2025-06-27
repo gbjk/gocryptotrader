@@ -13,7 +13,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -853,7 +852,7 @@ func TestSetupDefaults(t *testing.T) {
 	exp, err := accounts.GetStore().GetExchangeAccounts(&b)
 	require.NoError(t, err, "GetExchangeAccounts must not error")
 	assert.Same(t, exp, b.Accounts, "SetupDefaults should default accounts from the global accounts store")
-	b.Accounts = accounts.MustNewAccounts(&b, dispatch.GetNewMux(nil))
+	b.Accounts = accounts.MustNewAccounts(&b)
 	a := b.Accounts
 	require.NoError(t, err, "NewAccounts must not error")
 	require.NoError(t, b.SetupDefaults(&cfg))
@@ -2664,7 +2663,7 @@ func TestGetCachedAccountBalances(t *testing.T) {
 	_, err := b.GetCachedAccountBalances(ctx, asset.Spot)
 	assert.ErrorIs(t, err, common.ErrNilPointer)
 
-	b.Accounts = accounts.MustNewAccounts(&b, dispatch.GetNewMux(nil))
+	b.Accounts = accounts.MustNewAccounts(&b)
 	_, err = b.GetCachedAccountBalances(ctx, asset.Spot)
 	assert.ErrorIs(t, err, accounts.ErrBalancesNotFound)
 

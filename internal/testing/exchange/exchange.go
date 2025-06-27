@@ -18,7 +18,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
-	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/mock"
@@ -53,7 +52,7 @@ func Setup(e exchange.IBotExchange) error {
 		return fmt.Errorf("Setup() error: %w", err)
 	}
 
-	b.Accounts = accounts.MustNewAccounts(b, dispatch.GetNewMux(nil))
+	b.Accounts = accounts.MustNewAccounts(b)
 
 	return err
 }

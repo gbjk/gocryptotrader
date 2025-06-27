@@ -33,6 +33,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database/repository"
 	dbexchange "github.com/thrasher-corp/gocryptotrader/database/repository/exchange"
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
+	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
@@ -325,21 +326,12 @@ func (f fExchange) GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Price
 // to do the bare minimum required with no API calls or credentials required
 func (f fExchange) GetCachedAccountBalances(_ context.Context, a asset.Item) (accounts.SubAccounts, error) {
 	return accounts.SubAccounts{
-		Exchange: f.GetName(),
-		Accounts: accounts.SubAccounts{
-			{
-				ID:        "1337",
-				AssetType: a,
-				Currencies: []accounts.Balance{
-					{
-						Currency: currency.USD,
-						Total:    1337,
-					},
-					{
-						Currency: currency.BTC,
-						Total:    13337,
-					},
-				},
+		{
+			ID:        "1337",
+			AssetType: a,
+			Balances: accounts.CurrencyBalances{
+				currency.USD: {Currency: currency.USD, Total: 1337},
+				currency.BTC: {Currency: currency.BTC, Total: 13337},
 			},
 		},
 	}, nil
@@ -398,12 +390,10 @@ func (f fExchange) UpdateAccountBalances(_ context.Context, a asset.Item) (accou
 		return accounts.SubAccounts{}, asset.ErrNotSupported
 	}
 	return accounts.SubAccounts{
-		Exchange: f.GetName(),
-		Accounts: accounts.SubAccounts{
-			{
-				ID:         "1337",
+		accounts.MustNewAccounts(f),
+			{ ID:         "1337",
 				AssetType:  a,
-				Currencies: nil,
+				Balanc: nil,
 			},
 		},
 	}, nil

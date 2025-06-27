@@ -28,7 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/database"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
-	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/deposit"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
@@ -721,67 +720,6 @@ func TestGetExchangeNamesByCurrency(t *testing.T) {
 		true,
 		assetType)
 	if len(result) > 0 {
-		t.Fatal("Unexpected result")
-	}
-}
-
-func TestGetCollatedExchangeAccountInfoByCoin(t *testing.T) {
-	t.Parallel()
-	CreateTestBot(t)
-
-	var exchangeInfo []accounts.SubAccounts
-
-	var bitfinexHoldings accounts.SubAccounts
-	bitfinexHoldings.Exchange = "Bitfinex"
-	bitfinexHoldings.Accounts = append(bitfinexHoldings.Accounts,
-		accounts.SubAccount{
-			Currencies: []accounts.Balance{
-				{
-					Currency: currency.BTC,
-					Total:    100,
-					Hold:     0,
-				},
-			},
-		})
-
-	exchangeInfo = append(exchangeInfo, bitfinexHoldings)
-
-	var bitstampHoldings accounts.SubAccounts
-	bitstampHoldings.Exchange = testExchange
-	bitstampHoldings.Accounts = append(bitstampHoldings.Accounts,
-		accounts.SubAccount{
-			Currencies: []accounts.Balance{
-				{
-					Currency: currency.LTC,
-					Total:    100,
-					Hold:     0,
-				},
-				{
-					Currency: currency.BTC,
-					Total:    100,
-					Hold:     0,
-				},
-			},
-		})
-
-	exchangeInfo = append(exchangeInfo, bitstampHoldings)
-
-	result := GetCollatedExchangeAccountInfoByCoin(exchangeInfo)
-	if len(result) == 0 {
-		t.Fatal("Unexpected result")
-	}
-
-	amount, ok := result[currency.BTC]
-	if !ok {
-		t.Fatal("Expected currency was not found in result map")
-	}
-
-	if amount.Total != 200 {
-		t.Fatal("Unexpected result")
-	}
-
-	_, ok = result[currency.ETH]
-	if ok {
 		t.Fatal("Unexpected result")
 	}
 }

@@ -39,9 +39,9 @@ func TestNewAccounts(t *testing.T) {
 
 func TestMustNewAccounts(t *testing.T) {
 	t.Parallel()
-	a := MustNewAccounts(&mockEx{"mocky"}, dispatch.GetNewMux(nil))
+	a := MustNewAccounts(&mockEx{"mocky"})
 	require.NotNil(t, a)
-	require.Panics(t, func() { _ = MustNewAccounts(nil, nil) })
+	require.Panics(t, func() { _ = MustNewAccounts(nil) })
 }
 
 // TestSubscribe ensures that Subscribe returns a subscription channel
@@ -52,7 +52,7 @@ func TestSubscribe(t *testing.T) {
 	err := dispatch.Start(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
 	require.NoError(t, common.ExcludeError(err, dispatch.ErrDispatcherAlreadyRunning), "dispatch.Start must not error")
 
-	p, err := MustNewAccounts(&mockEx{}, dispatch.GetNewMux(nil)).Subscribe()
+	p, err := MustNewAccounts(&mockEx{}).Subscribe()
 	require.NoError(t, err)
 	require.NotNil(t, p, "Subscribe must return a pipe")
 	require.Empty(t, p.Channel(), "Pipe must be empty before Saving anything")
@@ -61,7 +61,7 @@ func TestSubscribe(t *testing.T) {
 func TestCurrencyBalancesPublic(t *testing.T) {
 	t.Parallel()
 
-	a := MustNewAccounts(&mockEx{}, dispatch.GetNewMux(nil))
+	a := MustNewAccounts(&mockEx{})
 	c := &Credentials{Key: "Creds"}
 	bals := a.currencyBalances(c, "", asset.Spot)
 	require.NotNil(t, bals)
