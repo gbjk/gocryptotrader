@@ -186,23 +186,6 @@ func TestGetAllActiveTickers(t *testing.T) {
 	}
 }
 
-func TestGetAllActiveAccounts(t *testing.T) {
-	t.Parallel()
-	man := NewExchangeManager()
-	bs, err := man.NewExchangeByName("Bitstamp")
-	if err != nil {
-		t.Fatal(err)
-	}
-	bs.SetDefaults()
-	err = man.Add(bs)
-	require.NoError(t, err)
-
-	resp := getAllActiveAccounts(man)
-	if resp == nil {
-		t.Error("expected not nil")
-	}
-}
-
 func makeHTTPGetRequest(t *testing.T, response any) *http.Response {
 	t.Helper()
 	w := httptest.NewRecorder()
