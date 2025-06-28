@@ -74,7 +74,6 @@ var (
 	errCurrencyPairInvalid     = errors.New("currency provided is not found in the available pairs list")
 	errNoTrades                = errors.New("no trades returned from supplied params")
 	errNilRequestData          = errors.New("nil request data received, cannot continue")
-	errNoAccountInformation    = errors.New("account information does not exist")
 	errShutdownNotAllowed      = errors.New("shutting down this bot instance is not allowed via gRPC, please enable by command line flag --grpcshutdown or config.json field grpcAllowBotShutdown")
 	errGRPCShutdownSignalIsNil = errors.New("cannot shutdown, gRPC shutdown channel is nil")
 	errInvalidStrategy         = errors.New("invalid strategy")
@@ -4752,6 +4751,9 @@ func (s *RPCServer) GetCollateral(ctx context.Context, r *gctrpc.GetCollateralRe
 	creds, err := exch.GetCredentials(ctx)
 	if err != nil {
 		return nil, err
+	}
+	if len(currBalances) == 0 {
+		return nil, fmt.Errorf("%w for %s SubAccount %q and stored credentials", accounts.ErrBalancesNotFound, exch.GetName(), creds.SubAccount)
 	}
 	var spotPairs currency.Pairs
 	if r.CalculateOffline {

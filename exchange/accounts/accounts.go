@@ -97,11 +97,9 @@ func (a *Accounts) CurrencyBalances(creds *Credentials, assetType asset.Item) (C
 	if err := common.NilGuard(a); err != nil {
 		return nil, err
 	}
-
 	if !assetType.IsValid() && assetType != asset.All {
 		return nil, fmt.Errorf("%s %s %w", a.Exchange.GetName(), assetType, asset.ErrNotSupported)
 	}
-
 	currs := CurrencyBalances{}
 	for credsKey, subAccountsForCreds := range a.subAccounts {
 		if !creds.IsEmpty() && *creds != credsKey {
@@ -116,7 +114,6 @@ func (a *Accounts) CurrencyBalances(creds *Credentials, assetType asset.Item) (C
 			}
 		}
 	}
-
 	if len(currs) == 0 {
 		return nil, fmt.Errorf("%w for %s credentials %s asset %s", ErrBalancesNotFound, a.Exchange.GetName(), creds, assetType)
 	}
