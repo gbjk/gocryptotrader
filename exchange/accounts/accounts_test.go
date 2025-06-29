@@ -4,7 +4,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -58,18 +57,21 @@ func TestSubscribe(t *testing.T) {
 	require.Empty(t, p.Channel(), "Pipe must be empty before Saving anything")
 }
 
-func TestCurrencyBalancesPublic(t *testing.T) {
+func TestCurrencyBalancesPrivate(t *testing.T) {
 	t.Parallel()
 
-	a := MustNewAccounts(&mockEx{})
 	c := &Credentials{Key: "Creds"}
+	a := MustNewAccounts(&mockEx{})
 	bals := a.currencyBalances(c, "", asset.Spot)
 	require.NotNil(t, bals)
 	b := bals.balance(currency.BTC)
 	updated, err := b.update(Balance{Total: 4.0, UpdatedAt: time.Now()})
 	require.NoError(t, err, "update must not error")
 	require.True(t, updated, "update must return true")
-	spew.Dump(a.subAccounts[*c][key.SubAccountAsset{Asset: asset.Spot}], b)
+	ref := a.subAccounts[*c][key.SubAccountAsset{Asset: asset.Spot}][currency.BTC].internal
+	t.Error("Exercise mismatched currency codes")
+	assert.Equal(t, currency.BTC, ref.Currency, "Currency should be updated")
+	assert.Equal(t, 4.0, ref.Total, "Total should be updated")
 }
 
 /*

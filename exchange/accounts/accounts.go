@@ -310,6 +310,8 @@ func (l SubAccounts) Merge(s *SubAccount) SubAccounts {
 	return l
 }
 
+// currencyBalances ensures a map entries are initialized for credentials, subAcct and asset and returns the entry
+// No nilguard protection provided, since this is a private function
 func (a *Accounts) currencyBalances(c *Credentials, subAcct string, aType asset.Item) currencyBalances {
 	k := key.SubAccountAsset{SubAccount: subAcct, Asset: aType}
 	if _, ok := a.subAccounts[*c]; !ok {
@@ -323,7 +325,7 @@ func (a *Accounts) currencyBalances(c *Credentials, subAcct string, aType asset.
 
 func (s currencyBalances) balance(c currency.Code) *balance {
 	if _, ok := s[c]; !ok {
-		s[c] = &balance{}
+		s[c] = &balance{internal: Balance{Currency: c}}
 	}
 	return s[c]
 }

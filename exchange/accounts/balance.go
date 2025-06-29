@@ -1,6 +1,7 @@
 package accounts
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -8,6 +9,8 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
+
+var errBalanceCurrencyMismatch = errors.New("balance currency does not match update currency")
 
 // Balance contains an exchange currency balance
 type Balance struct {
@@ -100,6 +103,7 @@ func (b Balance) Add(a Balance) Balance {
 }
 
 // update checks that an incoming change has a valid change, and returns if the balances were changed
+// If change does not have a Currency set, the existing Currency is preserved
 func (b *balance) update(change Balance) (bool, error) {
 	if err := common.NilGuard(b, change); err != nil {
 		return false, err
@@ -109,6 +113,16 @@ func (b *balance) update(change Balance) (bool, error) {
 	}
 	b.m.Lock()
 	defer b.m.Unlock()
+	if b.internal.Currency != currency.EMPTYCODE {
+		switch change.Currency {
+		case b.internal.Currency:
+			// All good
+		case currency.EMPTYCODE:
+			change.Currency = b.internal.Currency
+		default:
+			return false, errBalanceCurrencyMismatch
+		}
+	}
 	if !b.internal.UpdatedAt.Before(change.UpdatedAt) {
 		return false, errOutOfSequence
 	}
