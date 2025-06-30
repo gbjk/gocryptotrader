@@ -1,15 +1,12 @@
 package accounts
 
 import (
-	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 type mockEx struct {
@@ -50,42 +47,6 @@ func TestSubscribe(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, p, "Subscribe must return a pipe")
 	require.Empty(t, p.Channel(), "Pipe must be empty before Saving anything")
-}
-
-// TestCurrencyBalancesPrivate ensures that currencyBalances initializes maps, and returns a reference to the same entry
-func TestCurrencyBalancesPrivate(t *testing.T) {
-	t.Parallel()
-
-	a := &Accounts{subAccounts: make(credSubAccounts)}
-	c := &Credentials{Key: "a"}
-	b := a.currencyBalances(c, "", asset.Spot)
-	r1 := a.subAccounts[*c]
-	assert.Equal(t,
-		reflect.ValueOf(b).UnsafePointer(),
-		reflect.ValueOf(r1[key.SubAccountAsset{Asset: asset.Spot}]).UnsafePointer(),
-		"should make and return the same map")
-	assert.Equal(t,
-		reflect.ValueOf(b).UnsafePointer(),
-		reflect.ValueOf(a.currencyBalances(c, "", asset.Spot)).UnsafePointer(),
-		"should return the same map on subsequent calls")
-	b = a.currencyBalances(c, "", asset.Futures)
-	assert.Equal(t,
-		reflect.ValueOf(r1).UnsafePointer(),
-		reflect.ValueOf(a.subAccounts[*c]).UnsafePointer(),
-		"should not make a new cred key")
-	assert.Equal(t,
-		reflect.ValueOf(b).UnsafePointer(),
-		reflect.ValueOf(r1[key.SubAccountAsset{Asset: asset.Futures}]).UnsafePointer(),
-		"should make and return the same map")
-}
-
-// TestCurrencyBalancesBalance exercises currencyBalances.balance
-func TestCurrencyBalancesBalance(t *testing.T) {
-	t.Parallel()
-
-	c := currencyBalances{}
-	_ = c
-	// c.balance(
 }
 
 /*

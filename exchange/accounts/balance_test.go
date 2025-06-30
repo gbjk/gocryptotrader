@@ -1,6 +1,54 @@
 package accounts
 
-// Example of an assertion library
+import (
+	"reflect"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
+	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+)
+
+// TestCurrencyBalancesPrivate ensures that currencyBalances initializes maps, and returns a reference to the same entry
+func TestCurrencyBalancesPrivate(t *testing.T) {
+	t.Parallel()
+
+	a := &Accounts{subAccounts: make(credSubAccounts)}
+	c := &Credentials{Key: "a"}
+	b := a.currencyBalances(c, "", asset.Spot)
+	r1 := a.subAccounts[*c]
+	// Using reflect since assert.Same cannot be used on maps to ensure same underlying pointer
+	assert.Equal(t,
+		reflect.ValueOf(b).UnsafePointer(),
+		reflect.ValueOf(r1[key.SubAccountAsset{Asset: asset.Spot}]).UnsafePointer(),
+		"should make and return the same map")
+	assert.Equal(t,
+		reflect.ValueOf(b).UnsafePointer(),
+		reflect.ValueOf(a.currencyBalances(c, "", asset.Spot)).UnsafePointer(),
+		"should return the same map on subsequent calls")
+	b = a.currencyBalances(c, "", asset.Futures)
+	assert.Equal(t,
+		reflect.ValueOf(r1).UnsafePointer(),
+		reflect.ValueOf(a.subAccounts[*c]).UnsafePointer(),
+		"should not make a new cred key")
+	assert.Equal(t,
+		reflect.ValueOf(b).UnsafePointer(),
+		reflect.ValueOf(r1[key.SubAccountAsset{Asset: asset.Futures}]).UnsafePointer(),
+		"should make and return the same map")
+}
+
+// TestCurrencyBalancesBalance exercises currencyBalances.balance
+func TestCurrencyBalancesBalance(t *testing.T) {
+	t.Parallel()
+
+	c := currencyBalances{}
+	b := c.balance(currency.BTC)
+	require.NotNil(t, b)
+	assert.Same(t, c[currency.BTC], b, "should make and return the same entry")
+	assert.Same(t, b, c.balance(currency.BTC), "should make and return the same entry")
+}
 
 /*
 // TestStructBalance_Add tests the exported Balance.Add method.
