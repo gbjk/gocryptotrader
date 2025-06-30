@@ -152,9 +152,9 @@ func TestCurrencyBalances(t *testing.T) {
 	})
 }
 
-func TestAccounts_Save(t *testing.T) {
+func TestAccountsSave(t *testing.T) {
 	t.Parallel()
-	require.NoError(t, common.ExcludeError(dispatch.Start(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit), dispatch.ErrDispatcherAlreadyRunning))
+	requrie.NoError(t, dispatch.EnsureRunning(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit))
 	mockCreds := Credentials{Key: "saveCreds"}
 	var emptyCreds Credentials
 	mockExInst := &mockLocalExchange{name: "TestSaveExchange"}
@@ -197,7 +197,7 @@ func TestAccounts_Save(t *testing.T) {
 	}
 }
 
-func TestAccounts_GetBalance(t *testing.T) {
+func TestAccountsGetBalance(t *testing.T) {
 	t.Parallel()
 	mockCreds := Credentials{Key: "mainAcc"}
 	mockExInst := &mockLocalExchange{name: "TestGetBalanceExchange"}
@@ -232,7 +232,7 @@ func TestAccounts_GetBalance(t *testing.T) {
 	}
 }
 
-func TestAccounts_Balances(t *testing.T) {
+func TestAccountsBalances(t *testing.T) {
 	t.Parallel()
 	c1, c2 := Credentials{Key: "cA"}, Credentials{Key: "cB"}
 	mockExInst := &mockLocalExchange{name: "TestBalancesExchange"}
@@ -272,11 +272,11 @@ func TestAccounts_Balances(t *testing.T) {
 					tt.verify(t, r)
 				}
 			}
-		}) // Corrected: This was the line with the syntax error.
+		})
 	}
 }
 
-func TestAccounts_Update(t *testing.T) {
+func TestAccountsUpdate(t *testing.T) {
 	t.Parallel()
 	require.NoError(t, common.ExcludeError(dispatch.Start(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit), dispatch.ErrDispatcherAlreadyRunning))
 	mockCreds := Credentials{Key: "updateCreds"}
@@ -307,7 +307,7 @@ func TestAccounts_Update(t *testing.T) {
 	for _, tt := range tests { t.Run(tt.name, func(t *testing.T) { accs := tt.initState(mockExInst); err := accs.Update(tt.changes, tt.creds); if tt.errContains != "" { require.Error(t, err); assert.ErrorContains(t, err, tt.errContains) } else { require.NoError(t, err) } if tt.verify != nil { tt.verify(t, accs, err) }})}
 }
 
-func TestSubAccounts_Merge(t *testing.T) {
+func TestSubAccountsMerge(t *testing.T) {
 	t.Parallel()
 	sa1BTC1 := Balance{Currency: currency.BTC, Total: 1, Free: 1, UpdatedAt: time.Now()}
 	sa1ETH1 := Balance{Currency: currency.ETH, Total: 10, Free: 10, UpdatedAt: time.Now()}
