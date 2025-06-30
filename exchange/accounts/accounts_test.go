@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
@@ -13,45 +14,52 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-type mockEx struct {
+// mockLocalExchange is a local mock for the exchange dependency.
+type mockLocalExchange struct {
 	name string
 }
 
-func (m *mockEx) GetName() string {
+func (m *mockLocalExchange) GetName() string {
 	return m.name
 }
 
+// accountsExchangeDependency defines the interface our mock needs to implement,
+// matching what the accounts package expects for its main exchange object.
+type accountsExchangeDependency interface {
+	GetName() string
+}
+
+var (
+	testInvalidAsset asset.Item = "invalidasset"
+)
+
 func TestNewAccounts(t *testing.T) {
 	t.Parallel()
-	a, err := NewAccounts(&mockEx{"mocky"}, dispatch.GetNewMux(nil))
+	a, err := NewAccounts(&mockLocalExchange{"mocky"}, dispatch.GetNewMux(nil))
 	require.NoError(t, err)
 	require.NotNil(t, a)
-	assert.Equal(t, "mocky", a.Exchange.GetName(), "Exchande should set correctly")
+	assert.Equal(t, "mocky", a.Exchange.GetName(), "Exchange should set correctly")
 	assert.NotNil(t, a.subAccounts, "subAccounts should be initialized")
 	assert.NotEmpty(t, a.routingID, "ID should not be empty")
 	assert.NotNil(t, a.mux, "mux should be set correctly")
 	_, err = NewAccounts(nil, dispatch.GetNewMux(nil))
 	assert.ErrorIs(t, err, common.ErrNilPointer)
-	_, err = NewAccounts(&mockEx{"mocky"}, nil)
+	_, err = NewAccounts(&mockLocalExchange{"mocky"}, nil)
 	assert.ErrorContains(t, err, "nil pointer: *dispatch.Mux")
 }
 
 func TestMustNewAccounts(t *testing.T) {
 	t.Parallel()
-	a := MustNewAccounts(&mockEx{"mocky"})
+	a := MustNewAccounts(&mockLocalExchange{"mocky"})
 	require.NotNil(t, a)
 	require.Panics(t, func() { _ = MustNewAccounts(nil) })
 }
 
-// TestSubscribe ensures that Subscribe returns a subscription channel
-// See TestSave and TestUpdate for exercising publish to subscribers
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
-
 	err := dispatch.Start(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
 	require.NoError(t, common.ExcludeError(err, dispatch.ErrDispatcherAlreadyRunning), "dispatch.Start must not error")
-
-	p, err := MustNewAccounts(&mockEx{}).Subscribe()
+	p, err := MustNewAccounts(&mockLocalExchange{}).Subscribe()
 	require.NoError(t, err)
 	require.NotNil(t, p, "Subscribe must return a pipe")
 	require.Empty(t, p.Channel(), "Pipe must be empty before Saving anything")
@@ -59,9 +67,8 @@ func TestSubscribe(t *testing.T) {
 
 func TestCurrencyBalancesPrivate(t *testing.T) {
 	t.Parallel()
-
 	c := &Credentials{Key: "Creds"}
-	a := MustNewAccounts(&mockEx{})
+	a := MustNewAccounts(&mockLocalExchange{})
 	bals := a.currencyBalances(c, "", asset.Spot)
 	require.NotNil(t, bals)
 	b := bals.balance(currency.BTC)
@@ -69,777 +76,273 @@ func TestCurrencyBalancesPrivate(t *testing.T) {
 	require.NoError(t, err, "update must not error")
 	require.True(t, updated, "update must return true")
 	ref := a.subAccounts[*c][key.SubAccountAsset{Asset: asset.Spot}][currency.BTC].internal
-	t.Error("Exercise mismatched currency codes")
-	assert.Equal(t, currency.BTC, ref.Currency, "Currency should be updated")
-	assert.Equal(t, 4.0, ref.Total, "Total should be updated")
+	assert.Equal(t, currency.BTC, ref.Currency)
+	assert.Equal(t, 4.0, ref.Total)
+
+	bals = a.currencyBalances(c, "", asset.Spot)
+	require.NotNil(t, bals)
+	b = bals.balance(currency.ETH)
+	updated, err = b.update(Balance{Currency: currency.LTC, Total: 5.0, UpdatedAt: time.Now()})
+	require.NoError(t, err)
+	require.True(t, updated)
+	ref = a.subAccounts[*c][key.SubAccountAsset{Asset: asset.Spot}][currency.LTC].internal
+	assert.Equal(t, currency.LTC, ref.Currency)
+	assert.Equal(t, 5.0, ref.Total)
+	_, ok := a.subAccounts[*c][key.SubAccountAsset{Asset: asset.Spot}][currency.ETH]
+	assert.False(t, ok)
+
+	bals = a.currencyBalances(c, "", asset.Spot)
+	b = bals.balance(currency.DOGE)
+	updated, err = b.update(Balance{Currency: currency.XRP, Total: 100.0, UpdatedAt: time.Now()})
+	require.NoError(t, err)
+	require.True(t, updated)
+	internalBalance := a.subAccounts[*c][key.SubAccountAsset{Asset: asset.Spot}][currency.DOGE].internal
+	assert.Equal(t, currency.XRP, internalBalance.Currency)
+	assert.Equal(t, 100.0, internalBalance.Total)
 }
 
-/*
 func TestCurrencyBalances(t *testing.T) {
 	t.Parallel()
-
 	n := time.Now()
-	creds := Credentials{Key: "cred1"}
-	a := Accounts{
-		subAccounts: map[Credentials]map[key.SubAccountAsset]CurrencyBalances{
-			creds: {
-				{"a", asset.Spot}: {
-					currency.BTC.Item: &balance{internal: Balance{Currency: currency.BTC, Total: 1, Free: 1, UpdatedAt: n}},
-					currency.ETH.Item: &balance{internal: Balance{Currency: currency.ETH, Total: 10, Free: 10, UpdatedAt: n}},
-				},
-				{"b", asset.Spot}: {
-					currency.BTC.Item: &balance{internal: Balance{Currency: currency.BTC, Total: 2, Free: 2, UpdatedAt: n}},
-					currency.LTC.Item: &balance{internal: Balance{Currency: currency.LTC, Total: 5, Free: 5, UpdatedAt: n}},
-				},
-				{"a", asset.Margin}: {
-					currency.USDT.Item: &balance{internal: Balance{Currency: currency.USDT, Total: 100, Free: 100, UpdatedAt: n}},
-					currency.BTC.Item:  &balance{internal: Balance{Currency: currency.BTC, Total: 0.5, Free: 0.5, UpdatedAt: n}},
-				},
-			},
-		},
-	}
+	creds1 := Credentials{Key: "cred1"}
+	creds2 := Credentials{Key: "cred2"}
+	mockExInst := &mockLocalExchange{name: "TestExchange"}
+	a := MustNewAccounts(mockExInst)
 
-		expectedBalances := map[currency.Code]Balance{
-			currency.BTC:  {Currency: currency.BTC, Total: 3.5, Free: 3.5},
-			currency.ETH:  {Currency: currency.ETH, Total: 10, Free: 10},
-			currency.LTC:  {Currency: currency.LTC, Total: 5, Free: 5},
-			currency.USDT: {Currency: currency.USDT, Total: 100, Free: 100},
-		}
+	require.NoError(t, a.Save(SubAccounts{
+		{ID: "a", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: {Currency: currency.BTC, Total: 1, Free: 1, UpdatedAt: n}, currency.ETH: {Currency: currency.ETH, Total: 10, Free: 10, UpdatedAt: n}}},
+		{ID: "b", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: {Currency: currency.BTC, Total: 2, Free: 2, UpdatedAt: n}, currency.LTC: {Currency: currency.LTC, Total: 5, Free: 5, UpdatedAt: n}}},
+		{ID: "a", AssetType: asset.Margin, Balances: CurrencyBalances{currency.USDT: {Currency: currency.USDT, Total: 100, Free: 100, UpdatedAt: n}, currency.BTC:  {Currency: currency.BTC, Total: 0.5, Free: 0.5, UpdatedAt: n}}},
+	}, &creds1))
+	require.NoError(t, a.Save(SubAccounts{{ID: "c", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: {Currency: currency.BTC, Total: 3, UpdatedAt: n}}}}, &creds2))
 
-	b := a.CurrencyBalances()
-	require.Equal(t, 4, len(b), "Must get 4 balances")
-			if len(result) != len(expectedBalances) {
-				t.Errorf("Expected %d aggregated currencies, got %d. Result: %+v", len(expectedBalances), len(result), result)
-			}
-			for c, expectedBal := range expectedBalances {
-				actualBal, ok := result[c]
-				if !ok {
-					t.Errorf("Expected currency %s missing from result", c)
-					continue
-				}
-				if actualBal.Total != expectedBal.Total {
-					t.Errorf("For currency %s, expected Total %f, got %f", c, expectedBal.Total, actualBal.Total)
-				}
-				if actualBal.Free != expectedBal.Free {
-					t.Errorf("For currency %s, expected Free %f, got %f", c, expectedBal.Free, actualBal.Free)
-				}
-				if actualBal.Hold != expectedBal.Hold {
-					t.Errorf("For currency %s, expected Hold %f, got %f", c, expectedBal.Hold, actualBal.Hold)
-				}
-			}
-		})
-
-		t.Run("no subaccounts", func(t *testing.T) {
-			emptyAccs := Accounts{
-				subAccounts: make(map[Credentials]map[key.SubAccountAsset]CurrencyBalances),
-			}
-			result := emptyAccs.CurrencyBalances()
-			if len(result) != 0 {
-				t.Errorf("Expected 0 balances for empty accounts, got %d", len(result))
-			}
-		})
-
-		t.Run("subaccounts exist but no balances for some currencies", func(t *testing.T) {
-			complexAccs := Accounts{
-				subAccounts: make(map[Credentials]map[key.SubAccountAsset]CurrencyBalances),
-			}
-			complexAccs.subAccounts[creds] = make(map[key.SubAccountAsset]CurrencyBalances)
-			saKeyTest := key.SubAccountAsset{SubAccount: "testSub", Asset: asset.Spot}
-			complexAccs.subAccounts[creds][saKeyTest] = CurrencyBalances{
-				currency.BTC.Item: &balance{internal: Balance{Currency: currency.BTC, Total: 1, UpdatedAt: time.Now()}},
-			}
-			saKeyEmpty := key.SubAccountAsset{SubAccount: "emptySub", Asset: asset.Spot}
-			complexAccs.subAccounts[creds][saKeyEmpty] = make(CurrencyBalances)
-
-			result := complexAccs.CurrencyBalances()
-			if len(result) != 1 {
-				t.Errorf("Expected 1 currency (BTC), got %d. Result: %+v", len(result), result)
-			}
-			if _, ok := result[currency.BTC]; !ok {
-				t.Error("Expected BTC to be present in the result.")
-			}
-		})
+	t.Run("all credentials, all assets", func(t *testing.T) {
+		expected := map[currency.Code]float64{currency.BTC: 6.5, currency.ETH: 10, currency.LTC: 5, currency.USDT: 100}
+		res, err := a.CurrencyBalances(nil, asset.All); require.NoError(t, err); require.Len(t, res, len(expected))
+		for c, total := range expected { bal, ok := res[c]; require.True(t, ok); assert.Equal(t, total, bal.Total) }
+	})
+	t.Run("specific credentials, all assets", func(t *testing.T) {
+		expected := map[currency.Code]float64{currency.BTC: 3.5, currency.ETH: 10, currency.LTC: 5, currency.USDT: 100}
+		res, err := a.CurrencyBalances(&creds1, asset.All); require.NoError(t, err); require.Len(t, res, len(expected))
+		for c, total := range expected { bal, ok := res[c]; require.True(t, ok); assert.Equal(t, total, bal.Total) }
+	})
+	t.Run("all credentials, specific asset", func(t *testing.T) {
+		expected := map[currency.Code]float64{currency.BTC: 6, currency.ETH: 10, currency.LTC: 5}
+		res, err := a.CurrencyBalances(nil, asset.Spot); require.NoError(t, err); require.Len(t, res, len(expected))
+		for c, total := range expected { bal, ok := res[c]; require.True(t, ok); assert.Equal(t, total, bal.Total) }
+	})
+	t.Run("specific credentials, specific asset", func(t *testing.T) {
+		expected := map[currency.Code]float64{currency.BTC: 0.5, currency.USDT: 100}
+		res, err := a.CurrencyBalances(&creds1, asset.Margin); require.NoError(t, err); require.Len(t, res, len(expected))
+		for c, total := range expected { bal, ok := res[c]; require.True(t, ok); assert.Equal(t, total, bal.Total) }
+	})
+	t.Run("no subaccounts", func(t *testing.T) {
+		_, err := MustNewAccounts(&mockLocalExchange{name: "empty"}).CurrencyBalances(nil, asset.All)
+		assert.ErrorIs(t, err, ErrBalancesNotFound)
+	})
+	t.Run("no balances for criteria", func(t *testing.T) {
+		_, err := a.CurrencyBalances(&Credentials{Key: "nonexistent"}, asset.Spot); assert.ErrorIs(t, err, ErrBalancesNotFound)
+		_, err = a.CurrencyBalances(&creds1, asset.Futures); assert.ErrorIs(t, err, ErrBalancesNotFound)
+	})
+	t.Run("invalid asset type", func(t *testing.T) {
+		_, err := a.CurrencyBalances(nil, testInvalidAsset); assert.ErrorContains(t, err, asset.ErrNotSupported.Error())
+	})
+	t.Run("nil receiver", func(t *testing.T) {
+		var nilAccs *Accounts; _, err := nilAccs.CurrencyBalances(nil, asset.All); assert.ErrorIs(t, err, common.ErrNilPointer)
+	})
 }
 
-// TestAccounts_Save tests the Save method of the Accounts struct.
 func TestAccounts_Save(t *testing.T) {
 	t.Parallel()
-
+	require.NoError(t, common.ExcludeError(dispatch.Start(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit), dispatch.ErrDispatcherAlreadyRunning))
 	mockCreds := Credentials{Key: "saveCreds"}
-	var emptyCredsInstance Credentials
-	var invalidAssetType asset.Item
+	var emptyCreds Credentials
+	mockExInst := &mockLocalExchange{name: "TestSaveExchange"}
+	initialBTC := Balance{Currency: currency.BTC, Total: 1, UpdatedAt: time.Unix(100, 0)}
+	initialETH := Balance{Currency: currency.ETH, Total: 10, UpdatedAt: time.Unix(100, 0)}
+	updatedBTC := Balance{Currency: currency.BTC, Total: 2, UpdatedAt: time.Unix(200, 0)}
+	newLTC := Balance{Currency: currency.LTC, Total: 5, UpdatedAt: time.Unix(200, 0)}
 
-	mockEx := &mockEx{name: "TestSaveExchange"}
-
-	initialBTCHoldings := Balance{Currency: currency.BTC, Total: 1, Free: 1, UpdatedAt: time.Unix(100, 0)}
-	initialETHHoldings := Balance{Currency: currency.ETH, Total: 10, Free: 10, UpdatedAt: time.Unix(100, 0)}
-	updatedBTCHoldings := Balance{Currency: currency.BTC, Total: 2, Free: 2, UpdatedAt: time.Unix(200, 0)}
-	newLTCHoldings := Balance{Currency: currency.LTC, Total: 5, Free: 5, UpdatedAt: time.Unix(200, 0)}
-
-	tests := []struct {
-		name                string
-		credsToSave         *Credentials
-		subAccountsToSave   []SubAccount
-		initialAccountState func() *Accounts
-		expectedErr         bool
-		verifyState         func(t *testing.T, accs *Accounts, errEncountered error)
+	tests := []struct{
+		name string
+		creds *Credentials
+		toSave SubAccounts
+		initState func(e accountsExchangeDependency) *Accounts
+		errContains string
+		verify func(*testing.T, *Accounts, error)
 	}{
-		{
-			name:        "Save_NewSubAccountData_NewCredentials",
-			credsToSave: &mockCreds,
-			subAccountsToSave: []SubAccount{
-				{ID: "spot1", AssetType: asset.Spot, Currencies: []Balance{initialBTCHoldings}},
-			},
-			initialAccountState: func() *Accounts {
-				mux := dispatch.GetNewMux(nil)
-				accs, _ := NewAccounts(mockEx, mux)
-				return accs
-			},
-			expectedErr: false,
-			verifyState: func(t *testing.T, accs *Accounts, errEncountered error) {
-				if errEncountered != nil {
-					t.Fatalf("Unexpected error: %v", errEncountered)
-				}
-				b, err := accs.GetBalance("spot1", &mockCreds, asset.Spot, currency.BTC)
-				if err != nil {
-					t.Fatalf("Failed to get balance for verification: %v", err)
-				}
-				if b.Total != initialBTCHoldings.Total {
-					t.Errorf("Expected BTC total %f, got %f", initialBTCHoldings.Total, b.Total)
-				}
-			},
-		},
-		{
-			name:        "Save_UpdateExisting_AddNewCurrency_RemoveOldOne",
-			credsToSave: &mockCreds,
-			subAccountsToSave: []SubAccount{
-				{ID: "spot1", AssetType: asset.Spot, Currencies: []Balance{updatedBTCHoldings, newLTCHoldings}},
-			},
-			initialAccountState: func() *Accounts {
-				mux := dispatch.GetNewMux(nil)
-				accs, _ := NewAccounts(mockEx, mux)
-				accs.subAccounts[mockCreds] = map[key.SubAccountAsset]CurrencyBalances{
-					{SubAccount: "spot1", Asset: asset.Spot}: {
-						currency.BTC.Item: &balance{internal: initialBTCHoldings},
-						currency.ETH.Item: &balance{internal: initialETHHoldings},
-					},
-				}
-				return accs
-			},
-			expectedErr: false,
-			verifyState: func(t *testing.T, accs *Accounts, errEncountered error) {
-				if errEncountered != nil {
-					t.Fatalf("Unexpected error: %v", errEncountered)
-				}
-				btcBal, _ := accs.GetBalance("spot1", &mockCreds, asset.Spot, currency.BTC)
-				if btcBal.Total != updatedBTCHoldings.Total {
-					t.Errorf("Expected updated BTC total %f, got %f", updatedBTCHoldings.Total, btcBal.Total)
-				}
-				_, errEth := accs.GetBalance("spot1", &mockCreds, asset.Spot, currency.ETH)
-				if errEth == nil {
-					t.Error("Expected ETH to be removed, but GetBalance found it.")
-				}
-				ltcBal, _ := accs.GetBalance("spot1", &mockCreds, asset.Spot, currency.LTC)
-				if ltcBal.Total != newLTCHoldings.Total {
-					t.Errorf("Expected new LTC total %f, got %f", newLTCHoldings.Total, ltcBal.Total)
-				}
-			},
-		},
-		{
-			name:                "Save_EmptyCredentials_ErrorExpected",
-			credsToSave:         &emptyCredsInstance,
-			subAccountsToSave:   []SubAccount{{ID: "spot1", AssetType: asset.Spot, Currencies: []Balance{initialBTCHoldings}}},
-			initialAccountState: func() *Accounts { mux := dispatch.GetNewMux(nil); accs, _ := NewAccounts(mockEx, mux); return accs },
-			expectedErr:         true,
-			verifyState: func(t *testing.T, accs *Accounts, errEncountered error) {
-				if errEncountered == nil {
-					t.Error("Expected errCredentialsEmpty, got nil")
-				}
-			},
-		},
-		{
-			name:                "Save_InvalidAssetTypeInSubAccount_ErrorExpected",
-			credsToSave:         &mockCreds,
-			subAccountsToSave:   []SubAccount{{ID: "spot1", AssetType: invalidAssetType, Currencies: []Balance{initialBTCHoldings}}},
-			initialAccountState: func() *Accounts { mux := dispatch.GetNewMux(nil); accs, _ := NewAccounts(mockEx, mux); return accs },
-			expectedErr:         true,
-		},
-		{
-			name:        "Save_BalanceUpdateError_OutOfSequence_ErrorExpected",
-			credsToSave: &mockCreds,
-			subAccountsToSave: []SubAccount{
-				{ID: "spot1", AssetType: asset.Spot, Currencies: []Balance{{Currency: currency.BTC, Total: 0.5, UpdatedAt: time.Unix(50, 0)}}},
-			},
-			initialAccountState: func() *Accounts {
-				mux := dispatch.GetNewMux(nil)
-				accs, _ := NewAccounts(mockEx, mux)
-				accs.subAccounts[mockCreds] = map[key.SubAccountAsset]CurrencyBalances{
-					{SubAccount: "spot1", Asset: asset.Spot}: {
-						currency.BTC.Item: &balance{internal: initialBTCHoldings},
-					},
-				}
-				return accs
-			},
-			expectedErr: true,
-		},
-		{
-			name:        "Save_ZeroUpdatedAt_GetsTimestamped_Success",
-			credsToSave: &mockCreds,
-			subAccountsToSave: []SubAccount{
-				{ID: "spot1", AssetType: asset.Spot, Currencies: []Balance{{Currency: currency.BTC, Total: 1, UpdatedAt: time.Time{}}}},
-			},
-			initialAccountState: func() *Accounts { mux := dispatch.GetNewMux(nil); accs, _ := NewAccounts(mockEx, mux); return accs },
-			expectedErr:         false,
-			verifyState: func(t *testing.T, accs *Accounts, errEncountered error) {
-				if errEncountered != nil {
-					t.Fatalf("Unexpected error: %v", errEncountered)
-				}
-				b, err := accs.GetBalance("spot1", &mockCreds, asset.Spot, currency.BTC)
-				if err != nil {
-					t.Fatalf("Failed to get balance: %v", err)
-				}
-				if b.UpdatedAt.IsZero() {
-					t.Error("Expected UpdatedAt to be set, but it's still zero.")
-				}
-			},
-		},
-		{
-			name:                "Save_NilReceiver_ErrorExpected",
-			credsToSave:         &mockCreds,
-			subAccountsToSave:   []SubAccount{{ID: "spot1", AssetType: asset.Spot, Currencies: []Balance{initialBTCHoldings}}},
-			initialAccountState: func() *Accounts { return nil },
-			expectedErr:         true,
-		},
-		{
-			name:              "Save_NilSubAccountsMapInReceiver_ErrorExpected",
-			credsToSave:       &mockCreds,
-			subAccountsToSave: []SubAccount{{ID: "spot1", AssetType: asset.Spot, Currencies: []Balance{initialBTCHoldings}}},
-			initialAccountState: func() *Accounts {
-				mux := dispatch.GetNewMux(nil)
-				return &Accounts{Exchange: mockEx, mux: mux, ID: uuid.Must(uuid.NewV4()), subAccounts: nil}
-			},
-			expectedErr: true,
-		},
+		{"Save_New", &mockCreds, SubAccounts{{ID: "s1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: initialBTC}}}, MustNewAccounts, "", func(t *testing.T, accs *Accounts, err error) { require.NoError(t, err); b, e := accs.GetBalance("s1", &mockCreds, asset.Spot, currency.BTC); require.NoError(t, e); assert.Equal(t, initialBTC.Total, b.Total) }},
+		{"Save_Update_Add_Remove", &mockCreds, SubAccounts{{ID: "s1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: updatedBTC, currency.LTC: newLTC}}}, func(e accountsExchangeDependency) *Accounts { accs := MustNewAccounts(e); require.NoError(t, accs.Save(SubAccounts{{ID: "s1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: initialBTC, currency.ETH: initialETH}}}, &mockCreds)); return accs }, "", func(t *testing.T, accs *Accounts, err error) { require.NoError(t, err); bBTC, eBTC := accs.GetBalance("s1", &mockCreds, asset.Spot, currency.BTC); require.NoError(t, eBTC); assert.Equal(t, updatedBTC.Total, bBTC.Total); _, eETH := accs.GetBalance("s1", &mockCreds, asset.Spot, currency.ETH); assert.ErrorContains(t, eETH, errNoExchangeSubAccountBalances.Error()); bLTC, eLTC := accs.GetBalance("s1", &mockCreds, asset.Spot, currency.LTC); require.NoError(t, eLTC); assert.Equal(t, newLTC.Total, bLTC.Total) }},
+		{"Save_EmptyCreds", &emptyCreds, SubAccounts{{ID: "s1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: initialBTC}}}, MustNewAccounts, errCredentialsEmpty.Error(), nil },
+		{"Save_InvalidAsset", &mockCreds, SubAccounts{{ID: "s1", AssetType: testInvalidAsset, Balances: CurrencyBalances{currency.BTC: initialBTC}}}, MustNewAccounts, asset.ErrNotSupported.Error(), nil },
+		{"Save_OutOfSequence", &mockCreds, SubAccounts{{ID: "s1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: {Total: 0.5, UpdatedAt: time.Unix(50,0)}}}}, func(e accountsExchangeDependency) *Accounts { accs := MustNewAccounts(e); require.NoError(t, accs.Save(SubAccounts{{ID: "s1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: initialBTC}}}, &mockCreds)); return accs }, errOutOfSequence.Error(), nil },
+		{"Save_ZeroUpdateAt", &mockCreds, SubAccounts{{ID: "s1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: {Total: 1, UpdatedAt: time.Time{}}}}}, MustNewAccounts, "", func(t *testing.T, accs *Accounts, err error) { require.NoError(t, err); b, e := accs.GetBalance("s1", &mockCreds, asset.Spot, currency.BTC); require.NoError(t, e); assert.False(t, b.UpdatedAt.IsZero()) }},
+		{"Save_NilReceiver", &mockCreds, SubAccounts{{ID: "s1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: initialBTC}}}, func(e accountsExchangeDependency) *Accounts { return nil }, common.ErrNilPointer.Error(), nil },
+		{"Save_NilSubAccountsMap", &mockCreds, SubAccounts{{ID: "s1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: initialBTC}}}, func(e accountsExchangeDependency) *Accounts { mux := dispatch.GetNewMux(nil); id, _ := mux.GetID(); return &Accounts{Exchange: e, mux: mux, routingID: id, subAccounts: nil} }, common.ErrNilPointer.Error(), nil },
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			accs := tt.initialAccountState()
-			err := accs.Save(tt.subAccountsToSave, tt.credsToSave)
-			if (err != nil) != tt.expectedErr {
-				t.Errorf("Save() error = %v, wantErr %v. Test: %s", err, tt.expectedErr, tt.name)
+			accs := tt.initState(mockExInst)
+			err := accs.Save(tt.toSave, tt.creds)
+			if tt.errContains != "" {
+				require.Error(t, err)
+				assert.ErrorContains(t, err, tt.errContains)
+			} else {
+				require.NoError(t, err)
 			}
-			if tt.verifyState != nil {
-				tt.verifyState(t, accs, err)
+			if tt.verify != nil {
+				tt.verify(t, accs, err)
 			}
 		})
 	}
 }
 
-// TestAccounts_GetBalance tests the GetBalance method of the Accounts struct.
 func TestAccounts_GetBalance(t *testing.T) {
 	t.Parallel()
-
 	mockCreds := Credentials{Key: "mainAcc"}
-	mockEx := &mockEx{name: "TestGetBalanceExchange"}
-	mux := dispatch.GetNewMux(nil)
-	accs, _ := NewAccounts(mockEx, mux)
-
-	spotBTC := Balance{Currency: currency.BTC, Total: 1, Free: 1, UpdatedAt: time.Now()}
-	spotETH := Balance{Currency: currency.ETH, Total: 10, Free: 10, UpdatedAt: time.Now()}
-
-	accs.subAccounts[mockCreds] = map[key.SubAccountAsset]CurrencyBalances{
-		{SubAccount: "spotSub1", Asset: asset.Spot}: {
-			currency.BTC.Item: &balance{internal: spotBTC},
-			currency.ETH.Item: &balance{internal: spotETH},
-		},
-		{SubAccount: "spotSub2", Asset: asset.Spot}: {
-			currency.BTC.Item: &balance{internal: Balance{Currency: currency.BTC, Total: 5, Free: 5}},
-		},
+	mockExInst := &mockLocalExchange{name: "TestGetBalanceExchange"}
+	accs := MustNewAccounts(mockExInst)
+	spotBTC := Balance{Currency: currency.BTC, Total: 1, UpdatedAt: time.Now()}
+	spotETH := Balance{Currency: currency.ETH, Total: 10, UpdatedAt: time.Now()}
+	require.NoError(t, accs.Save(SubAccounts{{ID: "sS1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: spotBTC, currency.ETH: spotETH}}, {ID: "sS2", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: {Total: 5}}}}, &mockCreds))
+	tests := []struct{ name, sID string; creds *Credentials; aType asset.Item; c currency.Code; wantBal Balance; wantErr bool; errContains string }{
+		{"OK", "sS1", &mockCreds, asset.Spot, currency.BTC, spotBTC, false, ""},
+		{"NoCurrency", "sS1", &mockCreds, asset.Spot, currency.LTC, Balance{}, true, errNoExchangeSubAccountBalances.Error()},
+		{"NoAsset", "sS1", &mockCreds, asset.Margin, currency.BTC, Balance{}, true, errNoExchangeSubAccountBalances.Error()},
+		{"NoCreds", "sS1", &Credentials{Key: "unknown"}, asset.Spot, currency.BTC, Balance{}, true, ErrBalancesNotFound.Error()},
+		{"InvalidAsset", "sS1", &mockCreds, testInvalidAsset, currency.BTC, Balance{}, true, asset.ErrNotSupported.Error()},
+		{"EmptyCreds", "sS1", &Credentials{}, asset.Spot, currency.BTC, Balance{}, true, errCredentialsEmpty.Error()},
+		{"EmptyCurrency", "sS1", &mockCreds, asset.Spot, currency.EMPTYCODE, Balance{}, true, currency.ErrCurrencyCodeEmpty.Error()},
+		{"NoSubAccountID", "nonExistent", &mockCreds, asset.Spot, currency.BTC, Balance{}, true, errNoExchangeSubAccountBalances.Error()},
 	}
-
-	emptyCreds := Credentials{}
-	var invalidAssetTypeForGetBalance asset.Item
-	emptyCurrency := currency.Code{}
-
-	tests := []struct {
-		name            string
-		subAccountID    string
-		creds           *Credentials
-		assetType       asset.Item
-		currency        currency.Code
-		expectedBalance Balance
-		expectedErr     bool
-	}{
-		{
-			name:            "GetBalance_Success",
-			subAccountID:    "spotSub1",
-			creds:           &mockCreds,
-			assetType:       asset.Spot,
-			currency:        currency.BTC,
-			expectedBalance: spotBTC,
-			expectedErr:     false,
-		},
-		{
-			name:            "GetBalance_CurrencyNotFoundInSubAccount",
-			subAccountID:    "spotSub1",
-			creds:           &mockCreds,
-			assetType:       asset.Spot,
-			currency:        currency.LTC,
-			expectedBalance: Balance{},
-			expectedErr:     true,
-		},
-		{
-			name:            "GetBalance_SubAccountAssetKeyNotFound",
-			subAccountID:    "spotSub1",
-			creds:           &mockCreds,
-			assetType:       asset.Margin,
-			expectedBalance: Balance{},
-			expectedErr:     true,
-		},
-		{
-			name:            "GetBalance_CredentialsNotFound",
-			subAccountID:    "spotSub1",
-			creds:           &Credentials{Key: "unknown"},
-			assetType:       asset.Spot,
-			currency:        currency.BTC,
-			expectedBalance: Balance{},
-			expectedErr:     true,
-		},
-		{
-			name:            "GetBalance_InvalidAssetType",
-			subAccountID:    "spotSub1",
-			creds:           &mockCreds,
-			assetType:       invalidAssetTypeForGetBalance,
-			currency:        currency.BTC,
-			expectedBalance: Balance{},
-			expectedErr:     true,
-		},
-		{
-			name:            "GetBalance_EmptyCredentials",
-			subAccountID:    "spotSub1",
-			creds:           &emptyCreds,
-			assetType:       asset.Spot,
-			currency:        currency.BTC,
-			expectedBalance: Balance{},
-			expectedErr:     true,
-		},
-		{
-			name:            "GetBalance_EmptyCurrencyCode",
-			subAccountID:    "spotSub1",
-			creds:           &mockCreds,
-			assetType:       asset.Spot,
-			currency:        emptyCurrency,
-			expectedBalance: Balance{},
-			expectedErr:     true,
-		},
-		{
-			name:            "GetBalance_SubAccountIDNotFound",
-			subAccountID:    "nonExistentSubID",
-			creds:           &mockCreds,
-			assetType:       asset.Spot,
-			currency:        currency.BTC,
-			expectedBalance: Balance{},
-			expectedErr:     true,
-		},
-	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bal, err := accs.GetBalance(tt.subAccountID, tt.creds, tt.assetType, tt.currency)
-			if (err != nil) != tt.expectedErr {
-				t.Errorf("GetBalance() error = %v, wantErr %v. Test: %s", err, tt.expectedErr, tt.name)
-				return
-			}
-			if !tt.expectedErr {
-				if bal.Currency != tt.expectedBalance.Currency ||
-					bal.Total != tt.expectedBalance.Total ||
-					bal.Free != tt.expectedBalance.Free ||
-					bal.Hold != tt.expectedBalance.Hold {
-					t.Errorf("GetBalance() balance = %+v, want %+v. Test: %s", bal, tt.expectedBalance, tt.name)
+			bal, err := accs.GetBalance(tt.sID, tt.creds, tt.aType, tt.c)
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.errContains != "" {
+					assert.ErrorContains(t, err, tt.errContains)
 				}
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.wantBal.Currency, bal.Currency)
+				assert.Equal(t, tt.wantBal.Total, bal.Total)
 			}
 		})
 	}
 }
 
-// TestAccounts_GetHoldings tests the GetHoldings method of the Accounts struct.
-func TestAccounts_GetHoldings(t *testing.T) {
+func TestAccounts_Balances(t *testing.T) {
 	t.Parallel()
-
-	mockCreds := Credentials{Key: "mainAcc"}
-	mockEx := &mockEx{name: "TestHoldingsExchange"}
-	mux := dispatch.GetNewMux(nil)
-	accs, _ := NewAccounts(mockEx, mux)
-
-	spotBTC := Balance{Currency: currency.BTC, Total: 1, Free: 1, UpdatedAt: time.Now()}
-	spotETH := Balance{Currency: currency.ETH, Total: 10, Free: 10, UpdatedAt: time.Now()}
-	marginUSDT := Balance{Currency: currency.USDT, Total: 1000, Free: 1000, UpdatedAt: time.Now()}
-
-	accs.subAccounts[mockCreds] = map[key.SubAccountAsset]CurrencyBalances{
-		{SubAccount: "spotA", Asset: asset.Spot}: {
-			currency.BTC.Item: &balance{internal: spotBTC},
-			currency.ETH.Item: &balance{internal: spotETH},
-		},
-		{SubAccount: "marginA", Asset: asset.Margin}: {
-			currency.USDT.Item: &balance{internal: marginUSDT},
-		},
+	c1, c2 := Credentials{Key: "cA"}, Credentials{Key: "cB"}
+	mockExInst := &mockLocalExchange{name: "TestBalancesExchange"}
+	accs := MustNewAccounts(mockExInst)
+	sBTC1 := Balance{Currency: currency.BTC, Total: 1, UpdatedAt: time.Now()}
+	sETH1 := Balance{Currency: currency.ETH, Total: 10, UpdatedAt: time.Now()}
+	mUSDT1 := Balance{Currency: currency.USDT, Total: 1000, UpdatedAt: time.Now()}
+	sBTC2 := Balance{Currency: currency.BTC, Total: 2, UpdatedAt: time.Now()}
+	require.NoError(t, accs.Save(SubAccounts{{ID: "sA", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: sBTC1, currency.ETH: sETH1}}, {ID: "mA", AssetType: asset.Margin, Balances: CurrencyBalances{currency.USDT: mUSDT1}}}, &c1))
+	require.NoError(t, accs.Save(SubAccounts{{ID: "sB", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: sBTC2}}}, &c2))
+	tests := []struct{ name string; creds *Credentials; aType asset.Item; wantCount int; wantErr bool; errContains string; verify func(*testing.T, SubAccounts); initState func(e accountsExchangeDependency) *Accounts }{
+		{"AllCredsAllAssets", nil, asset.All, 3, false, "", func(t *testing.T, r SubAccounts) { assert.Len(t, r, 3) }, nil},
+		{"SpecificCredsAllAssets", &c1, asset.All, 2, false, "", nil, nil},
+		{"AllCredsSpecificAsset", nil, asset.Spot, 2, false, "", func(t *testing.T, r SubAccounts) { for _, sa := range r { assert.Equal(t, asset.Spot, sa.AssetType) } }, nil},
+		{"SpecificCredsSpecificAsset", &c1, asset.Margin, 1, false, "", func(t *testing.T, r SubAccounts) { assert.Equal(t, "mA", r[0].ID); assert.Contains(t, r[0].Balances, currency.USDT) }, nil},
+		{"NoMatchingCreds", &Credentials{Key: "unknown"}, asset.All, 0, true, ErrBalancesNotFound.Error(), nil, nil},
+		{"NoMatchingAsset", &c1, asset.Futures, 0, true, ErrBalancesNotFound.Error(), nil, nil},
+		{"InvalidAsset", nil, testInvalidAsset, 0, true, asset.ErrNotSupported.Error(), nil, nil},
+		{"NilReceiver", nil, asset.All, 0, true, common.ErrNilPointer.Error(), nil, func(e accountsExchangeDependency) *Accounts { return nil }},
 	}
-
-	emptyCreds := Credentials{}
-	var invalidAssetTypeForGetHoldings asset.Item
-
-	tests := []struct {
-		name          string
-		creds         *Credentials
-		assetType     asset.Item
-		expectedCount int
-		expectedErr   bool
-	}{
-		{
-			name:          "GetHoldings_Spot_ActuallyReturnsNonSpot",
-			creds:         &mockCreds,
-			assetType:     asset.Spot,
-			expectedCount: 1,
-			expectedErr:   false,
-		},
-		{
-			name:          "GetHoldings_Margin_ActuallyReturnsNonMargin",
-			creds:         &mockCreds,
-			assetType:     asset.Margin,
-			expectedCount: 2,
-			expectedErr:   false,
-		},
-		{
-			name:          "GetHoldings_NoMatchingCredentials",
-			creds:         &Credentials{Key: "unknownCreds"},
-			assetType:     asset.Spot,
-			expectedCount: 0,
-			expectedErr:   true,
-		},
-		{
-			name:          "GetHoldings_EmptyCredentials",
-			creds:         &emptyCreds,
-			assetType:     asset.Spot,
-			expectedCount: 0,
-			expectedErr:   true,
-		},
-		{
-			name:          "GetHoldings_InvalidAssetType",
-			creds:         &mockCreds,
-			assetType:     invalidAssetTypeForGetHoldings,
-			expectedCount: 0,
-			expectedErr:   true,
-		},
-		{
-			name:          "GetHoldings_AssetTypeWithNoOtherHoldings",
-			creds:         &mockCreds,
-			assetType:     asset.Futures,
-			expectedCount: 3,
-			expectedErr:   false,
-		},
-	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			holdings, err := accs.GetHoldings(tt.creds, tt.assetType)
-			if (err != nil) != tt.expectedErr {
-				t.Errorf("GetHoldings() error = %v, wantErr %v. Test: %s", err, tt.expectedErr, tt.name)
-				return
+			currentAccs := accs
+			if tt.initState != nil {
+				currentAccs = tt.initState(mockExInst)
 			}
-			if err == nil && len(holdings) != tt.expectedCount {
-				t.Errorf("GetHoldings() count = %d, wantCount %d. Holdings: %+v. Test: %s", len(holdings), tt.expectedCount, holdings, tt.name)
-			}
-			if !tt.expectedErr && tt.expectedCount > 0 {
-				if len(holdings) == 0 && tt.expectedCount > 0 {
-					t.Errorf("Expected some holdings but got none for test: %s", tt.name)
+			r, err := currentAccs.Balances(tt.creds, tt.aType)
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.errContains != "" {
+					assert.ErrorContains(t, err, tt.errContains)
+				}
+			} else {
+				require.NoError(t, err)
+				assert.Len(t, r, tt.wantCount)
+				if tt.verify != nil {
+					tt.verify(t, r)
 				}
 			}
-		})
+		}) // Corrected: This was the line with the syntax error.
 	}
 }
 
-// TestAccounts_Update tests the Update method of the Accounts struct.
 func TestAccounts_Update(t *testing.T) {
 	t.Parallel()
-
+	require.NoError(t, common.ExcludeError(dispatch.Start(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit), dispatch.ErrDispatcherAlreadyRunning))
 	mockCreds := Credentials{Key: "updateCreds"}
-	var emptyCredsInstanceForUpdate Credentials
-	var invalidAssetTypeForUpdate asset.Item
-	mockEx := &mockEx{name: "TestUpdateExchange"}
+	mockExInst := &mockLocalExchange{name: "TestUpdateExchange"}
+	initialBTC := Balance{Currency: currency.BTC, Total: 10, UpdatedAt: time.Unix(100, 0)}
+	initialETH := Balance{Currency: currency.ETH, Total: 20, UpdatedAt: time.Unix(100, 0)}
 
-	initialBTC := Balance{Currency: currency.BTC, Total: 10, Free: 10, UpdatedAt: time.Unix(100, 0)}
-	initialETH := Balance{Currency: currency.ETH, Total: 20, Free: 20, UpdatedAt: time.Unix(100, 0)}
+	changedBTC := Balance{Currency: currency.BTC, Total: 15, UpdatedAt: time.Unix(150,0)}
+	addedLTC := Balance{Currency: currency.LTC, Total: 5, UpdatedAt: time.Unix(150,0)}
+	newMarginUSDT := Balance{Currency: currency.USDT, Total: 100, UpdatedAt: time.Unix(150,0)}
+	outOfSeqBTC := Balance{Currency: currency.BTC, Total: 5, UpdatedAt: time.Unix(50,0)}
+	updatedETH := Balance{Currency: currency.ETH, Total: 25, UpdatedAt: time.Unix(150,0)}
+	anotherLTC := Balance{Currency: currency.LTC, Total: 30, UpdatedAt: time.Unix(160,0)}
+	anotherBTC := Balance{Currency: currency.BTC, Total: 1, UpdatedAt: time.Now()}
 
-	tests := []struct {
-		name                string
-		credsToUpdate       *Credentials
-		changesToApply      []Change
-		initialAccountState func() *Accounts
-		expectedErr         bool
-		verifyState         func(t *testing.T, accs *Accounts, errEncountered error)
-	}{
-		{
-			name:          "Update_ExistingBalance_Success",
-			credsToUpdate: &mockCreds,
-			changesToApply: []Change{
-				{Account: "spot1", AssetType: asset.Spot, Balance: &Balance{Currency: currency.BTC, Total: 15, Free: 15, UpdatedAt: time.Unix(150, 0)}},
-			},
-			initialAccountState: func() *Accounts {
-				mux := dispatch.GetNewMux(nil)
-				accs, _ := NewAccounts(mockEx, mux)
-				accs.subAccounts[mockCreds] = map[key.SubAccountAsset]CurrencyBalances{
-					{SubAccount: "spot1", Asset: asset.Spot}: {currency.BTC.Item: &balance{internal: initialBTC}},
-				}
-				return accs
-			},
-			expectedErr: false,
-			verifyState: func(t *testing.T, accs *Accounts, errEncountered error) {
-				if errEncountered != nil {
-					t.Fatalf("Unexpected error: %v", errEncountered)
-				}
-				b, _ := accs.GetBalance("spot1", &mockCreds, asset.Spot, currency.BTC)
-				if b.Total != 15 {
-					t.Errorf("Expected BTC total 15, got %f", b.Total)
-				}
-			},
-		},
-		{
-			name:          "Update_AddNewCurrencyToExistingSubAccount_Success",
-			credsToUpdate: &mockCreds,
-			changesToApply: []Change{
-				{Account: "spot1", AssetType: asset.Spot, Balance: &Balance{Currency: currency.LTC, Total: 5, Free: 5, UpdatedAt: time.Unix(150, 0)}},
-			},
-			initialAccountState: func() *Accounts {
-				mux := dispatch.GetNewMux(nil)
-				accs, _ := NewAccounts(mockEx, mux)
-				accs.subAccounts[mockCreds] = map[key.SubAccountAsset]CurrencyBalances{
-					{SubAccount: "spot1", Asset: asset.Spot}: {currency.BTC.Item: &balance{internal: initialBTC}},
-				}
-				return accs
-			},
-			expectedErr: false,
-			verifyState: func(t *testing.T, accs *Accounts, errEncountered error) {
-				if errEncountered != nil {
-					t.Fatalf("Unexpected error: %v", errEncountered)
-				}
-				bLTC, errLTC := accs.GetBalance("spot1", &mockCreds, asset.Spot, currency.LTC)
-				if errLTC != nil {
-					t.Fatalf("Failed to get LTC: %v", errLTC)
-				}
-				if bLTC.Total != 5 {
-					t.Errorf("Expected LTC total 5, got %f", bLTC.Total)
-				}
-			},
-		},
-		{
-			name:          "Update_NewSubAccountAndAssetViaChange_Success",
-			credsToUpdate: &mockCreds,
-			changesToApply: []Change{
-				{Account: "marginNew", AssetType: asset.Margin, Balance: &Balance{Currency: currency.USDT, Total: 100, Free: 100, UpdatedAt: time.Unix(150, 0)}},
-			},
-			initialAccountState: func() *Accounts { mux := dispatch.GetNewMux(nil); accs, _ := NewAccounts(mockEx, mux); return accs },
-			expectedErr:         false,
-			verifyState: func(t *testing.T, accs *Accounts, errEncountered error) {
-				if errEncountered != nil {
-					t.Fatalf("Unexpected error: %v", errEncountered)
-				}
-				b, err := accs.GetBalance("marginNew", &mockCreds, asset.Margin, currency.USDT)
-				if err != nil {
-					t.Fatalf("Failed to get USDT: %v", err)
-				}
-				if b.Total != 100 {
-					t.Errorf("Expected USDT total 100, got %f", b.Total)
-				}
-			},
-		},
-		{
-			name:                "Update_EmptyCredentials_ErrorExpected",
-			credsToUpdate:       &emptyCredsInstanceForUpdate,
-			changesToApply:      []Change{{Account: "spot1", AssetType: asset.Spot, Balance: &initialBTC}},
-			initialAccountState: func() *Accounts { mux := dispatch.GetNewMux(nil); accs, _ := NewAccounts(mockEx, mux); return accs },
-			expectedErr:         true,
-		},
-		{
-			name:                "Update_InvalidAssetTypeInChange_ErrorExpected",
-			credsToUpdate:       &mockCreds,
-			changesToApply:      []Change{{Account: "spot1", AssetType: invalidAssetTypeForUpdate, Balance: &initialBTC}},
-			initialAccountState: func() *Accounts { mux := dispatch.GetNewMux(nil); accs, _ := NewAccounts(mockEx, mux); return accs },
-			expectedErr:         true,
-		},
-		{
-			name:                "Update_NilBalanceInChange_ErrorExpected",
-			credsToUpdate:       &mockCreds,
-			changesToApply:      []Change{{Account: "spot1", AssetType: asset.Spot, Balance: nil}},
-			initialAccountState: func() *Accounts { mux := dispatch.GetNewMux(nil); accs, _ := NewAccounts(mockEx, mux); return accs },
-			expectedErr:         true,
-		},
-		{
-			name:          "Update_BalanceUpdateError_OutOfSequence_ErrorExpected",
-			credsToUpdate: &mockCreds,
-			changesToApply: []Change{
-				{Account: "spot1", AssetType: asset.Spot, Balance: &Balance{Currency: currency.BTC, Total: 5, UpdatedAt: time.Unix(50, 0)}},
-			},
-			initialAccountState: func() *Accounts {
-				mux := dispatch.GetNewMux(nil)
-				accs, _ := NewAccounts(mockEx, mux)
-				accs.subAccounts[mockCreds] = map[key.SubAccountAsset]CurrencyBalances{
-					{SubAccount: "spot1", Asset: asset.Spot}: {currency.BTC.Item: &balance{internal: initialBTC}},
-				}
-				return accs
-			},
-			expectedErr: true,
-		},
-		{
-			name:          "Update_MultipleChanges_MixedSuccessAndFailures_ExpectPartialUpdateAndError",
-			credsToUpdate: &mockCreds,
-			changesToApply: []Change{
-				{Account: "spot1", AssetType: asset.Spot, Balance: &Balance{Currency: currency.ETH, Total: 25, UpdatedAt: time.Unix(150, 0)}},
-				{Account: "spot1", AssetType: asset.Spot, Balance: &Balance{Currency: currency.BTC, Total: 5, UpdatedAt: time.Unix(50, 0)}},
-				{Account: "spot1", AssetType: asset.Spot, Balance: &Balance{Currency: currency.LTC, Total: 30, UpdatedAt: time.Unix(160, 0)}},
-			},
-			initialAccountState: func() *Accounts {
-				mux := dispatch.GetNewMux(nil)
-				accs, _ := NewAccounts(mockEx, mux)
-				accs.subAccounts[mockCreds] = map[key.SubAccountAsset]CurrencyBalances{
-					{SubAccount: "spot1", Asset: asset.Spot}: {
-						currency.BTC.Item: &balance{internal: initialBTC},
-						currency.ETH.Item: &balance{internal: initialETH},
-					},
-				}
-				return accs
-			},
-			expectedErr: true,
-			verifyState: func(t *testing.T, accs *Accounts, errEncountered error) {
-				if errEncountered == nil {
-					t.Fatal("Expected an error, got nil")
-				}
-				ethBal, _ := accs.GetBalance("spot1", &mockCreds, asset.Spot, currency.ETH)
-				if ethBal.Total != 25 {
-					t.Errorf("Expected ETH total 25, got %f", ethBal.Total)
-				}
-				btcBal, _ := accs.GetBalance("spot1", &mockCreds, asset.Spot, currency.BTC)
-				if btcBal.Total != initialBTC.Total {
-					t.Errorf("Expected BTC total %f, got %f", initialBTC.Total, btcBal.Total)
-				}
-				ltcBal, _ := accs.GetBalance("spot1", &mockCreds, asset.Spot, currency.LTC)
-				if ltcBal.Total != 30 {
-					t.Errorf("Expected LTC total 30, got %f", ltcBal.Total)
-				}
-			},
-		},
+	tests := []struct{ name string; creds *Credentials; changes []Change; initState func(e accountsExchangeDependency) *Accounts; errContains string; verify func(*testing.T, *Accounts, error) }{
+		{"UpdateExisting", &mockCreds, []Change{{Account: "s1", AssetType: asset.Spot, Balance: &changedBTC}}, func(e accountsExchangeDependency) *Accounts { accs := MustNewAccounts(e); require.NoError(t, accs.Save(SubAccounts{{ID: "s1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: initialBTC}}}, &mockCreds)); return accs }, "", func(t *testing.T, accs *Accounts, err error) { require.NoError(t, err); b, _ := accs.GetBalance("s1", &mockCreds, asset.Spot, currency.BTC); assert.Equal(t, 15.0, b.Total) }},
+		{"AddNewCurrency", &mockCreds, []Change{{Account: "s1", AssetType: asset.Spot, Balance: &addedLTC}}, func(e accountsExchangeDependency) *Accounts { accs := MustNewAccounts(e); require.NoError(t, accs.Save(SubAccounts{{ID: "s1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: initialBTC}}}, &mockCreds)); return accs }, "", func(t *testing.T, accs *Accounts, err error) { require.NoError(t, err); b, e := accs.GetBalance("s1", &mockCreds, asset.Spot, currency.LTC); require.NoError(t, e); assert.Equal(t, 5.0, b.Total) }},
+		{"NewSubAccountAsset", &mockCreds, []Change{{Account: "mN", AssetType: asset.Margin, Balance: &newMarginUSDT}}, MustNewAccounts, "", func(t *testing.T, accs *Accounts, err error) { require.NoError(t, err); b, e := accs.GetBalance("mN", &mockCreds, asset.Margin, currency.USDT); require.NoError(t, e); assert.Equal(t, 100.0, b.Total) }},
+		{"EmptyCreds", &Credentials{}, []Change{{Account: "s1", AssetType: asset.Spot, Balance: &initialBTC}}, MustNewAccounts, errCredentialsEmpty.Error(), nil },
+		{"InvalidAsset", &mockCreds, []Change{{Account: "s1", AssetType: testInvalidAsset, Balance: &initialBTC}}, MustNewAccounts, asset.ErrNotSupported.Error(), nil },
+		{"NilBalance", &mockCreds, []Change{{Account: "s1", AssetType: asset.Spot, Balance: nil}}, MustNewAccounts, common.ErrNilPointer.Error(), nil },
+		{"OutOfSequence", &mockCreds, []Change{{Account: "s1", AssetType: asset.Spot, Balance: &outOfSeqBTC}}, func(e accountsExchangeDependency) *Accounts { accs := MustNewAccounts(e); require.NoError(t, accs.Save(SubAccounts{{ID: "s1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: initialBTC}}}, &mockCreds)); return accs }, errOutOfSequence.Error(), nil },
+		{"MultipleChangesMixed", &mockCreds, []Change{{Account: "s1", AssetType: asset.Spot, Balance: &updatedETH}, {Account: "s1", AssetType: asset.Spot, Balance: &outOfSeqBTC}, {Account: "s1", AssetType: asset.Spot, Balance: &anotherLTC}, {Account: "s2", AssetType: testInvalidAsset, Balance: &anotherBTC}}, func(e accountsExchangeDependency) *Accounts { accs := MustNewAccounts(e); require.NoError(t, accs.Save(SubAccounts{{ID: "s1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: initialBTC, currency.ETH: initialETH}}}, &mockCreds)); return accs }, errOutOfSequence.Error(), func(t *testing.T, accs *Accounts, err error) { require.Error(t, err); assert.ErrorContains(t, err, errOutOfSequence.Error()); assert.ErrorContains(t, err, asset.ErrNotSupported.Error()); bETH, _ := accs.GetBalance("s1", &mockCreds, asset.Spot, currency.ETH); assert.Equal(t, 25.0, bETH.Total); bBTC, _ := accs.GetBalance("s1", &mockCreds, asset.Spot, currency.BTC); assert.Equal(t, initialBTC.Total, bBTC.Total); bLTC, eLTC := accs.GetBalance("s1", &mockCreds, asset.Spot, currency.LTC); require.NoError(t, eLTC); assert.Equal(t, 30.0, bLTC.Total); _, eS2 := accs.GetBalance("s2", &mockCreds, testInvalidAsset, currency.BTC); assert.Error(t, eS2) }},
+		{"NilReceiver", &mockCreds, []Change{{Account: "s1", AssetType: asset.Spot, Balance: &initialBTC}}, func(e accountsExchangeDependency) *Accounts{return nil}, common.ErrNilPointer.Error(), nil },
+		{"NilSubAccountsMap", &mockCreds, []Change{{Account: "s1", AssetType: asset.Spot, Balance: &initialBTC}}, func(e accountsExchangeDependency) *Accounts { mux := dispatch.GetNewMux(nil); id, _ := mux.GetID(); return &Accounts{Exchange: e, mux: mux, routingID: id, subAccounts: nil} }, common.ErrNilPointer.Error(), nil },
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			accs := tt.initialAccountState()
-			err := accs.Update(tt.changesToApply, tt.credsToUpdate)
-
-			if (err != nil) != tt.expectedErr {
-				t.Errorf("Update() error = %v, wantErr %v. Test: %s", err, tt.expectedErr, tt.name)
-			}
-			if tt.verifyState != nil {
-				tt.verifyState(t, accs, err)
-			}
-		})
-	}
+	for _, tt := range tests { t.Run(tt.name, func(t *testing.T) { accs := tt.initState(mockExInst); err := accs.Update(tt.changes, tt.creds); if tt.errContains != "" { require.Error(t, err); assert.ErrorContains(t, err, tt.errContains) } else { require.NoError(t, err) } if tt.verify != nil { tt.verify(t, accs, err) }})}
 }
 
-// TestSubAccounts_Group tests the Group method of the SubAccounts slice type.
-func TestSubAccounts_Group(t *testing.T) {
+func TestSubAccounts_Merge(t *testing.T) {
 	t.Parallel()
+	sa1BTC1 := Balance{Currency: currency.BTC, Total: 1, Free: 1, UpdatedAt: time.Now()}
+	sa1ETH1 := Balance{Currency: currency.ETH, Total: 10, Free: 10, UpdatedAt: time.Now()}
+	sa1USDT1 := Balance{Currency: currency.USDT, Total: 100, Free: 100, UpdatedAt: time.Now()}
+	sa2LTC1 := Balance{Currency: currency.LTC, Total: 20, Free: 20, UpdatedAt: time.Now()}
+	sa1BTC2 := Balance{Currency: currency.BTC, Total: 0.5, Free: 0.5, Borrowed: 0.1, UpdatedAt: time.Now().Add(time.Second)}
 
-	sa1BTC1 := Balance{Currency: currency.BTC, Total: 1, Free: 1}
-	sa1ETH1 := Balance{Currency: currency.ETH, Total: 10, Free: 10}
-	sa1USDT1 := Balance{Currency: currency.USDT, Total: 100, Free: 100}
-
-	sa2BTC1 := Balance{Currency: currency.BTC, Total: 2, Free: 2}
-	sa2LTC1 := Balance{Currency: currency.LTC, Total: 20, Free: 20}
-
-	sa1BTC2 := Balance{Currency: currency.BTC, Total: 0.5, Free: 0.5} // More BTC for Spot account "acc1"
-
-	tests := []struct {
-		name     string
-		input    SubAccounts // This is accounts.SubAccounts type (i.e., []SubAccount)
-		expected SubAccounts
-	}{
-		{
-			name: "Group basic different IDs and Assets",
-			input: SubAccounts{
-				{ID: "acc1", AssetType: asset.Spot, Currencies: []Balance{sa1BTC1, sa1ETH1}},
-				{ID: "acc2", AssetType: asset.Spot, Currencies: []Balance{sa2BTC1, sa2LTC1}},
-				{ID: "acc1", AssetType: asset.Margin, Currencies: []Balance{sa1USDT1}},
-			},
-			// Expected output is sorted by AssetType then ID
-			expected: SubAccounts{
-				{ID: "acc1", AssetType: asset.Margin, Currencies: []Balance{sa1USDT1}},
-				{ID: "acc1", AssetType: asset.Spot, Currencies: []Balance{sa1BTC1, sa1ETH1}},
-				{ID: "acc2", AssetType: asset.Spot, Currencies: []Balance{sa2BTC1, sa2LTC1}},
-			},
-		},
-		{
-			name: "Group and concatenate currencies for same ID and AssetType",
-			input: SubAccounts{
-				{ID: "acc1", AssetType: asset.Spot, Currencies: []Balance{sa1BTC1}},
-				{ID: "acc2", AssetType: asset.Spot, Currencies: []Balance{sa2BTC1}},
-				{ID: "acc1", AssetType: asset.Spot, Currencies: []Balance{sa1ETH1}}, // acc1, Spot again
-				{ID: "acc1", AssetType: asset.Spot, Currencies: []Balance{sa1BTC2}}, // acc1, Spot, more BTC
-			},
-			expected: SubAccounts{
-				// Expected: acc1 Spot (BTC, ETH, BTC) - order of concatenated currencies is preserved from input order
-				{ID: "acc1", AssetType: asset.Spot, Currencies: []Balance{sa1BTC1, sa1ETH1, sa1BTC2}},
-				{ID: "acc2", AssetType: asset.Spot, Currencies: []Balance{sa2BTC1}},
-			},
-		},
-		{
-			name:     "Empty input",
-			input:    SubAccounts{},
-			expected: SubAccounts{},
-		},
-		{
-			name: "Single element",
-			input: SubAccounts{
-				{ID: "acc1", AssetType: asset.Spot, Currencies: []Balance{sa1BTC1}},
-			},
-			expected: SubAccounts{
-				{ID: "acc1", AssetType: asset.Spot, Currencies: []Balance{sa1BTC1}},
-			},
-		},
-		{
-			name: "All same ID and AssetType",
-			input: SubAccounts{
-				{ID: "acc1", AssetType: asset.Spot, Currencies: []Balance{sa1BTC1}},
-				{ID: "acc1", AssetType: asset.Spot, Currencies: []Balance{sa1ETH1}},
-				{ID: "acc1", AssetType: asset.Spot, Currencies: []Balance{sa1USDT1}},
-			},
-			expected: SubAccounts{
-				{ID: "acc1", AssetType: asset.Spot, Currencies: []Balance{sa1BTC1, sa1ETH1, sa1USDT1}},
-			},
-		},
-		{
-			name: "Mixed with empty currencies list initially",
-			input: SubAccounts{
-				{ID: "acc1", AssetType: asset.Spot, Currencies: []Balance{sa1BTC1}},
-				{ID: "acc2", AssetType: asset.Spot, Currencies: []Balance{}}, // acc2 starts with empty
-				{ID: "acc1", AssetType: asset.Margin, Currencies: []Balance{sa1USDT1}},
-				{ID: "acc2", AssetType: asset.Spot, Currencies: []Balance{sa2LTC1}}, // acc2 gets currencies
-			},
-			expected: SubAccounts{
-				{ID: "acc1", AssetType: asset.Margin, Currencies: []Balance{sa1USDT1}},
-				{ID: "acc1", AssetType: asset.Spot, Currencies: []Balance{sa1BTC1}},
-				// acc2, Spot had Currencies:[] then Currencies:[LTC]. The Group func concatenates.
-				{ID: "acc2", AssetType: asset.Spot, Currencies: []Balance{sa2LTC1}},
-			},
-		},
+	tests := []struct{ name string; initial SubAccounts; toMerge *SubAccount; expected SubAccounts }{
+		{"EmptyList", SubAccounts{}, &SubAccount{ID: "a1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: sa1BTC1}}, SubAccounts{{ID: "a1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: sa1BTC1}}}},
+		{"NewID", SubAccounts{{ID: "a1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: sa1BTC1}}}, &SubAccount{ID: "a2", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: {Total: 2, UpdatedAt: time.Now()}}}, SubAccounts{{ID: "a1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: sa1BTC1}}, {ID: "a2", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: {Total: 2, UpdatedAt: time.Now()}}}}},
+		{"NewAsset", SubAccounts{{ID: "a1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: sa1BTC1}}}, &SubAccount{ID: "a1", AssetType: asset.Margin, Balances: CurrencyBalances{currency.USDT: sa1USDT1}}, SubAccounts{{ID: "a1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: sa1BTC1}}, {ID: "a1", AssetType: asset.Margin, Balances: CurrencyBalances{currency.USDT: sa1USDT1}}}},
+		{"MergeExisting", SubAccounts{{ID: "a1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: sa1BTC1}}}, &SubAccount{ID: "a1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.ETH: sa1ETH1, currency.BTC: sa1BTC2}}, SubAccounts{{ID: "a1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: {Currency: sa1BTC2.Currency, Total: 1.5, Free: 0.5, Borrowed: 0.1, UpdatedAt: sa1BTC2.UpdatedAt}, currency.ETH: sa1ETH1}}}},
+		{"MergeWithEmptyBalances", SubAccounts{{ID: "a1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: sa1BTC1}}}, &SubAccount{ID: "a1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.LTC: sa2LTC1}}, SubAccounts{{ID: "a1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: sa1BTC1, currency.LTC: sa2LTC1}}}},
+		{"MergeTotallyEmptyBalances", SubAccounts{{ID: "a1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: sa1BTC1}}}, &SubAccount{ID: "a1", AssetType: asset.Spot, Balances: CurrencyBalances{}}, SubAccounts{{ID: "a1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: sa1BTC1}}}},
+		{"MergeNil", SubAccounts{{ID: "a1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: sa1BTC1}}}, nil, SubAccounts{{ID: "a1", AssetType: asset.Spot, Balances: CurrencyBalances{currency.BTC: sa1BTC1}}}},
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := tt.input.Group()
-			if !reflect.DeepEqual(result, tt.expected) {
-				t.Errorf("SubAccounts.Group() for test '%s':\nGot:      %+v\nExpected: %+v", tt.name, result, tt.expected)
+	for _, tt := range tests { t.Run(tt.name, func(t *testing.T) {
+		listCopy := make(SubAccounts, len(tt.initial))
+		for i, sa := range tt.initial { balancesCopy := make(CurrencyBalances); for c, b := range sa.Balances { balancesCopy[c] = b }; listCopy[i] = &SubAccount{ID: sa.ID, AssetType: sa.AssetType, Balances: balancesCopy} }
+		result := listCopy.Merge(tt.toMerge)
+		require.Len(t, result, len(tt.expected))
+		expectedMap := make(map[string]*SubAccount); for _, sa := range tt.expected { expectedMap[sa.ID+sa.AssetType.String()] = sa }
+		resultMap := make(map[string]*SubAccount); for _, sa := range result { resultMap[sa.ID+sa.AssetType.String()] = sa }
+		require.Equal(t, len(expectedMap), len(resultMap))
+		for k, expSA := range expectedMap {
+			actSA, ok := resultMap[k]; require.True(t, ok)
+			assert.Equal(t, expSA.ID, actSA.ID); assert.Equal(t, expSA.AssetType, actSA.AssetType)
+			require.Equal(t, len(expSA.Balances), len(actSA.Balances))
+			for curr, expBal := range expSA.Balances {
+				actBal, currOk := actSA.Balances[curr]; require.True(t, currOk)
+				assert.Equal(t, expBal.Total, actBal.Total)
+				assert.Equal(t, expBal.Free, actBal.Free)
+				assert.Equal(t, expBal.Borrowed, actBal.Borrowed)
+				if !expBal.UpdatedAt.IsZero() { assert.WithinDuration(t, expBal.UpdatedAt, actBal.UpdatedAt, time.Millisecond) }
 			}
-		})
-	}
+		}
+	})}
 }
-*/
