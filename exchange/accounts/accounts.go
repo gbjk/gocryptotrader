@@ -85,6 +85,16 @@ func NewAccounts(e exchange, mux *dispatch.Mux) (*Accounts, error) {
 	}, nil
 }
 
+// NewSUbAccount returns a new SubAccount
+// id may be empty
+func NewSubAccount(a asset.Item, id string) *SubAccount {
+	return &SubAccount{
+		AssetType: a,
+		ID:        id,
+		Balances:  CurrencyBalances{},
+	}
+}
+
 // Subscribe subscribes to your exchange accounts
 func (a *Accounts) Subscribe() (dispatch.Pipe, error) {
 	return a.mux.Subscribe(a.routingID)
@@ -286,16 +296,6 @@ func (a *Accounts) Update(changes []Change, creds *Credentials) error {
 	return errs
 }
 
-// NewSUbAccount returns a new sub account
-// id may be empty
-func NewSubAccount(a asset.Item, id string) *SubAccount {
-	return &SubAccount{
-		AssetType: a,
-		ID:        id,
-		Balances:  CurrencyBalances{},
-	}
-}
-
 // Merge adds CurrencyBalances in s to the SubAccount in l with a matching AssetType and ID
 // If no SubAccount matches, s is appended
 // Duplicate Currency Balances are added together
@@ -308,4 +308,17 @@ func (l SubAccounts) Merge(s *SubAccount) SubAccounts {
 		l[i].Balances[curr] = newBal.Add(l[i].Balances[curr])
 	}
 	return l
+}
+
+// currencyBalances returns a currencyBalances entry for Credentials, SubAccount and asset
+// No nilguard protection provided, since this is a private function
+func (a *Accounts) currencyBalances(c *Credentials, subAcct string, aType asset.Item) currencyBalances {
+	k := key.SubAccountAsset{SubAccount: subAcct, Asset: aType}
+	if _, ok := a.subAccounts[*c]; !ok {
+		a.subAccounts[*c] = make(subAccounts)
+	}
+	if _, ok := a.subAccounts[*c][k]; !ok {
+		a.subAccounts[*c][k] = make(currencyBalances)
+	}
+	return a.subAccounts[*c][k]
 }

@@ -1,12 +1,15 @@
 package accounts
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/common"
+	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
 type mockEx struct {
@@ -39,6 +42,16 @@ func TestMustNewAccounts(t *testing.T) {
 	require.Panics(t, func() { _ = MustNewAccounts(nil) })
 }
 
+func TestNewSubAccount(t *testing.T) {
+	t.Parallel()
+	a := NewSubAccount(asset.Spot, "")
+	require.NotNil(t, a, "must not return nil with no id")
+	assert.Equal(t, asset.Spot, a.AssetType, "AssetType should correct")
+	assert.Empty(t, a.ID, "ID should not default to anything")
+	a = NewSubAccount(asset.Spot, "42")
+	assert.Equal(t, "42", a.ID, "ID should be correct")
+}
+
 func TestSubscribe(t *testing.T) {
 	t.Parallel()
 	err := dispatch.Start(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
@@ -47,6 +60,34 @@ func TestSubscribe(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, p, "Subscribe must return a pipe")
 	require.Empty(t, p.Channel(), "Pipe must be empty before Saving anything")
+}
+
+// TestAccountsCurrencyBalancesPrivateensures that currencyBalances initializes maps, and returns a reference to the same entry
+func TestAccountsCurrencyBalancesPrivate(t *testing.T) {
+	t.Parallel()
+
+	a := &Accounts{subAccounts: make(credSubAccounts)}
+	c := &Credentials{Key: "a"}
+	b := a.currencyBalances(c, "", asset.Spot)
+	r1 := a.subAccounts[*c]
+	// Using reflect since assert.Same cannot be used on maps to ensure same underlying pointer
+	assert.Equal(t,
+		reflect.ValueOf(b).UnsafePointer(),
+		reflect.ValueOf(r1[key.SubAccountAsset{Asset: asset.Spot}]).UnsafePointer(),
+		"should make and return the same map")
+	assert.Equal(t,
+		reflect.ValueOf(b).UnsafePointer(),
+		reflect.ValueOf(a.currencyBalances(c, "", asset.Spot)).UnsafePointer(),
+		"should return the same map on subsequent calls")
+	b = a.currencyBalances(c, "", asset.Futures)
+	assert.Equal(t,
+		reflect.ValueOf(r1).UnsafePointer(),
+		reflect.ValueOf(a.subAccounts[*c]).UnsafePointer(),
+		"should not make a new cred key")
+	assert.Equal(t,
+		reflect.ValueOf(b).UnsafePointer(),
+		reflect.ValueOf(r1[key.SubAccountAsset{Asset: asset.Futures}]).UnsafePointer(),
+		"should make and return the same map")
 }
 
 /*

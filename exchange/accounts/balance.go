@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
@@ -42,14 +41,6 @@ type currencyBalances map[currency.Code]*balance
 
 // CurrencyBalances provides a map of currencies to balances
 type CurrencyBalances map[currency.Code]Balance
-
-func (c *currencyBalances) Public() CurrencyBalances {
-	n := make(CurrencyBalances, len(*c))
-	for curr, bal := range *c {
-		n[curr] = bal.Balance()
-	}
-	return n
-}
 
 // Add will Set a currency balance, overwriting any previous Balance
 // currency may be a string or a currency.Code
@@ -103,6 +94,14 @@ func (b Balance) Add(a Balance) Balance {
 	return b
 }
 
+func (c *currencyBalances) Public() CurrencyBalances {
+	n := make(CurrencyBalances, len(*c))
+	for curr, bal := range *c {
+		n[curr] = bal.Balance()
+	}
+	return n
+}
+
 // update checks that an incoming change has a valid change, and returns if the balances were changed
 // If change does not have a Currency set, the existing Currency is preserved
 func (b *balance) update(change Balance) (bool, error) {
@@ -133,19 +132,6 @@ func (b *balance) update(change Balance) (bool, error) {
 	}
 	b.internal = change
 	return true, nil
-}
-
-// currencyBalances returns a currencyBalances entry for Credentials, SubAccount and asset
-// No nilguard protection provided, since this is a private function
-func (a *Accounts) currencyBalances(c *Credentials, subAcct string, aType asset.Item) currencyBalances {
-	k := key.SubAccountAsset{SubAccount: subAcct, Asset: aType}
-	if _, ok := a.subAccounts[*c]; !ok {
-		a.subAccounts[*c] = make(subAccounts)
-	}
-	if _, ok := a.subAccounts[*c][k]; !ok {
-		a.subAccounts[*c][k] = make(currencyBalances)
-	}
-	return a.subAccounts[*c][k]
 }
 
 // balance rutens a balance for a currency
