@@ -36,21 +36,22 @@ type TickersResponse struct {
 	Message string                     `json:"message"`
 }
 
+type OrderbookLevel struct {
+	Quantity float64 `json:"quantity,string"`
+	Price    float64 `json:"price,string"`
+}
+
+type OrderbookLevels []OrderbookLevel
+
 // Orderbook holds full range of order book information
 type Orderbook struct {
 	Status string `json:"status"`
 	Data   struct {
-		Timestamp       types.Time `json:"timestamp"`
-		OrderCurrency   string     `json:"order_currency"`
-		PaymentCurrency string     `json:"payment_currency"`
-		Bids            []struct {
-			Quantity float64 `json:"quantity,string"`
-			Price    float64 `json:"price,string"`
-		} `json:"bids"`
-		Asks []struct {
-			Quantity float64 `json:"quantity,string"`
-			Price    float64 `json:"price,string"`
-		} `json:"asks"`
+		Timestamp       types.Time      `json:"timestamp"`
+		OrderCurrency   string          `json:"order_currency"`
+		PaymentCurrency string          `json:"payment_currency"`
+		Bids            OrderbookLevels `json:"bids"`
+		Asks            OrderbookLevels `json:"asks"`
 	} `json:"data"`
 	Message string `json:"message"`
 }
