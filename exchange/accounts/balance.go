@@ -11,7 +11,11 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 )
 
-var errBalanceCurrencyMismatch = errors.New("balance currency does not match update currency")
+var (
+	errBalanceCurrencyMismatch = errors.New("balance currency does not match update currency")
+	errOutOfSequence           = errors.New("out of sequence")
+	errUpdatedAtIsZero         = errors.New("updatedAt may not be zero")
+)
 
 // Balance contains an exchange currency balance
 type Balance struct {

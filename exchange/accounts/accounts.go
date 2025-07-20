@@ -24,12 +24,9 @@ var (
 )
 
 var (
-	errCredentialsEmpty      = errors.New("no credentials provided")
-	errOutOfSequence         = errors.New("out of sequence")
-	errUpdatedAtIsZero       = errors.New("updatedAt may not be zero")
-	errExchangeAlreadyExists = errors.New("exchange already exists")
-	errUpdatingBalance       = errors.New("error updating balance")
-	errPublish               = errors.New("error publishing account changes")
+	errCredentialsEmpty = errors.New("no credentials provided")
+	errUpdatingBalance  = errors.New("error updating balance")
+	errPublish          = errors.New("error publishing account changes")
 )
 
 // Accounts holds a stream ID and a map to the exchange holdings

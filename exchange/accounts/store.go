@@ -2,12 +2,15 @@ package accounts
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
 
 	"github.com/thrasher-corp/gocryptotrader/dispatch"
 )
+
+var errExchangeAlreadyExists = errors.New("exchange already exists")
 
 // Store holds ticker information for each individual exchange
 type Store struct {
