@@ -317,10 +317,10 @@ func (e *Exchange) UpdateOrderbook(ctx context.Context, pair currency.Pair, asse
 }
 
 // UpdateAccountBalances retrieves balances for all enabled currencies
-func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (account.SubAccounts, error) {
+func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.Item) (accounts.SubAccounts, error) {
 	// If fetching requires more than one asset type please set
 	// HasAssetTypeAccountSegregation to true in RESTCapabilities above.
-	return account.Holdings{}, common.ErrNotYetImplemented
+	return accounts.SubAccounts{}, common.ErrNotYetImplemented
 }
 
 // GetAccountFundingHistory returns funding history, deposits and withdrawals
