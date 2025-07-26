@@ -666,9 +666,7 @@ func DeployExchangeIntervals(enabled ...IntervalCapacity) ExchangeIntervals {
 	return ExchangeIntervals{supported: supported, aligned: enabled}
 }
 
-// ExchangeSupported returns if the exchange directly supports the interval. In
-// future this might be able to be deprecated because we can construct custom
-// intervals from the supported list.
+// ExchangeSupported returns if the exchange directly supports the interval
 func (e *ExchangeIntervals) ExchangeSupported(in Interval) bool {
 	_, ok := e.supported[in]
 	return ok

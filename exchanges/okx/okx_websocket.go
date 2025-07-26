@@ -57,11 +57,6 @@ const (
 	// maxConnByteLen total length of multiple channels cannot exceed 4096 bytes.
 	maxConnByteLen = 4096
 
-	// Candlestick channels
-	markPrice        = "mark-price-"
-	indexCandlestick = "index-"
-	candle           = "candle"
-
 	// Subscriptions
 	okxSpreadOrders = "sprd-orders"
 	okxSpreadTrades = "sprd-trades"
@@ -106,133 +101,49 @@ const (
 	economicCalendar            = "economic-calendar"
 
 	// Public channels
-	channelInstruments     = "instruments"
-	channelOpenInterest    = "open-interest"
-	channelTrades          = "trades"
-	channelAllTrades       = "trades-all"
-	channelEstimatedPrice  = "estimated-price"
-	channelMarkPrice       = "mark-price"
-	channelPriceLimit      = "price-limit"
-	channelOrderBooks      = "books"
-	channelOptionTrades    = "option-trades"
-	channelOrderBooks5     = "books5"
-	channelOrderBooks50TBT = "books50-l2-tbt"
-	channelOrderBooksTBT   = "books-l2-tbt"
-	channelBBOTBT          = "bbo-tbt"
-	channelOptSummary      = "opt-summary"
-	channelFundingRate     = "funding-rate"
-
-	// Candlestick lengths
-	channelCandle1Y     = candle + "1Y"
-	channelCandle6M     = candle + "6M"
-	channelCandle3M     = candle + "3M"
-	channelCandle1M     = candle + "1M"
-	channelCandle1W     = candle + "1W"
-	channelCandle1D     = candle + "1D"
-	channelCandle2D     = candle + "2D"
-	channelCandle3D     = candle + "3D"
-	channelCandle5D     = candle + "5D"
-	channelCandle12H    = candle + "12H"
-	channelCandle6H     = candle + "6H"
-	channelCandle4H     = candle + "4H"
-	channelCandle2H     = candle + "2H"
-	channelCandle1H     = candle + "1H"
-	channelCandle30m    = candle + "30m"
-	channelCandle15m    = candle + "15m"
-	channelCandle5m     = candle + "5m"
-	channelCandle3m     = candle + "3m"
-	channelCandle1m     = candle + "1m"
-	channelCandle1Yutc  = candle + "1Yutc"
-	channelCandle3Mutc  = candle + "3Mutc"
-	channelCandle1Mutc  = candle + "1Mutc"
-	channelCandle1Wutc  = candle + "1Wutc"
-	channelCandle1Dutc  = candle + "1Dutc"
-	channelCandle2Dutc  = candle + "2Dutc"
-	channelCandle3Dutc  = candle + "3Dutc"
-	channelCandle5Dutc  = candle + "5Dutc"
-	channelCandle12Hutc = candle + "12Hutc"
-	channelCandle6Hutc  = candle + "6Hutc"
-
-	// Index Candlesticks Channels
-	channelIndexCandle1Y     = indexCandlestick + channelCandle1Y
-	channelIndexCandle6M     = indexCandlestick + channelCandle6M
-	channelIndexCandle3M     = indexCandlestick + channelCandle3M
-	channelIndexCandle1M     = indexCandlestick + channelCandle1M
-	channelIndexCandle1W     = indexCandlestick + channelCandle1W
-	channelIndexCandle1D     = indexCandlestick + channelCandle1D
-	channelIndexCandle2D     = indexCandlestick + channelCandle2D
-	channelIndexCandle3D     = indexCandlestick + channelCandle3D
-	channelIndexCandle5D     = indexCandlestick + channelCandle5D
-	channelIndexCandle12H    = indexCandlestick + channelCandle12H
-	channelIndexCandle6H     = indexCandlestick + channelCandle6H
-	channelIndexCandle4H     = indexCandlestick + channelCandle4H
-	channelIndexCandle2H     = indexCandlestick + channelCandle2H
-	channelIndexCandle1H     = indexCandlestick + channelCandle1H
-	channelIndexCandle30m    = indexCandlestick + channelCandle30m
-	channelIndexCandle15m    = indexCandlestick + channelCandle15m
-	channelIndexCandle5m     = indexCandlestick + channelCandle5m
-	channelIndexCandle3m     = indexCandlestick + channelCandle3m
-	channelIndexCandle1m     = indexCandlestick + channelCandle1m
-	channelIndexCandle1Yutc  = indexCandlestick + channelCandle1Yutc
-	channelIndexCandle3Mutc  = indexCandlestick + channelCandle3Mutc
-	channelIndexCandle1Mutc  = indexCandlestick + channelCandle1Mutc
-	channelIndexCandle1Wutc  = indexCandlestick + channelCandle1Wutc
-	channelIndexCandle1Dutc  = indexCandlestick + channelCandle1Dutc
-	channelIndexCandle2Dutc  = indexCandlestick + channelCandle2Dutc
-	channelIndexCandle3Dutc  = indexCandlestick + channelCandle3Dutc
-	channelIndexCandle5Dutc  = indexCandlestick + channelCandle5Dutc
-	channelIndexCandle12Hutc = indexCandlestick + channelCandle12Hutc
-	channelIndexCandle6Hutc  = indexCandlestick + channelCandle6Hutc
-
-	// Mark price candlesticks channel
-	channelMarkPriceCandle1Y     = markPrice + channelCandle1Y
-	channelMarkPriceCandle6M     = markPrice + channelCandle6M
-	channelMarkPriceCandle3M     = markPrice + channelCandle3M
-	channelMarkPriceCandle1M     = markPrice + channelCandle1M
-	channelMarkPriceCandle1W     = markPrice + channelCandle1W
-	channelMarkPriceCandle1D     = markPrice + channelCandle1D
-	channelMarkPriceCandle2D     = markPrice + channelCandle2D
-	channelMarkPriceCandle3D     = markPrice + channelCandle3D
-	channelMarkPriceCandle5D     = markPrice + channelCandle5D
-	channelMarkPriceCandle12H    = markPrice + channelCandle12H
-	channelMarkPriceCandle6H     = markPrice + channelCandle6H
-	channelMarkPriceCandle4H     = markPrice + channelCandle4H
-	channelMarkPriceCandle2H     = markPrice + channelCandle2H
-	channelMarkPriceCandle1H     = markPrice + channelCandle1H
-	channelMarkPriceCandle30m    = markPrice + channelCandle30m
-	channelMarkPriceCandle15m    = markPrice + channelCandle15m
-	channelMarkPriceCandle5m     = markPrice + channelCandle5m
-	channelMarkPriceCandle3m     = markPrice + channelCandle3m
-	channelMarkPriceCandle1m     = markPrice + channelCandle1m
-	channelMarkPriceCandle1Yutc  = markPrice + channelCandle1Yutc
-	channelMarkPriceCandle3Mutc  = markPrice + channelCandle3Mutc
-	channelMarkPriceCandle1Mutc  = markPrice + channelCandle1Mutc
-	channelMarkPriceCandle1Wutc  = markPrice + channelCandle1Wutc
-	channelMarkPriceCandle1Dutc  = markPrice + channelCandle1Dutc
-	channelMarkPriceCandle2Dutc  = markPrice + channelCandle2Dutc
-	channelMarkPriceCandle3Dutc  = markPrice + channelCandle3Dutc
-	channelMarkPriceCandle5Dutc  = markPrice + channelCandle5Dutc
-	channelMarkPriceCandle12Hutc = markPrice + channelCandle12Hutc
-	channelMarkPriceCandle6Hutc  = markPrice + channelCandle6Hutc
-
-	// Copy trading websocket endpoints.
-	copyTrading = "copytrading-notification"
+	channelInstruments      = "instruments"
+	channelOpenInterest     = "open-interest"
+	channelTrades           = "trades"
+	channelAllTrades        = "trades-all"
+	channelEstimatedPrice   = "estimated-price"
+	channelMarkPrice        = "mark-price"
+	channelPriceLimit       = "price-limit"
+	channelOrderBooks       = "books"
+	channelOptionTrades     = "option-trades"
+	channelOrderBooks5      = "books5"
+	channelOrderBooks50TBT  = "books50-l2-tbt"
+	channelOrderBooksTBT    = "books-l2-tbt"
+	channelBBOTBT           = "bbo-tbt"
+	channelOptSummary       = "opt-summary"
+	channelFundingRate      = "funding-rate"
+	channelCandles          = "candle"
+	channelIndexCandles     = "index-candle"
+	channelMarkPriceCandles = "mark-price-candle"
+	copyTrading             = "copytrading-notification"
 )
 
 var defaultSubscriptions = subscription.List{
 	{Enabled: true, Asset: asset.All, Channel: subscription.AllTradesChannel},
 	{Enabled: true, Asset: asset.All, Channel: subscription.OrderbookChannel},
 	{Enabled: true, Asset: asset.All, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.All, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
 	{Enabled: true, Asset: asset.All, Channel: subscription.MyOrdersChannel, Authenticated: true},
 	{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true},
 }
 
-var subscriptionNames = map[string]string{
+var channelNames = map[string]string{
 	subscription.AllTradesChannel: channelTrades,
 	subscription.OrderbookChannel: channelOrderBooks,
 	subscription.TickerChannel:    channelTickers,
 	subscription.MyAccountChannel: channelAccount,
 	subscription.MyOrdersChannel:  channelOrders,
+}
+var reverseChannelNames = map[string]string{}
+
+func init() {
+	for k, v := range channelNames {
+		reverseChannelNames[v] = k
+	}
 }
 
 // WsConnect initiates a websocket connection
@@ -351,6 +262,10 @@ func (e *Exchange) handleSubscription(ctx context.Context, operation string, sub
 	var errs error
 	for i := 0; i < len(subs); i++ {
 		s := subs[i]
+		if err := enforceStandardChannelNames(s); err != nil {
+			errs = common.AppendError(errs, err)
+			continue
+		}
 		var arg SubscriptionInfo
 		if err := json.Unmarshal([]byte(s.QualifiedChannel), &arg); err != nil {
 			errs = common.AppendError(errs, err)
@@ -450,23 +365,6 @@ func (e *Exchange) WsHandleData(ctx context.Context, respRaw []byte) error {
 		return nil
 	}
 	switch resp.Argument.Channel {
-	case channelCandle1Y, channelCandle6M, channelCandle3M, channelCandle1M, channelCandle1W,
-		channelCandle1D, channelCandle2D, channelCandle3D, channelCandle5D, channelCandle12H,
-		channelCandle6H, channelCandle4H, channelCandle2H, channelCandle1H, channelCandle30m,
-		channelCandle15m, channelCandle5m, channelCandle3m, channelCandle1m, channelCandle1Yutc,
-		channelCandle3Mutc, channelCandle1Mutc, channelCandle1Wutc, channelCandle1Dutc,
-		channelCandle2Dutc, channelCandle3Dutc, channelCandle5Dutc, channelCandle12Hutc,
-		channelCandle6Hutc:
-		return e.wsProcessCandles(respRaw)
-	case channelIndexCandle1Y, channelIndexCandle6M, channelIndexCandle3M, channelIndexCandle1M,
-		channelIndexCandle1W, channelIndexCandle1D, channelIndexCandle2D, channelIndexCandle3D,
-		channelIndexCandle5D, channelIndexCandle12H, channelIndexCandle6H, channelIndexCandle4H,
-		channelIndexCandle2H, channelIndexCandle1H, channelIndexCandle30m, channelIndexCandle15m,
-		channelIndexCandle5m, channelIndexCandle3m, channelIndexCandle1m, channelIndexCandle1Yutc,
-		channelIndexCandle3Mutc, channelIndexCandle1Mutc, channelIndexCandle1Wutc,
-		channelIndexCandle1Dutc, channelIndexCandle2Dutc, channelIndexCandle3Dutc, channelIndexCandle5Dutc,
-		channelIndexCandle12Hutc, channelIndexCandle6Hutc:
-		return e.wsProcessIndexCandles(respRaw)
 	case channelTickers:
 		return e.wsProcessTickers(respRaw)
 	case channelIndexTickers:
@@ -560,15 +458,6 @@ func (e *Exchange) WsHandleData(ctx context.Context, respRaw []byte) error {
 	case channelFundingRate:
 		var response WsFundingRate
 		return e.wsProcessPushData(respRaw, &response)
-	case channelMarkPriceCandle1Y, channelMarkPriceCandle6M, channelMarkPriceCandle3M, channelMarkPriceCandle1M,
-		channelMarkPriceCandle1W, channelMarkPriceCandle1D, channelMarkPriceCandle2D, channelMarkPriceCandle3D,
-		channelMarkPriceCandle5D, channelMarkPriceCandle12H, channelMarkPriceCandle6H, channelMarkPriceCandle4H,
-		channelMarkPriceCandle2H, channelMarkPriceCandle1H, channelMarkPriceCandle30m, channelMarkPriceCandle15m,
-		channelMarkPriceCandle5m, channelMarkPriceCandle3m, channelMarkPriceCandle1m, channelMarkPriceCandle1Yutc,
-		channelMarkPriceCandle3Mutc, channelMarkPriceCandle1Mutc, channelMarkPriceCandle1Wutc, channelMarkPriceCandle1Dutc,
-		channelMarkPriceCandle2Dutc, channelMarkPriceCandle3Dutc, channelMarkPriceCandle5Dutc, channelMarkPriceCandle12Hutc,
-		channelMarkPriceCandle6Hutc:
-		return e.wsHandleMarkPriceCandles(respRaw)
 	case okxSpreadOrders:
 		return e.wsProcessSpreadOrders(respRaw)
 	case okxSpreadTrades:
@@ -604,6 +493,14 @@ func (e *Exchange) WsHandleData(ctx context.Context, respRaw []byte) error {
 		var resp CopyTradingNotification
 		return e.wsProcessPushData(respRaw, &resp)
 	default:
+		switch {
+		case strings.HasPrefix(resp.Argument.Channel, channelCandles):
+			return e.wsProcessCandles(respRaw)
+		case strings.HasPrefix(resp.Argument.Channel, channelMarkPriceCandles):
+			return e.wsHandleMarkPriceCandles(respRaw)
+		case strings.HasPrefix(resp.Argument.Channel, channelIndexCandles):
+			return e.wsProcessIndexCandles(respRaw)
+		}
 		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{Message: e.Name + websocket.UnhandledMessage + string(respRaw)}
 		return nil
 	}
@@ -736,7 +633,7 @@ func (e *Exchange) wsProcessIndexCandles(respRaw []byte) error {
 			return err
 		}
 	}
-	candleInterval := strings.TrimPrefix(response.Argument.Channel, candle)
+	candleInterval := strings.TrimPrefix(response.Argument.Channel, channelCandles)
 	for i := range response.Data {
 		candlesData := response.Data[i]
 		myCandle := websocket.KlineData{
@@ -1321,7 +1218,7 @@ func (e *Exchange) wsProcessCandles(respRaw []byte) error {
 			return err
 		}
 	}
-	candleInterval := strings.TrimPrefix(response.Argument.Channel, candle)
+	candleInterval := strings.TrimPrefix(response.Argument.Channel, channelCandles)
 	for i := range response.Data {
 		for j := range assets {
 			e.Websocket.DataHandler <- websocket.KlineData{
@@ -1402,7 +1299,7 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 // GetSubscriptionTemplate returns a subscription channel template
 func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").Funcs(template.FuncMap{
-		"channelName":     channelName,
+		"channelName":     e.channelName,
 		"isSymbolChannel": isSymbolChannel,
 		"isAssetChannel":  isAssetChannel,
 		"instType":        GetInstrumentTypeFromAssetItem,
@@ -1479,12 +1376,89 @@ func (e *Exchange) wsProcessPushData(data []byte, resp any) error {
 	return nil
 }
 
-// channelName converts global subscription channel names to exchange specific names
-func channelName(s *subscription.Subscription) string {
-	if s, ok := subscriptionNames[s.Channel]; ok {
-		return s
+func enforceStandardChannelNames(s *subscription.Subscription) error {
+	n, ok := reverseChannelNames[s.Channel]
+	privateChannelName := ok && n != s.Channel
+	if !privateChannelName {
+		privateChannelName = strings.HasPrefix(s.Channel, channelCandles) && s.Channel != subscription.CandlesChannel
 	}
-	return s.Channel
+	if privateChannelName {
+		return fmt.Errorf("%w: %s => subscription.%s%sChannel", subscription.ErrUseConstChannelName, s.Channel, bytes.ToUpper([]byte{n[0]}), n[1:])
+	}
+	return nil
+}
+
+// channelName converts global subscription channel names to exchange specific names
+func (e *Exchange) channelName(s *subscription.Subscription) string {
+	if c, ok := channelNames[s.Channel]; ok {
+		return c
+	}
+	n := s.Channel
+	switch n {
+	case subscription.CandlesChannel:
+		n = channelCandles
+		fallthrough
+	case channelIndexCandles, channelMarkPriceCandles:
+		n += e.candleInterval(s)
+	}
+	return n
+}
+
+var candleIntervals = map[kline.Interval]string{
+	kline.SixMonth:   "6M",
+	kline.ThreeMonth: "3M",
+	kline.OneMonth:   "1M",
+	kline.OneWeek:    "1W",
+	kline.OneDay:     "1D",
+	kline.TwoDay:     "2D",
+	kline.ThreeDay:   "3D",
+	kline.FiveDay:    "5D",
+	kline.TwelveHour: "12H",
+	kline.SixHour:    "6H",
+	kline.FourHour:   "4H",
+	kline.TwoHour:    "2H",
+	kline.OneHour:    "1H",
+	kline.ThirtyMin:  "30m",
+	kline.FifteenMin: "15m",
+	kline.FiveMin:    "5m",
+	kline.ThreeMin:   "3m",
+	kline.OneMin:     "1m",
+}
+
+var utcCandleIntervals = map[kline.Interval]string{
+	kline.OneYear:    "1Yutc",
+	kline.ThreeMonth: "3Mutc",
+	kline.OneMonth:   "1Mutc",
+	kline.OneWeek:    "1Wutc",
+	kline.OneDay:     "1Dutc",
+	kline.TwoDay:     "2Dutc",
+	kline.ThreeDay:   "3Dutc",
+	kline.FiveDay:    "5Dutc",
+	kline.TwelveHour: "12Hutc",
+}
+
+// candleInterval returns a string interval representation for okx
+// panics on error since this is a template function
+// Since too many representations need stating, just added them all instead of using Features.Enabled.Kline.Intervals
+func (e *Exchange) candleInterval(s *subscription.Subscription) string {
+	isUTC := false
+	if p, ok := s.Params["utc"]; ok {
+		if isUTC, ok = p.(bool); !ok {
+			panic(common.GetTypeAssertError("bool", p, "subscription.Params.utc"))
+		}
+	}
+	if isUTC {
+		i, ok := utcCandleIntervals[s.Interval]
+		if !ok {
+			panic(fmt.Errorf("%w: `%sutc`", kline.ErrInvalidInterval, s.Interval))
+		}
+		return i
+	}
+	i, ok := candleIntervals[s.Interval]
+	if !ok {
+		panic(fmt.Errorf("%w: %q", kline.ErrInvalidInterval, s.Interval))
+	}
+	return i
 }
 
 // isAssetChannel returns if the channel expects one Asset per subscription
@@ -1495,7 +1469,7 @@ func isAssetChannel(s *subscription.Subscription) bool {
 // isSymbolChannel returns if the channel expects one Symbol per subscription
 func isSymbolChannel(s *subscription.Subscription) bool {
 	switch s.Channel {
-	case subscription.CandlesChannel, subscription.TickerChannel, subscription.OrderbookChannel, subscription.AllTradesChannel, channelFundingRate:
+	case subscription.CandlesChannel, subscription.TickerChannel, subscription.OrderbookChannel, subscription.AllTradesChannel, channelFundingRate, channelIndexCandles, channelMarkPriceCandles:
 		return true
 	}
 	return false

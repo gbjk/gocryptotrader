@@ -6058,7 +6058,7 @@ func TestGenerateSubscriptions(t *testing.T) {
 			pairs = common.SortStrings(pairs).Format(currency.PairFormat{Uppercase: true, Delimiter: "-"})
 			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 			s.Asset = a
-			name := channelName(s)
+			name := e.channelName(s)
 			if isSymbolChannel(s) {
 				for i, p := range pairs {
 					s := s.Clone() //nolint:govet // Intentional lexical scope shadow
@@ -6091,6 +6091,44 @@ func TestGenerateSubscriptions(t *testing.T) {
 	require.NoError(t, err, "generateSubscriptions must not error")
 	exp = subscription.List{{Channel: channelGridPositions, QualifiedChannel: `{"channel":"grid-positions"}`}}
 	testsubs.EqualLists(t, exp, subs)
+}
+
+func TestChannelName(t *testing.T) {
+	t.Parallel()
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	assert.Equal(t, channelGridPositions, e.channelName(&subscription.Subscription{Channel: channelGridPositions}), "non standard channel names should be coorect")
+	assert.Equal(t, channelTickers, e.channelName(&subscription.Subscription{Channel: subscription.TickerChannel}), "standard channel names should be coorect")
+	assert.Equal(t, "candle5D", e.channelName(&subscription.Subscription{Channel: subscription.CandlesChannel, Interval: kline.FiveDay}), "candle channel names should be coorect")
+	assert.Equal(t, "mark-price-candle1M", e.channelName(&subscription.Subscription{Channel: channelMarkPriceCandles, Interval: kline.OneMonth}), "mark price candle channel names should be coorect")
+	assert.Equal(t, "index-candle1M", e.channelName(&subscription.Subscription{Channel: channelIndexCandles, Interval: kline.OneMonth}), "index price candle channel names should be coorect")
+}
+
+func TestCandleInterval(t *testing.T) {
+	t.Parallel()
+	e := new(Exchange) //nolint:govet // Intentional shadow
+	for i, exp := range candleIntervals {
+		t.Run(exp, func(t *testing.T) {
+			t.Parallel()
+			got := e.candleInterval(&subscription.Subscription{Interval: i})
+			assert.Equal(t, exp, got)
+		})
+	}
+	for i, exp := range utcCandleIntervals {
+		t.Run(exp, func(t *testing.T) {
+			t.Parallel()
+			got := e.candleInterval(&subscription.Subscription{Interval: i, Params: map[string]any{"utc": true}})
+			assert.Equal(t, exp, got)
+		})
+	}
+	assert.PanicsWithError(t, `invalid/unset interval: "10s"`, func() {
+		_ = e.candleInterval(&subscription.Subscription{Interval: kline.TenSecond})
+	}, "should panic with an invalid interval")
+	assert.PanicsWithError(t, "type assert failure from int to bool for: subscription.Params.utc", func() {
+		_ = e.candleInterval(&subscription.Subscription{Interval: kline.OneDay, Params: map[string]any{"utc": 42}})
+	}, "should panic with an invalid type for utc")
+	assert.PanicsWithError(t, "invalid/unset interval: `10sutc`", func() {
+		_ = e.candleInterval(&subscription.Subscription{Interval: kline.TenSecond, Params: map[string]any{"utc": true}})
+	}, "should panic with an invalid interval for utc")
 }
 
 const (
@@ -6256,6 +6294,7 @@ func TestValidateSpreadOrderParam(t *testing.T) {
 	require.ErrorIs(t, p.Validate(), order.ErrPriceBelowMin)
 	p.Price = 1
 	require.ErrorIs(t, p.Validate(), order.ErrSideIsInvalid)
+
 	p.Side = order.Buy.String()
 	require.NoError(t, p.Validate())
 }
