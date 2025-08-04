@@ -188,7 +188,7 @@ func (m *Manager) GetSubscription(key any) *subscription.Subscription {
 	if m == nil || key == nil {
 		return nil
 	}
-	for _, c := range m.connectionManager {
+	for _, c := range m.connectionConfigs {
 		if c.subscriptions == nil {
 			continue
 		}
@@ -209,7 +209,7 @@ func (m *Manager) GetSubscriptions() subscription.List {
 		return nil
 	}
 	var subs subscription.List
-	for _, c := range m.connectionManager {
+	for _, c := range m.connectionConfigs {
 		if c.subscriptions != nil {
 			subs = append(subs, c.subscriptions.List()...)
 		}
@@ -283,41 +283,41 @@ func (m *Manager) FlushChannels() error {
 		return m.updateChannelSubscriptions(nil, m.subscriptions, newSubs)
 	}
 
-	for x := range m.connectionManager {
-		newSubs, err := m.connectionManager[x].setup.GenerateSubscriptions()
+	for x := range m.connectionConfigs {
+		newSubs, err := m.connectionConfigs[x].setup.GenerateSubscriptions()
 		if err != nil {
 			return err
 		}
 
 		// Case if there is nothing to unsubscribe from and the connection is nil
-		if len(newSubs) == 0 && m.connectionManager[x].connection == nil {
+		if len(newSubs) == 0 && m.connectionConfigs[x].connection == nil {
 			continue
 		}
 
 		// If there are subscriptions to subscribe to but no connection to subscribe to, establish a new connection.
-		if m.connectionManager[x].connection == nil {
-			conn := m.getConnectionFromSetup(m.connectionManager[x].setup)
-			if err := m.connectionManager[x].setup.Connector(context.TODO(), conn); err != nil {
+		if m.connectionConfigs[x].connection == nil {
+			conn := m.getConnectionFromSetup(m.connectionConfigs[x].setup)
+			if err := m.connectionConfigs[x].setup.Connector(context.TODO(), conn); err != nil {
 				return err
 			}
 			m.Wg.Add(1)
-			go m.Reader(context.TODO(), conn, m.connectionManager[x].setup.Handler)
-			m.connections[conn] = m.connectionManager[x]
-			m.connectionManager[x].connection = conn
+			go m.Reader(context.TODO(), conn, m.connectionConfigs[x].setup.Handler)
+			m.connections[conn] = m.connectionConfigs[x]
+			m.connectionConfigs[x].connection = conn
 		}
 
-		err = m.updateChannelSubscriptions(m.connectionManager[x].connection, m.connectionManager[x].subscriptions, newSubs)
+		err = m.updateChannelSubscriptions(m.connectionConfigs[x].connection, m.connectionConfigs[x].subscriptions, newSubs)
 		if err != nil {
 			return err
 		}
 
 		// If there are no subscriptions to subscribe to, close the connection as it is no longer needed.
-		if m.connectionManager[x].subscriptions.Len() == 0 {
-			delete(m.connections, m.connectionManager[x].connection) // Remove from lookup map
-			if err := m.connectionManager[x].connection.Shutdown(); err != nil {
+		if m.connectionConfigs[x].subscriptions.Len() == 0 {
+			delete(m.connections, m.connectionConfigs[x].connection) // Remove from lookup map
+			if err := m.connectionConfigs[x].connection.Shutdown(); err != nil {
 				log.Warnf(log.WebsocketMgr, "%v websocket: failed to shutdown connection: %v", m.exchangeName, err)
 			}
-			m.connectionManager[x].connection = nil
+			m.connectionConfigs[x].connection = nil
 		}
 	}
 	return nil

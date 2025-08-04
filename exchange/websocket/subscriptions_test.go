@@ -74,7 +74,7 @@ func TestSubscribeUnsubscribe(t *testing.T) {
 
 	amazingConn := multi.getConnectionFromSetup(amazingCandidate)
 	multi.connections = map[Connection]*connectionWrapper{
-		amazingConn: multi.connectionManager[0],
+		amazingConn: multi.connectionConfigs[0],
 	}
 
 	subs, err = amazingCandidate.GenerateSubscriptions()
