@@ -41,10 +41,10 @@ var (
 	errExchangeConfigNameEmpty              = errors.New("exchange config name empty")
 	errInvalidTrafficTimeout                = errors.New("invalid traffic timeout")
 	errTrafficAlertNil                      = errors.New("traffic alert is nil")
-	errWebsocketSubscriberUnset             = errors.New("websocket subscriber function needs to be set")
-	errWebsocketUnsubscriberUnset           = errors.New("websocket unsubscriber functionality allowed but unsubscriber function not set")
-	errWebsocketConnectorUnset              = errors.New("websocket connector function not set")
-	errWebsocketDataHandlerUnset            = errors.New("websocket data handler not set")
+	errNoSubscriber                         = errors.New("websocket subscriber function needs to be set")
+	errNoUnsubscriber                       = errors.New("websocket unsubscriber functionality allowed but unsubscriber function not set")
+	errWebsocketConnectorUnset              = errors.New("websocket connector function not set") // TODO: This should be unused and removed
+	errNoDataHandler                        = errors.New("websocket data handler not set")
 	errReadMessageErrorsNil                 = errors.New("read message errors is nil")
 	errWebsocketSubscriptionsGeneratorUnset = errors.New("websocket subscriptions generator function needs to be set")
 	errInvalidMaxSubscriptions              = errors.New("max subscriptions cannot be less than 0")
@@ -59,7 +59,7 @@ var (
 	errCannotChangeConnectionURL            = errors.New("cannot change connection URL when using multi connection management")
 	errExchangeConfigEmpty                  = errors.New("exchange config is empty")
 	errCannotObtainOutboundConnection       = errors.New("cannot obtain outbound connection")
-	errMessageFilterNotComparable           = errors.New("message filter is not comparable")
+	errMessageFilterNotComparable           = errors.New("message filter is not comparable") // TODO: This should be unused and removed
 )
 
 // Websocket functionality list and state consts
@@ -233,10 +233,10 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketConnectorUnset)
 		}
 		if s.Subscriber == nil {
-			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketSubscriberUnset)
+			return fmt.Errorf("%w: %w", errConnSetup, errNoSubscriber)
 		}
 		if s.Unsubscriber == nil && m.features.Unsubscribe {
-			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketUnsubscriberUnset)
+			return fmt.Errorf("%w: %w", errConnSetup, errNoUnsubscriber)
 		}
 		if s.GenerateSubscriptions == nil {
 			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketSubscriptionsGeneratorUnset)
@@ -338,13 +338,13 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketSubscriptionsGeneratorUnset)
 		}
 		if c.Subscriber == nil {
-			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketSubscriberUnset)
+			return fmt.Errorf("%w: %w", errConnSetup, errNoSubscriber)
 		}
 		if c.Unsubscriber == nil && m.features.Unsubscribe {
-			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketUnsubscriberUnset)
+			return fmt.Errorf("%w: %w", errConnSetup, errNoUnsubscriber)
 		}
 		if c.Handler == nil {
-			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketDataHandlerUnset)
+			return fmt.Errorf("%w: %w", errConnSetup, errNoDataHandler)
 		}
 
 		if c.MessageFilter != nil && !reflect.TypeOf(c.MessageFilter).Comparable() {
@@ -505,11 +505,11 @@ func (m *Manager) connect() error {
 			break
 		}
 		if m.connectionManager[i].setup.Handler == nil {
-			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, m.connectionManager[i].setup.URL, errWebsocketDataHandlerUnset)
+			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, m.connectionManager[i].setup.URL, errNoDataHandler)
 			break
 		}
 		if m.connectionManager[i].setup.Subscriber == nil {
-			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, m.connectionManager[i].setup.URL, errWebsocketSubscriberUnset)
+			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, m.connectionManager[i].setup.URL, errNoSubscriber)
 			break
 		}
 
