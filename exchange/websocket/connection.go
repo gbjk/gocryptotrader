@@ -18,8 +18,8 @@ import (
 
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
@@ -53,39 +53,17 @@ type Connection interface {
 	RequireMatchWithData(signature any, incoming []byte) error
 }
 
-// ConnectionSetup defines variables for an individual stream connection
+// ConnectionSetup contains per connection configuration
 type ConnectionSetup struct {
+	URL                     string
+	Authenticated           bool
+	ConnectionLevelReporter Reporter
 	ResponseCheckTimeout    time.Duration
 	ResponseMaxLimit        time.Duration
 	RateLimit               *request.RateLimiterWithWeight
-	Authenticated           bool
-	ConnectionLevelReporter Reporter
-
-	// URL defines the websocket server URL to connect to
-	URL string
-	// Connector is the function that will be called to connect to the
-	// exchange's websocket server. This will be called once when the stream
-	// service is started. Any bespoke connection logic should be handled here.
-	Connector func(ctx context.Context, conn Connection) error
-	// GenerateSubscriptions is a function that will be called to generate a
-	// list of subscriptions to be made to the exchange's websocket server.
-	GenerateSubscriptions func() (subscription.List, error)
-	// Subscriber is a function that will be called to send subscription
-	// messages based on the exchange's websocket server requirements to
-	// subscribe to specific channels.
-	Subscriber func(ctx context.Context, conn Connection, sub subscription.List) error
-	// Unsubscriber is a function that will be called to send unsubscription
-	// messages based on the exchange's websocket server requirements to
-	// unsubscribe from specific channels. NOTE: IF THE FEATURE IS ENABLED.
-	Unsubscriber func(ctx context.Context, conn Connection, unsub subscription.List) error
-	// Handler defines the function that will be called when a message is
-	// received from the exchange's websocket server. This function should
-	// handle the incoming message and pass it to the appropriate data handler.
-	Handler      func(ctx context.Context, conn Connection, incoming []byte) error
-	Authenticate func(ctx context.Context, conn Connection) error
-	// MessageFilter defines the criteria used to match messages to a specific connection.
-	// The filter enables precise routing and handling of messages for distinct connection contexts.
-	MessageFilter any
+	MessageFilter           any // MessageFilter defines the criteria used to match messages to a specific connection.
+	Features                *protocol.Features
+	MaxSubscriptions        int
 }
 
 // Inspector is used to verify messages via SendMessageReturnResponsesWithInspection
@@ -102,6 +80,7 @@ type Response struct {
 
 // connection contains all the data needed to send a message to a websocket connection
 type connection struct {
+	*ConnectionSetup
 	Verbose              bool
 	connected            int32
 	writeControl         sync.Mutex                     // Gorilla websocket does not allow more than one goroutine to utilise write methods
@@ -118,6 +97,7 @@ type connection struct {
 	ResponseMaxLimit     time.Duration
 	Traffic              chan struct{}
 	readMessageErrors    chan error
+	messageFilter        any
 }
 
 // Dial sets proxy urls and then connects to the websocket
