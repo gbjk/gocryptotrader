@@ -8,7 +8,6 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
-	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Public subscription errors
@@ -254,8 +253,9 @@ func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) er
 	return nil
 }
 
-// FlushChannels flushes channel subscriptions when there is a pair/asset change
-func (m *Manager) FlushChannels() error {
+// SyncSubscriptions flushes channel subscriptions when there is a pair/asset change
+// TODO: Add window for max subscriptions per connection, to spawn new connections if needed.
+func (m *Manager) SyncSubscriptions() error {
 	if !m.IsEnabled() {
 		return fmt.Errorf("%s %w", m.exchangeName, ErrWebsocketNotEnabled)
 	}
@@ -264,8 +264,7 @@ func (m *Manager) FlushChannels() error {
 		return fmt.Errorf("%s %w", m.exchangeName, ErrNotConnected)
 	}
 
-	// If the exchange does not support subscribing and or unsubscribing the full connection needs to be flushed to
-	// maintain consistency.
+	// If the exchange does not support subscribing and or unsubscribing the full connection needs to be flushed to maintain consistency
 	if !m.features.Subscribe || !m.features.Unsubscribe {
 		m.m.Lock()
 		defer m.m.Unlock()
@@ -275,16 +274,9 @@ func (m *Manager) FlushChannels() error {
 		return m.connect()
 	}
 
-	if !m.useMultiConnectionManagement {
-		newSubs, err := m.GenerateSubs()
-		if err != nil {
-			return err
-		}
-		return m.updateChannelSubscriptions(nil, m.subscriptions, newSubs)
-	}
-
-	for x := range m.connectionManager {
-		newSubs, err := m.connectionManager[x].setup.GenerateSubscriptions()
+	/* TODO - Range the connections
+	for _, c := range m.connections {
+		newSubs, err := c.setup.GenerateSubscriptions()
 		if err != nil {
 			return err
 		}
@@ -320,6 +312,7 @@ func (m *Manager) FlushChannels() error {
 			m.connectionManager[x].connection = nil
 		}
 	}
+	*/
 	return nil
 }
 
