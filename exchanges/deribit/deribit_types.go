@@ -210,7 +210,7 @@ type InstrumentData struct {
 	SettlementCurrency           string     `json:"settlement_currency"`
 	RequestForQuote              bool       `json:"rfq"`
 	PriceIndex                   string     `json:"price_index"`
-	InstrumentID                 int64      `json:"instrument_id"`
+	InstrumentID                 string     `json:"instrument_id"`
 	CounterCurrency              string     `json:"counter_currency"`
 	MaximumLiquidationCommission float64    `json:"max_liquidation_commission"`
 	FutureType                   string     `json:"future_type"`
@@ -306,7 +306,7 @@ type Orderbook struct {
 	} `json:"greeks"`
 	Funding8H      float64     `json:"funding_8h"`
 	CurrentFunding float64     `json:"current_funding"`
-	ChangeID       int64       `json:"change_id"`
+	ChangeID       string      `json:"change_id"`
 	Bids           [][]float64 `json:"bids"`
 	Asks           [][]float64 `json:"asks"`
 	BidIV          float64     `json:"bid_iv"`
@@ -407,10 +407,10 @@ type CancelWithdrawalData struct {
 	CreatedTimestamp   types.Time `json:"created_timestamp"`
 	Currency           string     `json:"currency"`
 	Fee                float64    `json:"fee"`
-	ID                 int64      `json:"id"`
+	ID                 string     `json:"id"`
 	Priority           float64    `json:"priority"`
 	Status             string     `json:"status"`
-	TransactionID      int64      `json:"transaction_id"`
+	TransactionID      string     `json:"transaction_id"`
 	UpdatedTimestamp   types.Time `json:"updated_timestamp"`
 }
 
@@ -448,7 +448,7 @@ type TransferData struct {
 	CreatedTimestamp types.Time `json:"created_timestamp"`
 	Currency         string     `json:"currency"`
 	Direction        string     `json:"direction"`
-	ID               int64      `json:"id"`
+	ID               string     `json:"id"`
 	OtherSide        string     `json:"other_side"`
 	State            string     `json:"state"`
 	Type             string     `json:"type"`
@@ -463,7 +463,7 @@ type WithdrawData struct {
 	CreatedTimestamp   types.Time `json:"created_timestamp"`
 	Currency           string     `json:"currency"`
 	Fee                float64    `json:"fee"`
-	ID                 int64      `json:"id"`
+	ID                 string     `json:"id"`
 	Priority           float64    `json:"priority"`
 	State              string     `json:"state"`
 	TransactionID      string     `json:"transaction_id"`
@@ -489,7 +489,7 @@ type TradeData struct {
 	PostOnly       bool       `json:"post_only"`
 	OrderType      string     `json:"order_type"`
 	OrderID        string     `json:"order_id"`
-	MatchingID     int64      `json:"matching_id"`
+	MatchingID     string     `json:"matching_id"`
 	MarkPrice      float64    `json:"mark_price"`
 	Liquidity      string     `json:"liquidity"`
 	Label          string     `json:"label"`
@@ -646,7 +646,7 @@ type UserTradeData struct {
 	PostOnly        bool       `json:"post_only"`
 	OrderType       string     `json:"order_type"`
 	OrderID         string     `json:"order_id"`
-	MatchingID      int64      `json:"matching_id"`
+	MatchingID      string     `json:"matching_id"`
 	MarkPrice       float64    `json:"mark_price"`
 	Liquidity       string     `json:"liquidity"`
 	IV              float64    `json:"iv"`
@@ -697,7 +697,7 @@ type AccountSummaryData struct {
 	OptionsDelta             float64 `json:"options_delta"`
 	FuturesPL                float64 `json:"futures_pl"`
 	ReferrerID               string  `json:"referrer_id"`
-	ID                       int64   `json:"id"`
+	ID                       string  `json:"id"`
 	SessionUPL               float64 `json:"session_upl"`
 	AvailableWithdrawalFunds float64 `json:"available_withdrawal_funds"`
 	OptionsPL                float64 `json:"options_pl"`
@@ -736,7 +736,7 @@ type AccountSummaryData struct {
 type APIKeyData struct {
 	Timestamp    types.Time `json:"timestamp"`
 	MaxScope     string     `json:"max_scope"`
-	ID           int64      `json:"id"`
+	ID           string     `json:"id"`
 	Enabled      bool       `json:"enabled"`
 	Default      bool       `json:"default"`
 	ClientSecret string     `json:"client_secret"`
@@ -747,7 +747,7 @@ type APIKeyData struct {
 // SubAccountData stores subaccount data
 type SubAccountData struct {
 	Email                string                           `json:"email"`
-	ID                   int64                            `json:"id"`
+	ID                   string                           `json:"id"`
 	IsPassword           bool                             `json:"is_password"`
 	LoginEnabled         bool                             `json:"login_enabled"`
 	Portfolio            map[string]SubAccountBalanceData `json:"portfolio"`
@@ -810,7 +810,7 @@ type PositionData struct {
 type TransactionLogData struct {
 	Username        string     `json:"username"`
 	UserSeq         int64      `json:"user_seq"`
-	UserID          int64      `json:"user_id"`
+	UserID          string     `json:"user_id"`
 	TransactionType string     `json:"transaction_type"`
 	TradeID         string     `json:"trade_id"`
 	Timestamp       types.Time `json:"timestamp"`
@@ -822,10 +822,10 @@ type TransactionLogData struct {
 	InstrumentName  string     `json:"instrument_name"`
 	Info            struct {
 		TransferType string `json:"transfer_type"`
-		OtherUserID  int64  `json:"other_user_id"`
+		OtherUserID  string `json:"other_user_id"`
 		OtherUser    string `json:"other_user"`
 	} `json:"info"`
-	ID         int64   `json:"id"`
+	ID         string  `json:"id"`
 	Equity     float64 `json:"equity"`
 	Currency   string  `json:"currency"`
 	Commission float64 `json:"commission"`
@@ -844,7 +844,7 @@ type TransactionsData struct {
 // response
 type wsInput struct {
 	JSONRPCVersion string         `json:"jsonrpc,omitempty"`
-	ID             int64          `json:"id,omitempty"`
+	ID             string         `json:"id,omitempty"`
 	Method         string         `json:"method"`
 	Params         map[string]any `json:"params,omitempty"`
 }
@@ -853,7 +853,7 @@ type wsInput struct {
 // response
 type WsRequest struct {
 	JSONRPCVersion string `json:"jsonrpc,omitempty"`
-	ID             int64  `json:"id,omitempty"`
+	ID             string `json:"id,omitempty"`
 	Method         string `json:"method"`
 	Params         any    `json:"params,omitempty"`
 }
@@ -862,14 +862,14 @@ type WsRequest struct {
 // response
 type WsSubscriptionInput struct {
 	JSONRPCVersion string              `json:"jsonrpc,omitempty"`
-	ID             int64               `json:"id,omitempty"`
+	ID             string              `json:"id,omitempty"`
 	Method         string              `json:"method"`
 	Params         map[string][]string `json:"params,omitempty"`
 }
 
 type wsResponse struct {
 	JSONRPCVersion string `json:"jsonrpc,omitempty"`
-	ID             int64  `json:"id,omitempty"`
+	ID             string `json:"id,omitempty"`
 	Result         any    `json:"result,omitempty"`
 	Error          struct {
 		Message string `json:"message,omitempty"`
@@ -880,7 +880,7 @@ type wsResponse struct {
 
 type wsLoginResponse struct {
 	JSONRPCVersion string          `json:"jsonrpc"`
-	ID             int64           `json:"id"`
+	ID             string          `json:"id"`
 	Method         string          `json:"method"`
 	Result         map[string]any  `json:"result"`
 	Error          *UnmarshalError `json:"error"`
@@ -888,7 +888,7 @@ type wsLoginResponse struct {
 
 type wsSubscriptionResponse struct {
 	JSONRPCVersion string   `json:"jsonrpc"`
-	ID             int64    `json:"id"`
+	ID             string   `json:"id"`
 	Method         string   `json:"method"`
 	Result         []string `json:"result"`
 }
@@ -905,7 +905,7 @@ type RequestForQuote struct {
 // ComboDetail retrieves information about a combo
 type ComboDetail struct {
 	ID                string     `json:"id"`
-	InstrumentID      int64      `json:"instrument_id"`
+	InstrumentID      string     `json:"instrument_id"`
 	CreationTimestamp types.Time `json:"creation_timestamp"`
 	StateTimestamp    types.Time `json:"state_timestamp"`
 	State             string     `json:"state"`
@@ -958,7 +958,7 @@ type Announcement struct {
 	Title                string     `json:"title"`
 	PublicationTimestamp types.Time `json:"publication_timestamp"`
 	Important            bool       `json:"important"`
-	ID                   int64      `json:"id"`
+	ID                   string     `json:"id"`
 	Body                 string     `json:"body"`
 
 	// Action taken by the platform administrators.
@@ -976,14 +976,14 @@ type AccessLogDetail struct {
 	Timestamp types.Time `json:"timestamp"`
 	Result    string     `json:"result"`
 	IP        string     `json:"ip"`
-	ID        int64      `json:"id"`
+	ID        string     `json:"id"`
 	Country   string     `json:"country"`
 	City      string     `json:"city"`
 }
 
 // SubAccountDetail represents subaccount positions detail.
 type SubAccountDetail struct {
-	UID       int64 `json:"uid"`
+	UID       string `json:"uid"`
 	Positions []struct {
 		TotalProfitLoss           float64 `json:"total_profit_loss"`
 		SizeCurrency              float64 `json:"size_currency"`
@@ -1055,8 +1055,8 @@ type BlockTradeResponse struct {
 
 // BlockTradeMoveResponse represents block trade move response.
 type BlockTradeMoveResponse struct {
-	TargetSubAccountUID int64   `json:"target_uid"`
-	SourceSubAccountUID int64   `json:"source_uid"`
+	TargetSubAccountUID string  `json:"target_uid"`
+	SourceSubAccountUID string  `json:"source_uid"`
 	Price               float64 `json:"price"`
 	InstrumentName      string  `json:"instrument_name"`
 	Direction           string  `json:"direction"`
@@ -1065,7 +1065,7 @@ type BlockTradeMoveResponse struct {
 
 // WsResponse represents generalized websocket subscription push data and immediate websocket call responses.
 type WsResponse struct {
-	ID     int64 `json:"id,omitempty"`
+	ID     string `json:"id,omitempty"`
 	Params struct {
 		Data    any    `json:"data"`
 		Channel string `json:"channel"`
@@ -1090,7 +1090,7 @@ type wsOrderbook struct {
 	Type           string     `json:"type"`
 	Timestamp      types.Time `json:"timestamp"`
 	InstrumentName string     `json:"instrument_name"`
-	ChangeID       int64      `json:"change_id"`
+	ChangeID       string     `json:"change_id"`
 	Bids           [][]any    `json:"bids"`
 	Asks           [][]any    `json:"asks"`
 }
@@ -1289,7 +1289,7 @@ type wsAccessLog struct {
 	Timestamp types.Time `json:"timestamp"`
 	Log       string     `json:"log"`
 	IP        string     `json:"ip"`
-	ID        int64      `json:"id"`
+	ID        string     `json:"id"`
 	Country   string     `json:"country"`
 	City      string     `json:"city"`
 }
