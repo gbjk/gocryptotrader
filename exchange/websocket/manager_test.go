@@ -687,7 +687,7 @@ func TestSetupPingHandler(t *testing.T) {
 		Delay:             100,
 	})
 
-	err = wc.Connection.Close()
+	err = wc.Underlying.Close()
 	if err != nil {
 		t.Error(err)
 	}

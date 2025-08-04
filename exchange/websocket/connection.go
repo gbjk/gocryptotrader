@@ -112,7 +112,7 @@ type connection struct {
 	URL                  string
 	ProxyURL             string
 	Wg                   *sync.WaitGroup
-	Connection           *gws.Conn
+	Underlying           *gws.Conn
 	shutdown             chan struct{}
 	Match                *Match
 	ResponseMaxLimit     time.Duration
@@ -132,7 +132,7 @@ func (c *connection) Dial(ctx context.Context, dialer *gws.Dialer, headers http.
 
 	var err error
 	var conStatus *http.Response
-	c.Connection, conStatus, err = dialer.DialContext(ctx, c.URL, headers)
+	c.Underlying, conStatus, err = dialer.DialContext(ctx, c.URL, headers)
 	if err != nil {
 		if conStatus != nil {
 			_ = conStatus.Body.Close()
@@ -161,7 +161,7 @@ func (c *connection) SendJSONMessage(ctx context.Context, epl request.EndpointLi
 				log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %v", c.ExchangeName, removeURLQueryString(c.URL), string(msg))
 			}
 		}
-		return c.Connection.WriteJSON(data)
+		return c.Underlying.WriteJSON(data)
 	})
 }
 
@@ -171,7 +171,7 @@ func (c *connection) SendRawMessage(ctx context.Context, epl request.EndpointLim
 		if request.IsVerbose(ctx, c.Verbose) {
 			log.Debugf(log.WebsocketMgr, "%v %v: Sending message: %v", c.ExchangeName, removeURLQueryString(c.URL), string(message))
 		}
-		return c.Connection.WriteMessage(messageType, message)
+		return c.Underlying.WriteMessage(messageType, message)
 	})
 }
 
@@ -211,8 +211,8 @@ func (c *connection) writeToConn(ctx context.Context, epl request.EndpointLimit,
 // WebsocketPingHandler configuration
 func (c *connection) SetupPingHandler(epl request.EndpointLimit, handler PingHandler) {
 	if handler.UseGorillaHandler {
-		c.Connection.SetPingHandler(func(msg string) error {
-			err := c.Connection.WriteControl(handler.MessageType, []byte(msg), time.Now().Add(handler.Delay))
+		c.Underlying.SetPingHandler(func(msg string) error {
+			err := c.Underlying.WriteControl(handler.MessageType, []byte(msg), time.Now().Add(handler.Delay))
 			if err == gws.ErrCloseSent {
 				return nil
 			} else if e, ok := err.(net.Error); ok && e.Timeout() {
@@ -258,7 +258,7 @@ func (c *connection) IsConnected() bool {
 
 // ReadMessage reads messages, can handle text, gzip and binary
 func (c *connection) ReadMessage() Response {
-	mType, resp, err := c.Connection.ReadMessage()
+	mType, resp, err := c.Underlying.ReadMessage()
 	if err != nil {
 		// If any error occurs, a Response{Raw: nil, Type: 0} is returned, causing the
 		// reader routine to exit. This leaves the connection without an active reader,
@@ -326,13 +326,13 @@ func (c *connection) parseBinaryResponse(resp []byte) ([]byte, error) {
 
 // Shutdown shuts down and closes specific connection
 func (c *connection) Shutdown() error {
-	if c == nil || c.Connection == nil {
+	if c == nil || c.Underlying == nil {
 		return nil
 	}
 	c.setConnectedStatus(false)
 	c.writeControl.Lock()
 	defer c.writeControl.Unlock()
-	return c.Connection.NetConn().Close()
+	return c.Underlying.NetConn().Close()
 }
 
 // SetURL sets connection URL
