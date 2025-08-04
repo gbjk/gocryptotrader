@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"context"
 	"time"
 
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -44,6 +45,10 @@ type KlineData struct {
 	LowPrice   float64
 	Volume     float64
 }
+
+// MessageHandler defines the handling function for exchanges to process websocket messages
+// If an exchange wants to implement per connection handling it can fan out inside this function as appropriate
+type MessageHandler func(context.Context, Connection, []byte) error
 
 // UnhandledMessageWarning defines a container for unhandled message warnings
 type UnhandledMessageWarning struct {
