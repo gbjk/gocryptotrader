@@ -63,6 +63,7 @@ var (
 	errRefreshTokenRequired                = errors.New("refresh token is required")
 	errSubjectIDRequired                   = errors.New("subject id is required")
 	errMissingSignature                    = errors.New("missing signature")
+	errStartingHeartbeat                   = errors.New("error starting heartbeat")
 
 	websocketRequestTimeout = time.Second * 30
 
@@ -76,8 +77,8 @@ var (
 	}
 )
 
-// UnmarshalError is the struct which is used for unmarshalling errors
-type UnmarshalError struct {
+// RespError contains error data
+type RespError struct {
 	Message string `json:"message"`
 	Data    struct {
 		Reason string `json:"reason"`
@@ -876,20 +877,16 @@ type wsResponse struct {
 		Channel string `json:"channel"`
 		Type    string `json:"type"` // Used in heartbeat and test_request messages
 	} `json:"params"`
-	Result any `json:"result,omitempty"`
-	Error  struct {
-		Message string `json:"message,omitempty"`
-		Code    int64  `json:"code,omitempty"`
-		Data    any    `json:"data"`
-	} `json:"error"`
+	Result any        `json:"result,omitempty"`
+	Error  *RespError `json:"error"`
 }
 
 type wsLoginResponse struct {
-	JSONRPCVersion string          `json:"jsonrpc"`
-	ID             string          `json:"id"`
-	Method         string          `json:"method"`
-	Result         map[string]any  `json:"result"`
-	Error          *UnmarshalError `json:"error"`
+	JSONRPCVersion string         `json:"jsonrpc"`
+	ID             string         `json:"id"`
+	Method         string         `json:"method"`
+	Result         map[string]any `json:"result"`
+	Error          *RespError     `json:"error"`
 }
 
 type wsSubscriptionResponse struct {
