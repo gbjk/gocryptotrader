@@ -882,14 +882,6 @@ type wsResponse struct {
 	Error  *RespError `json:"error"`
 }
 
-type wsLoginResponse struct {
-	JSONRPCVersion string         `json:"jsonrpc"`
-	ID             string         `json:"id"`
-	Method         string         `json:"method"`
-	Result         map[string]any `json:"result"`
-	Error          *RespError     `json:"error"`
-}
-
 type wsSubscriptionResponse struct {
 	JSONRPCVersion string   `json:"jsonrpc"`
 	ID             string   `json:"id"`

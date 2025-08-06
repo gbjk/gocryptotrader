@@ -185,7 +185,7 @@ func (e *Exchange) wsLogin(ctx context.Context) error {
 		e.Websocket.SetCanUseAuthenticatedEndpoints(false)
 		return err
 	}
-	var response wsLoginResponse
+	var response wsResponse
 	err = json.Unmarshal(resp, &response)
 	if err != nil {
 		return fmt.Errorf("%v %v", e.Name, err)
