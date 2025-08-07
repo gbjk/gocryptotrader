@@ -842,8 +842,7 @@ type TransactionsData struct {
 	Continuation int64                `json:"continuation"`
 }
 
-// wsInput defines a request obj for the JSON-RPC login and gets a websocket
-// response
+// wsInput defines a request obj for the JSON-RPC login and gets a websocket response
 type wsInput struct {
 	JSONRPCVersion string         `json:"jsonrpc,omitempty"`
 	ID             string         `json:"id,omitempty"`
@@ -851,13 +850,12 @@ type wsInput struct {
 	Params         map[string]any `json:"params,omitempty"`
 }
 
-// WsRequest defines a request obj for the JSON-RPC endpoints and gets a websocket
-// response
+// WsRequest defines a request obj for the JSON-RPC endpoints and gets a websocket response
 type WsRequest struct {
 	JSONRPCVersion string `json:"jsonrpc,omitempty"`
 	ID             string `json:"id,omitempty"`
 	Method         string `json:"method"`
-	Params         any    `json:"params,omitempty"`
+	XParams        any    `json:"params,omitempty"`
 }
 
 // WsSubscriptionInput defines a request obj for the JSON-RPC and gets a websocket
