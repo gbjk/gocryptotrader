@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -828,7 +827,7 @@ func (e *Exchange) WithdrawCryptocurrencyFunds(ctx context.Context, withdrawRequ
 		return nil, err
 	}
 	return &withdraw.ExchangeResponse{
-		ID:     strconv.FormatInt(withdrawData.ID, 10),
+		ID:     withdrawData.ID,
 		Status: withdrawData.State,
 	}, err
 }
