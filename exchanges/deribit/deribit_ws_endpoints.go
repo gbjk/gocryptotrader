@@ -2299,17 +2299,17 @@ func (e *Exchange) WsSimulateBlockTrade(ctx context.Context, role string, trades
 
 // SendWSRequest sends a request through the websocket connection.
 // both authenticated and public endpoints are allowed.
-func (e *Exchange) SendWSRequest(ctx context.Context, epl request.EndpointLimit, method string, params, response any, authenticated bool) error {
+func (e *Exchange) SendWSRequest(ctx context.Context, epl request.EndpointLimit, method string, params map[string]any, response any, authenticated bool) error {
 	if authenticated && !e.Websocket.CanUseAuthenticatedEndpoints() {
 		return errWebsocketConnectionNotAuthenticated
 	}
-	input := &WsRequest{
+	input := &msgRequest{
 		JSONRPCVersion: rpcVersion,
 		ID:             uuid.Must(uuid.NewV7()).String(),
 		Method:         method,
 		Params:         params,
 	}
-	resp := &wsResponse{Result: response}
+	resp := &msgResponse{Result: response}
 	err := e.sendWsPayload(ctx, epl, input, resp)
 	if err != nil {
 		return err
@@ -2329,7 +2329,7 @@ func (e *Exchange) SendWSRequest(ctx context.Context, epl request.EndpointLimit,
 
 // sendWsPayload handles sending Websocket requests
 // TODO: Refactor to use rate limiting system
-func (e *Exchange) sendWsPayload(ctx context.Context, ep request.EndpointLimit, input *WsRequest, response *wsResponse) error {
+func (e *Exchange) sendWsPayload(ctx context.Context, ep request.EndpointLimit, input *msgRequest, response *msgResponse) error {
 	if input == nil {
 		return fmt.Errorf("%w, input can not be ", common.ErrNilPointer)
 	}

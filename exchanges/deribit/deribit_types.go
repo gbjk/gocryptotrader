@@ -842,32 +842,16 @@ type TransactionsData struct {
 	Continuation int64                `json:"continuation"`
 }
 
-// wsInput defines a request obj for the JSON-RPC login and gets a websocket response
-type wsInput struct {
+// msgRequest defines a request obj for the JSON-RPC api shared by both websocket and HTTP
+type msgRequest struct {
 	JSONRPCVersion string         `json:"jsonrpc,omitempty"`
 	ID             string         `json:"id,omitempty"`
 	Method         string         `json:"method"`
 	Params         map[string]any `json:"params,omitempty"`
 }
 
-// WsRequest defines a request obj for the JSON-RPC endpoints and gets a websocket response
-type WsRequest struct {
-	JSONRPCVersion string `json:"jsonrpc,omitempty"`
-	ID             string `json:"id,omitempty"`
-	Method         string `json:"method"`
-	XParams        any    `json:"params,omitempty"`
-}
-
-// WsSubscriptionInput defines a request obj for the JSON-RPC and gets a websocket
-// response
-type WsSubscriptionInput struct {
-	JSONRPCVersion string              `json:"jsonrpc,omitempty"`
-	ID             string              `json:"id,omitempty"`
-	Method         string              `json:"method"`
-	Params         map[string][]string `json:"params,omitempty"`
-}
-
-type wsResponse struct {
+// msgRequest defines a response obj from the JSON-RPC api shared by both websocket and HTTP
+type msgResponse struct {
 	JSONRPCVersion string `json:"jsonrpc,omitempty"`
 	ID             string `json:"id,omitempty"`
 	Method         string `json:"method"`
@@ -878,13 +862,6 @@ type wsResponse struct {
 	} `json:"params"`
 	Result any        `json:"result,omitempty"`
 	Error  *RespError `json:"error"`
-}
-
-type wsSubscriptionResponse struct {
-	JSONRPCVersion string   `json:"jsonrpc"`
-	ID             string   `json:"id"`
-	Method         string   `json:"method"`
-	Result         []string `json:"result"`
 }
 
 // RequestForQuote RFQs for instruments in given currency.
