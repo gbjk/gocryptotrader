@@ -39,9 +39,7 @@ type IBotExchange interface {
 
 	GetEnabledFeatures() FeaturesEnabled
 	GetSupportedFeatures() FeaturesSupported
-	// GetTradingRequirements returns trading requirements for the exchange
 	GetTradingRequirements() protocol.TradingRequirements
-
 	GetCachedTicker(p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTicker(ctx context.Context, p currency.Pair, a asset.Item) (*ticker.Price, error)
 	UpdateTickers(ctx context.Context, a asset.Item) error
@@ -92,6 +90,7 @@ type IBotExchange interface {
 	PrintEnabledPairs()
 	IsVerbose() bool
 	GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp currency.Pair) (string, error)
+	MessageID() string
 
 	// ValidateAPICredentials function validates the API keys by sending an
 	// authenticated REST request. See exchange specific wrapper implementation.
