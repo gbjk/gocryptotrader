@@ -126,7 +126,7 @@ func (e *Exchange) websocketLogin(ctx context.Context, conn websocket.Connection
 	signature := hex.EncodeToString(mac.Sum(nil))
 
 	payload := WebsocketPayload{
-		RequestID: strconv.FormatInt(conn.GenerateMessageID(false), 10),
+		RequestID: e.MessageID(),
 		APIKey:    creds.Key,
 		Signature: signature,
 		Timestamp: strconv.FormatInt(tn, 10),
@@ -695,7 +695,7 @@ func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.
 // manageSubReq constructs the subscription management message for a subscription
 func (e *Exchange) manageSubReq(ctx context.Context, event string, conn websocket.Connection, s *subscription.Subscription) (*WsInput, error) {
 	req := &WsInput{
-		ID:      conn.GenerateMessageID(false),
+		ID:      e.MessageSequence(),
 		Event:   event,
 		Channel: channelName(s),
 		Time:    time.Now().Unix(),
@@ -967,7 +967,7 @@ func (e *Exchange) SendWebsocketRequest(ctx context.Context, epl request.Endpoin
 		Channel: channel,
 		Event:   "api",
 		Payload: WebsocketPayload{
-			RequestID:    strconv.FormatInt(conn.GenerateMessageID(false), 10),
+			RequestID:    e.MessageID(),
 			RequestParam: paramPayload,
 			Timestamp:    strconv.FormatInt(tn, 10),
 		},

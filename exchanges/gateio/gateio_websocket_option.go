@@ -77,7 +77,7 @@ func (e *Exchange) WsOptionsConnect(ctx context.Context, conn websocket.Connecti
 		return err
 	}
 	pingMessage, err := json.Marshal(WsInput{
-		ID:      conn.GenerateMessageID(false),
+		ID:      e.MessageSequence(),
 		Time:    time.Now().Unix(), // TODO: Func for dynamic time as this will be the same time for every ping message.
 		Channel: optionsPingChannel,
 	})
@@ -273,7 +273,7 @@ func (e *Exchange) generateOptionsPayload(ctx context.Context, conn websocket.Co
 				params...)
 		}
 		payloads[i] = WsInput{
-			ID:      conn.GenerateMessageID(false),
+			ID:      e.MessageSequence(),
 			Event:   event,
 			Channel: channelsToSubscribe[i].Channel,
 			Payload: params,
