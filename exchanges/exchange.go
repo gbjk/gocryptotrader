@@ -1969,3 +1969,9 @@ func (*Base) WebsocketSubmitOrders(context.Context, []*order.Submit) (responses 
 func (b *Base) MessageID() string {
 	return uuid.Must(uuid.NewV7()).String()
 }
+
+// MessageSequence returns a sequential message sequence number from common.Counter
+// It is not univerally unique but sholud be unique and sequential within each *Base instance
+func (b *Base) MessageSequence() int64 {
+	return b.messageSequence.IncrementAndGet()
+}
