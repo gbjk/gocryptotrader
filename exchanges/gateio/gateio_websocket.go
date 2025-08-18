@@ -666,7 +666,7 @@ func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.
 
 	for _, s := range subs {
 		if err := func() error {
-			msg, err := e.manageSubReq(ctx, event, conn, s)
+			msg, err := e.manageSubReq(ctx, event, s)
 			if err != nil {
 				return err
 			}
@@ -693,7 +693,7 @@ func (e *Exchange) manageSubs(ctx context.Context, event string, conn websocket.
 }
 
 // manageSubReq constructs the subscription management message for a subscription
-func (e *Exchange) manageSubReq(ctx context.Context, event string, conn websocket.Connection, s *subscription.Subscription) (*WsInput, error) {
+func (e *Exchange) manageSubReq(ctx context.Context, event string, s *subscription.Subscription) (*WsInput, error) {
 	req := &WsInput{
 		ID:      e.MessageSequence(),
 		Event:   event,
