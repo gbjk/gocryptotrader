@@ -110,7 +110,7 @@ func (e *Exchange) WebsocketAuthenticateConnection(ctx context.Context, conn web
 		return err
 	}
 	req := Authenticate{
-		RequestID: strconv.FormatInt(e.MessageSequence(), 10),
+		RequestID: e.MessageID(),
 		Operation: "auth",
 		Args:      []any{creds.Key, intNonce, hex.EncodeToString(hmac)},
 	}
@@ -139,7 +139,7 @@ func (e *Exchange) handleSubscriptions(conn websocket.Connection, operation stri
 			args = append(args, SubscriptionArgument{
 				auth:           b[0].Authenticated,
 				Operation:      operation,
-				RequestID:      strconv.FormatInt(e.MessageSequence(), 10),
+				RequestID:      e.MessageID(),
 				Arguments:      b.QualifiedChannels(),
 				associatedSubs: b,
 			})
@@ -706,13 +706,13 @@ func (e *Exchange) directSubscriptionPayload(conn websocket.Connection, assetTyp
 	var args []SubscriptionArgument
 	arg := SubscriptionArgument{
 		Operation: operation,
-		RequestID: strconv.FormatInt(e.MessageSequence(), 10),
+		RequestID: e.MessageID(),
 		Arguments: []string{},
 	}
 	authArg := SubscriptionArgument{
 		auth:      true,
 		Operation: operation,
-		RequestID: strconv.FormatInt(e.MessageSequence(), 10),
+		RequestID: e.MessageID(),
 		Arguments: []string{},
 	}
 
@@ -757,7 +757,7 @@ func (e *Exchange) directSubscriptionPayload(conn websocket.Connection, assetTyp
 			args = append(args, arg)
 			arg = SubscriptionArgument{
 				Operation: operation,
-				RequestID: strconv.FormatInt(e.MessageSequence(), 10),
+				RequestID: e.MessageID(),
 				Arguments: []string{},
 			}
 		}
