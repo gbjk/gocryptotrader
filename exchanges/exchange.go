@@ -1971,7 +1971,7 @@ func (b *Base) MessageID() string {
 }
 
 // MessageSequence returns a sequential message sequence number from common.Counter
-// It is not univerally unique but sholud be unique and sequential within each *Base instance
+// It is not universally unique but should be unique and sequential within each *Base instance
 func (b *Base) MessageSequence() int64 {
 	return b.messageSequence.IncrementAndGet()
 }
