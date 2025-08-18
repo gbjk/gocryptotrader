@@ -81,8 +81,8 @@ type ConnectionSetup struct {
 	// Handler defines the function that will be called when a message is
 	// received from the exchange's websocket server. This function should
 	// handle the incoming message and pass it to the appropriate data handler.
-	Handler func(ctx context.Context, conn Connection, incoming []byte) error
-	Authenticate       func(ctx context.Context, conn Connection) error
+	Handler      func(ctx context.Context, conn Connection, incoming []byte) error
+	Authenticate func(ctx context.Context, conn Connection) error
 	// MessageFilter defines the criteria used to match messages to a specific connection.
 	// The filter enables precise routing and handling of messages for distinct connection contexts.
 	MessageFilter any
