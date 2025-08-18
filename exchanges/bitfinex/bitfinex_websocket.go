@@ -1716,7 +1716,7 @@ func (e *Exchange) subscribeToChan(ctx context.Context, subs subscription.List) 
 
 	// subId is a single round-trip identifier that provides linking sub requests to chanIDs
 	// Although docs only mention subId for wsBookChannel, it works for all chans
-	subID := strconv.FormatInt(e.MessageSequence(), 10)
+	subID := e.MessageID()
 	req["subId"] = subID
 
 	// Add a temporary Key so we can find this Sub when we get the resp without delay or context switch
