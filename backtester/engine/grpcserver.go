@@ -61,13 +61,14 @@ func SetupRPCServer(cfg *config.BacktesterConfig, manager *TaskManager) (*GRPCSe
 }
 
 // StartRPCServer starts a gRPC server with TLS auth
-func StartRPCServer(server *GRPCServer) error {
+func StartRPCServer(ctx context.Context, server *GRPCServer) error {
 	targetDir := utils.GetTLSDir(server.config.GRPC.TLSDir)
 	if err := gctengine.CheckCerts(targetDir); err != nil {
 		return err
 	}
 	log.Debugf(log.GRPCSys, "Backtester GRPC server enabled. Starting GRPC server on https://%v.\n", server.config.GRPC.ListenAddress)
-	lis, err := net.Listen("tcp", server.config.GRPC.ListenAddress)
+	lc := net.ListenConfig{}
+	lis, err := lc.Listen(ctx, "tcp", server.config.GRPC.ListenAddress)
 	if err != nil {
 		return err
 	}

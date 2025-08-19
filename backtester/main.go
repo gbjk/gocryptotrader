@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
@@ -219,11 +220,13 @@ func main() {
 
 	runManager := backtest.NewTaskManager()
 
+	ctx := context.Background()
+
 	go func(c *config.BacktesterConfig) {
 		log.Infoln(log.GRPCSys, "Starting RPC server")
 		var s *backtest.GRPCServer
 		s, err = backtest.SetupRPCServer(c, runManager)
-		err = backtest.StartRPCServer(s)
+		err = backtest.StartRPCServer(ctx, s)
 		if err != nil {
 			fmt.Printf("Could not start RPC server. Error: %v\n", err)
 			os.Exit(1)
