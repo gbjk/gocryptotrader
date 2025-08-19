@@ -2877,12 +2877,12 @@ func TestHandleSubscriptions(t *testing.T) {
 
 	subs := subscription.List{{Channel: subscription.OrderbookChannel}}
 
-	err := e.handleSubscription(t.Context(), &FixtureConnection{}, subscribeEvent, subs, func(context.Context, websocket.Connection, string, subscription.List) ([]WsInput, error) {
+	err := e.handleSubscription(t.Context(), &FixtureConnection{}, subscribeEvent, subs, func(context.Context, string, subscription.List) ([]WsInput, error) {
 		return []WsInput{{}}, nil
 	})
 	require.NoError(t, err)
 
-	err = e.handleSubscription(t.Context(), &FixtureConnection{}, unsubscribeEvent, subs, func(context.Context, websocket.Connection, string, subscription.List) ([]WsInput, error) {
+	err = e.handleSubscription(t.Context(), &FixtureConnection{}, unsubscribeEvent, subs, func(context.Context, string, subscription.List) ([]WsInput, error) {
 		return []WsInput{{}}, nil
 	})
 	require.NoError(t, err)

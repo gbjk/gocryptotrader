@@ -171,7 +171,7 @@ getEnabledPairs:
 	return subscriptions, nil
 }
 
-func (e *Exchange) generateOptionsPayload(ctx context.Context, conn websocket.Connection, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
+func (e *Exchange) generateOptionsPayload(ctx context.Context, event string, channelsToSubscribe subscription.List) ([]WsInput, error) {
 	if len(channelsToSubscribe) == 0 {
 		return nil, errors.New("cannot generate payload, no channels supplied")
 	}
