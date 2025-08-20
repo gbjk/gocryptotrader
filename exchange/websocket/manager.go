@@ -77,7 +77,7 @@ type Manager struct {
 	verbose                      bool
 	canUseAuthenticatedEndpoints atomic.Bool // TODO: GBJK - Do we keep and maintain this flag, or work it out dynamically
 	connectionMonitorRunning     atomic.Bool
-	trafficTimeout               time.Duration
+	trafficTimeout               time.Duration // TODO: GBJK - This needs to move to connection
 	connectionMonitorDelay       time.Duration
 	proxyAddr                    string
 	defaultURL                   string
@@ -88,7 +88,7 @@ type Manager struct {
 	features                     *protocol.Features
 	m                            sync.Mutex
 	connectionConfigs            []*connectionWrapper
-	connections                  []*Connection
+	connections                  []*Connection // TODO: GBJK Not sure if there will be a use for a plain slice like this
 	subscriptions                *subscription.Store
 	connector                    func(context.Context, *Connection) error
 	rateLimitDefinitions         request.RateLimitDefinitions // rate limiters shared between Websocket and REST connections
@@ -114,25 +114,20 @@ type Manager struct {
 
 // ManagerSetup defines variables for setting up a websocket manager
 type ManagerSetup struct {
-	ExchangeConfig        *config.Exchange
-	DefaultURL            string
-	RunningURL            string
-	RunningURLAuth        string
+	ExchangeConfig *config.Exchange
+	Handler        MessageHandler
+
 	Connector             func() error
 	Subscriber            func(subscription.List) error
 	Unsubscriber          func(subscription.List) error
 	GenerateSubscriptions func() (subscription.List, error)
 	Features              *protocol.Features
-	OrderbookBufferConfig buffer.Config
-
-	// UseMultiConnectionManagement allows the connections to be managed by the
-	// connection manager. If false, this will default to the global fields
-	// provided in this struct.
-	UseMultiConnectionManagement bool
 
 	TradeFeed bool
 	FillsFeed bool
 
+	// TODO: GBJK - Think this is a connection setup thing, because Auth and non-auth might have different values
+	// That does imply duplicating it a lot, though
 	MaxWebsocketSubscriptionsPerConnection int
 
 	// RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections for all endpoints.
@@ -176,7 +171,7 @@ func NewManager() *Manager {
 		subscriptions:     subscription.NewStore(),
 		features:          &protocol.Features{},
 		Orderbook:         buffer.Orderbook{},
-		connections:       make(map[Connection]*connectionWrapper),
+		connections:       []*Connection,
 	}
 }
 
@@ -184,15 +179,6 @@ func NewManager() *Manager {
 func (m *Manager) Setup(s *ManagerSetup) error {
 	if err := common.NilGuard(m, s); err != nil {
 		return err
-	}
-	if s.ExchangeConfig == nil {
-		return fmt.Errorf("%w: ManagerSetup.ExchangeConfig", common.ErrNilPointer)
-	}
-	if s.ExchangeConfig.Features == nil {
-		return fmt.Errorf("%w: ManagerSetup.ExchangeConfig.Features", common.ErrNilPointer)
-	}
-	if s.Features == nil {
-		return fmt.Errorf("%w: ManagerSetup.Features", common.ErrNilPointer)
 	}
 
 	m.m.Lock()
@@ -202,74 +188,30 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 		return fmt.Errorf("%s %w", m.exchangeName, errWebsocketAlreadyInitialised)
 	}
 
-	if s.ExchangeConfig.Name == "" {
-		return errExchangeConfigNameEmpty
+	if err := s.validate(); err != nil {
+		return fmt.Errorf("%s %w", m.exchangeName, err)
 	}
+
 	m.exchangeName = s.ExchangeConfig.Name
 	m.verbose = s.ExchangeConfig.Verbose
-
 	m.features = s.Features
-
-	m.setEnabled(s.ExchangeConfig.Features.Enabled.Websocket)
-
-	m.useMultiConnectionManagement = s.UseMultiConnectionManagement
-
-	if !m.useMultiConnectionManagement {
-		// TODO: Remove this block when all exchanges are updated and backwards
-		// compatibility is no longer required.
-		if s.Connector == nil {
-			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketConnectorUnset)
-		}
-		if s.Subscriber == nil {
-			return fmt.Errorf("%w: %w", errConnSetup, errNoSubscriber)
-		}
-		if s.Unsubscriber == nil && m.features.Unsubscribe {
-			return fmt.Errorf("%w: %w", errConnSetup, errNoUnsubscriber)
-		}
-		if s.GenerateSubscriptions == nil {
-			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketSubscriptionsGeneratorUnset)
-		}
-		if s.DefaultURL == "" {
-			return fmt.Errorf("%s websocket %w", m.exchangeName, errDefaultURLIsEmpty)
-		}
-		m.defaultURL = s.DefaultURL
-		if s.RunningURL == "" {
-			return fmt.Errorf("%s websocket %w", m.exchangeName, errRunningURLIsEmpty)
-		}
-
-		m.connector = s.Connector
-		m.Subscriber = s.Subscriber
-		m.Unsubscriber = s.Unsubscriber
-		m.GenerateSubs = s.GenerateSubscriptions
-
-		err := m.SetWebsocketURL(s.RunningURL, false, false)
-		if err != nil {
-			return fmt.Errorf("%s %w", m.exchangeName, err)
-		}
-
-		if s.RunningURLAuth != "" {
-			err = m.SetWebsocketURL(s.RunningURLAuth, true, false)
-			if err != nil {
-				return fmt.Errorf("%s %w", m.exchangeName, err)
-			}
-		}
-	}
-
+	m.rateLimitDefinitions = s.RateLimitDefinitions
 	m.connectionMonitorDelay = s.ExchangeConfig.ConnectionMonitorDelay
+	m.trafficTimeout = s.ExchangeConfig.WebsocketTrafficTimeout
+
 	if m.connectionMonitorDelay <= 0 {
 		m.connectionMonitorDelay = config.DefaultConnectionMonitorDelay
 	}
 
-	if s.ExchangeConfig.WebsocketTrafficTimeout < time.Second {
-		return fmt.Errorf("%s %w cannot be less than %s",
-			m.exchangeName,
-			errInvalidTrafficTimeout,
-			time.Second)
+	if m.trafficTimeout < time.Second {
+		return fmt.Errorf("%s %w cannot be less than %s", m.exchangeName, errInvalidTrafficTimeout, time.Second)
 	}
-	m.trafficTimeout = s.ExchangeConfig.WebsocketTrafficTimeout
 
+	m.setState(disconnectedState)
+	m.setEnabled(s.ExchangeConfig.Features.Enabled.Websocket)
 	m.SetCanUseAuthenticatedEndpoints(s.ExchangeConfig.API.AuthenticatedWebsocketSupport)
 
+	// TODO: GBJK: - Need OrderbookBufferConfig on manager, it seems
 	if err := m.Orderbook.Setup(s.ExchangeConfig, &s.OrderbookBufferConfig, m.DataHandler); err != nil {
 		return err
 	}
@@ -277,13 +219,6 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 	m.Trade.Setup(s.TradeFeed, m.DataHandler)
 	m.Fills.Setup(s.FillsFeed, m.DataHandler)
 
-	if s.MaxWebsocketSubscriptionsPerConnection < 0 {
-		return fmt.Errorf("%s %w", m.exchangeName, errInvalidMaxSubscriptions)
-	}
-	m.MaxSubscriptionsPerConnection = s.MaxWebsocketSubscriptionsPerConnection
-	m.setState(disconnectedState)
-
-	m.rateLimitDefinitions = s.RateLimitDefinitions
 	return nil
 }
 
@@ -913,4 +848,35 @@ func (m *Manager) GetConnection(messageFilter any) (Connection, error) {
 	}
 
 	return nil, fmt.Errorf("%s: %w associated with message filter: '%v'", m.exchangeName, ErrRequestRouteNotFound, messageFilter)
+}
+
+func (s *ManagerSetup) validate() error {
+	if s.Connector == nil {
+		return errNoConnectFunc
+	}
+	if s.Handler == nil {
+		return errNoDataHandler
+	}
+	if s.Subscriber == nil {
+		return errNoSubscriber
+	}
+	if s.Subscriber == nil {
+		return errNoSubscriber
+	}
+	if s.ExchangeConfig == nil {
+		return fmt.Errorf("%w: ManagerSetup.ExchangeConfig", common.ErrNilPointer)
+	}
+	if s.ExchangeConfig.Name == "" {
+		return errExchangeConfigNameEmpty
+	}
+	if s.Features == nil {
+		return fmt.Errorf("%w: ManagerSetup.Features", common.ErrNilPointer)
+	}
+	if s.ExchangeConfig.Features == nil {
+		return fmt.Errorf("%w: ManagerSetup.ExchangeConfig.Features", common.ErrNilPointer)
+	}
+	if s.ExchangeConfig.WebsocketTrafficTimeout < time.Second {
+		return fmt.Errorf("%w: cannot be less than %s", errInvalidTrafficTimeout, time.Second)
+	}
+	return nil
 }
