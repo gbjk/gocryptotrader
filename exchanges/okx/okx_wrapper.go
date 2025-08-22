@@ -3052,5 +3052,5 @@ func (e *Exchange) GetCurrencyTradeURL(ctx context.Context, a asset.Item, cp cur
 
 // MessageID returns a universally unique id using UUID V7, with hyphens removed to fit the maximum 32-character field for okx
 func (e *Exchange) MessageID() string {
-	return fmt.Sprintf("%x", uuid.Must(uuid.NewV7()))
+	return strings.Replace(uuid.Must(uuid.NewV7()).String(), "-", "", 4)
 }
