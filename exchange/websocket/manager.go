@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"reflect"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -122,6 +124,7 @@ type ManagerSetup struct {
 	Unsubscriber          func(subscription.List) error
 	GenerateSubscriptions func() (subscription.List, error)
 	Features              *protocol.Features
+	OrderbookBufferConfig buffer.Config
 
 	TradeFeed bool
 	FillsFeed bool
@@ -136,15 +139,6 @@ type ManagerSetup struct {
 	// an error will be returned. However, if a connection configuration includes its own rate limit,
 	// it will fall back to that configuration’s rate limit without raising an error.
 	RateLimitDefinitions request.RateLimitDefinitions
-}
-
-// connectionWrapper contains the connection setup details to be used when
-// attempting a new connection. It also contains the subscriptions that are
-// associated with the specific connection.
-type connectionWrapper struct {
-	setup         *ConnectionSetup
-	subscriptions *subscription.Store
-	connection    Connection
 }
 
 var globalReporter Reporter
@@ -171,7 +165,7 @@ func NewManager() *Manager {
 		subscriptions:     subscription.NewStore(),
 		features:          &protocol.Features{},
 		Orderbook:         buffer.Orderbook{},
-		connections:       []*Connection,
+		connections:       []*Connection{},
 	}
 }
 
@@ -211,7 +205,6 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 	m.setEnabled(s.ExchangeConfig.Features.Enabled.Websocket)
 	m.SetCanUseAuthenticatedEndpoints(s.ExchangeConfig.API.AuthenticatedWebsocketSupport)
 
-	// TODO: GBJK: - Need OrderbookBufferConfig on manager, it seems
 	if err := m.Orderbook.Setup(s.ExchangeConfig, &s.OrderbookBufferConfig, m.DataHandler); err != nil {
 		return err
 	}
@@ -239,11 +232,15 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 		c.ConnectionLevelReporter = globalReporter
 	}
 
-	if c.Authenticated {
-		m.AuthConn = m.getConnectionFromSetup(c)
-	} else {
-		m.Conn = m.getConnectionFromSetup(c)
+	if c.MessageFilter != nil && !reflect.TypeOf(c.MessageFilter).Comparable() {
+		return ErrInvalidMessageFilter
 	}
+
+	if slices.ContainsFunc(m.connectionConfigs, func(b *ConnectionSetup) bool { return b.URL == c.URL && b.MessageFilter == c.MessageFilter }) {
+		return fmt.Errorf("%w: %w", errConnSetup, errDuplicateConnectionSetup)
+	}
+
+	m.connectionConfigs = append(m.connectionConfigs, c)
 
 	return nil
 }
@@ -255,13 +252,6 @@ func (m *Manager) getConnectionFromSetup(c *ConnectionSetup) *connection {
 	if c.URL != "" {
 		connectionURL = c.URL
 	}
-	// TODO: GBJK Remove m.Match
-	match := m.Match
-	if m.useMultiConnectionManagement {
-		// If we are using multi connection management, we can decouple
-		// the match from the global match and have a match per connection.
-		match = NewMatch()
-	}
 	return &connection{
 		ExchangeName:         m.exchangeName,
 		URL:                  connectionURL,
@@ -272,7 +262,7 @@ func (m *Manager) getConnectionFromSetup(c *ConnectionSetup) *connection {
 		readMessageErrors:    m.ReadMessageErrors,
 		shutdown:             m.ShutdownC,
 		Wg:                   &m.Wg,
-		Match:                match,
+		Match:                NewMatch(),
 		RateLimit:            c.RateLimit,
 		Reporter:             c.ConnectionLevelReporter,
 		RateLimitDefinitions: m.rateLimitDefinitions,

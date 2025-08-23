@@ -24,15 +24,19 @@ var (
 )
 
 // UnsubscribeChannels unsubscribes from a list of websocket channel
-func (m *Manager) UnsubscribeChannels(conn Connection, channels subscription.List) error {
+func (m *Manager) UnsubscribeChannels(channels subscription.List) error {
 	if len(channels) == 0 {
 		return nil // No channels to unsubscribe from is not an error
 	}
-	if wrapper, ok := m.connections[conn]; ok && conn != nil {
-		return m.unsubscribe(wrapper.subscriptions, channels, func(channels subscription.List) error {
-			return wrapper.setup.Unsubscriber(context.TODO(), conn, channels)
-		})
-	}
+
+	/*
+		TODO: GBJK This needs rethinking
+			if wrapper, ok := m.connections[conn]; ok && conn != nil {
+				return m.unsubscribe(wrapper.subscriptions, channels, func(channels subscription.List) error {
+					return wrapper.setup.Unsubscriber(context.TODO(), conn, channels)
+				})
+			}
+	*/
 
 	if m.Unsubscriber == nil {
 		return fmt.Errorf("%w: Global Unsubscriber not set", common.ErrNilPointer)
@@ -58,30 +62,33 @@ func (m *Manager) unsubscribe(store *subscription.Store, channels subscription.L
 // ResubscribeToChannel resubscribes to channel
 // Sets state to Resubscribing, and exchanges which want to maintain a lock on it can respect this state and not RemoveSubscription
 // Errors if subscription is already subscribing
-func (m *Manager) ResubscribeToChannel(conn Connection, s *subscription.Subscription) error {
+func (m *Manager) ResubscribeToChannel(s *subscription.Subscription) error {
 	l := subscription.List{s}
 	if err := s.SetState(subscription.ResubscribingState); err != nil {
 		return fmt.Errorf("%w: %s", err, s)
 	}
-	if err := m.UnsubscribeChannels(conn, l); err != nil {
+	if err := m.UnsubscribeChannels(l); err != nil {
 		return err
 	}
-	return m.SubscribeToChannels(conn, l)
+	return m.SubscribeToChannels(l)
 }
 
 // SubscribeToChannels subscribes to websocket channels using the exchange specific Subscriber method
 // Errors are returned for duplicates or exceeding max Subscriptions
-func (m *Manager) SubscribeToChannels(conn Connection, subs subscription.List) error {
+func (m *Manager) SubscribeToChannels(subs subscription.List) error {
 	if slices.Contains(subs, nil) {
 		return fmt.Errorf("%w: List parameter contains an nil element", common.ErrNilPointer)
 	}
-	if err := m.checkSubscriptions(conn, subs); err != nil {
+	if err := m.checkSubscriptions(nil, subs); err != nil {
 		return err
 	}
 
-	if wrapper, ok := m.connections[conn]; ok && conn != nil {
-		return wrapper.setup.Subscriber(context.TODO(), conn, subs)
-	}
+	/*
+		 TODO: GBJK: Find the right connection
+				if wrapper, ok := m.connections[conn]; ok && conn != nil {
+					return wrapper.setup.Subscriber(context.TODO(), conn, subs)
+				}
+	*/
 
 	if m.Subscriber == nil {
 		return fmt.Errorf("%w: Global Subscriber not set", common.ErrNilPointer)
@@ -99,12 +106,17 @@ func (m *Manager) AddSubscriptions(conn Connection, subs ...*subscription.Subscr
 	if m == nil {
 		return fmt.Errorf("%w: AddSubscriptions called on nil Websocket", common.ErrNilPointer)
 	}
+
+	// TODO: GBJK Please tell me we don't need to do this
 	var subscriptionStore **subscription.Store
-	if wrapper, ok := m.connections[conn]; ok && conn != nil {
-		subscriptionStore = &wrapper.subscriptions
-	} else {
-		subscriptionStore = &m.subscriptions
-	}
+	/*
+		    * TODO: GBJK - Need to work out what to add it to
+			if wrapper, ok := m.connections[conn]; ok && conn != nil {
+				subscriptionStore = &wrapper.subscriptions
+			} else {
+				subscriptionStore = &m.subscriptions
+			}
+	*/
 
 	if *subscriptionStore == nil {
 		*subscriptionStore = subscription.NewStore()
@@ -220,6 +232,7 @@ func (m *Manager) GetSubscriptions() subscription.List {
 	return subs
 }
 
+// TODO: GBJK: This needs rethinking
 // checkSubscriptions checks subscriptions against the max subscription limit and if the subscription already exists
 // The subscription state is not considered when counting existing subscriptions
 func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) error {

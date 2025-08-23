@@ -1024,8 +1024,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
     // Websocket details setup below
     err = e.Websocket.Setup(&websocket.ManagerSetup{
         ExchangeConfig:         exch,
-        // DefaultURL defines the default endpoint in the event a rollback is 
-        // needed via gctcli.
+        // DefaultURL defines the default endpoint in the event a rollback is needed via gctcli
         DefaultURL:             binanceWSURL, 
         RunningURL:             exch.API.Endpoints.WebsocketURL,
         // Connector function outlined above.

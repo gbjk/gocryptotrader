@@ -1063,12 +1063,14 @@ func (b *Base) GetWebsocket() (*websocket.Manager, error) {
 	return b.Websocket, nil
 }
 
+// TODO: GBJK; Is it material if we support it or not? Which ones don't support websocket? :/
 // SupportsWebsocket returns whether or not the exchange supports
 // websocket
 func (b *Base) SupportsWebsocket() bool {
 	return b.Features.Supports.Websocket
 }
 
+// TODO: GBJK; Can we remove all of the parrot functions on Websockets?
 // IsWebsocketEnabled returns whether or not the exchange has its
 // websocket client enabled
 func (b *Base) IsWebsocketEnabled() bool {
@@ -1093,7 +1095,7 @@ func (b *Base) SubscribeToWebsocketChannels(channels subscription.List) error {
 	if b.Websocket == nil {
 		return common.ErrFunctionNotSupported
 	}
-	return b.Websocket.SubscribeToChannels(b.Websocket.Conn, channels)
+	return b.Websocket.SubscribeToChannels(channels)
 }
 
 // UnsubscribeToWebsocketChannels removes from ChannelsToSubscribe
