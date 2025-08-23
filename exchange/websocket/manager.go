@@ -13,11 +13,11 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
+	"github.com/thrasher-corp/gocryptotrader/exchange/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchange/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
 )
@@ -89,13 +89,13 @@ type Manager struct {
 	exchangeName                 string
 	features                     *protocol.Features
 	m                            sync.Mutex
-	connectionConfigs            []*connectionWrapper
+	connectionConfigs            []*ConnectionSetup
 	connections                  []*Connection // TODO: GBJK Not sure if there will be a use for a plain slice like this
 	subscriptions                *subscription.Store
 	connector                    func(context.Context, *Connection) error
 	rateLimitDefinitions         request.RateLimitDefinitions // rate limiters shared between Websocket and REST connections
-	Subscriber                   func(subscription.List) error
-	Unsubscriber                 func(subscription.List) error
+	Subscriber                   func(subscription.Connection, subscription.List) error
+	Unsubscriber                 func(subscription.Connection, subscription.List) error
 	GenerateSubs                 func() (subscription.List, error)
 	Authenticate                 func(ctx context.Context, conn *Connection) error // TODO: GBJK - This concept is blown, isn't it? Or can we fan out inside the exchanges
 	DataHandler                  chan any

@@ -59,7 +59,13 @@ type ListValidator interface {
 	ValidateSubscriptions(List) error
 }
 
+// Connection defines the methods required for a subscription to use a connection
+type Connection interface{}
+
 // Subscription container for streaming subscriptions
+// TODO: GBJK - Separate out config from this, and make fields private or something, so users have to go through methods to get a real sub
+// The purpose of this is to make it so that we always know any sub we're given is fully vivified
+// Probably means embedding the config struct and making Qualified Channel a method
 type Subscription struct {
 	Enabled          bool           `json:"enabled"`
 	Key              any            `json:"-"`
@@ -71,6 +77,7 @@ type Subscription struct {
 	Levels           int            `json:"levels,omitempty"`
 	Authenticated    bool           `json:"authenticated,omitempty"`
 	QualifiedChannel string         `json:"-"`
+	Connection       Connection     `json:"-"`
 	state            State
 	m                sync.RWMutex
 }

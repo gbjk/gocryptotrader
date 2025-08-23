@@ -65,6 +65,15 @@ outer:
 	return n
 }
 
+// GroupByConnection groups subscriptions by Connection
+func (l List) GroupByConnection() map[Connection]List {
+	m := map[Connection]List{}
+	for _, a := range l {
+		m[a.Connection] = append(m[a.Connection], a)
+	}
+	return m
+}
+
 // Clone returns a deep clone of the List
 func (l List) Clone() List {
 	n := make(List, len(l))

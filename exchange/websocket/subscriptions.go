@@ -3,7 +3,6 @@ package websocket
 import (
 	"errors"
 	"fmt"
-	"slices"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchange/subscription"
@@ -11,7 +10,8 @@ import (
 
 // Public subscription errors
 var (
-	ErrSubscriptionFailure     = errors.New("subscription failure")
+	ErrSubscribe               = errors.New("subscribe to websocket channel failed")
+	ErrUnsubscribe             = errors.New("unsubscribe from websocket channel failed")
 	ErrSubscriptionsNotAdded   = errors.New("subscriptions not added")
 	ErrSubscriptionsNotRemoved = errors.New("subscriptions not removed")
 )
@@ -21,9 +21,9 @@ var (
 	errSubscriptionsExceedsLimit = errors.New("subscriptions exceeds limit")
 )
 
-// UnsubscribeChannels unsubscribes from a list of websocket channel
-func (m *Manager) UnsubscribeChannels(channels subscription.List) error {
-	if len(channels) == 0 {
+// Unsubscribe unsubscribes from a list of websocket channels
+func (m *Manager) Unsubscribe(subs subscription.List) error {
+	if len(subs) == 0 {
 		return nil // No channels to unsubscribe from is not an error
 	}
 
@@ -34,15 +34,19 @@ func (m *Manager) UnsubscribeChannels(channels subscription.List) error {
 		return err
 	}
 
-	connSubs := map[*Connection]subscription.List{}
-	for i, s := range channels {
-		if m.subscriptions.Get(s) == nil {
-			return fmt.Errorf("%w: %s", subscription.ErrNotFound, s)
-		}
-		connSubs[i] = s
+	connSubs := subs.GroupByConnection()
+
+	errs := common.CollectErrors(len(connSubs))
+	for c, subs := range connSubs {
+		go func() {
+			defer errs.Wg.Done()
+			if err := m.Unsubscriber(c, subs); err != nil {
+				errs.C <- fmt.Errorf("%w: %w", ErrUnsubscribe, err)
+			}
+		}()
 	}
 
-	return m.Unsubscriber(subs)
+	return errs.Collect()
 }
 
 // ResubscribeToChannel resubscribes to channel
@@ -53,31 +57,45 @@ func (m *Manager) ResubscribeToChannel(s *subscription.Subscription) error {
 	if err := s.SetState(subscription.ResubscribingState); err != nil {
 		return fmt.Errorf("%w: %s", err, s)
 	}
-	if err := m.UnsubscribeChannels(l); err != nil {
+	if err := m.Unsubscribe(l); err != nil {
 		return err
 	}
-	return m.SubscribeToChannels(l)
+	return m.Subscribe(l)
 }
 
-// SubscribeToChannels subscribes to websocket channels using the exchange specific Subscriber method
+// Subscribe subscribes to websocket channels using the exchange specific Subscriber method
 // Errors are returned for duplicates or exceeding max Subscriptions
-func (m *Manager) SubscribeToChannels(subs subscription.List) error {
-	if slices.Contains(subs, nil) {
-		return fmt.Errorf("%w: List parameter contains an nil element", common.ErrNilPointer)
+func (m *Manager) Subscribe(subs subscription.List) error {
+	if len(subs) == 0 {
+		return nil // No channels to unsubscribe from is not an error
 	}
-
-	if err := m.checkSubscriptions(nil, subs); err != nil {
+	if err := common.NilGuard(m); err != nil {
+		return err
+	}
+	if err := common.NilGuard(m.Subscriber); err != nil {
 		return err
 	}
 
-	if m.Subscriber == nil {
-		return fmt.Errorf("%w: Global Subscriber not set", common.ErrNilPointer)
+	connSubs, err := m.assignSubsToConns(subs)
+	if err != nil {
+		return err
 	}
 
-	if err := m.Subscriber(conn, subs); err != nil {
-		return fmt.Errorf("%w: %w", ErrSubscriptionFailure, err)
+	errs := common.CollectErrors(len(connSubs))
+	for c, subs := range connSubs {
+		go func() {
+			defer errs.Wg.Done()
+			if err := m.Subscriber(c, subs); err != nil {
+				errs.C <- fmt.Errorf("%w: %w", ErrSubscribe, err)
+			}
+		}()
 	}
-	return nil
+
+	return errs.Collect()
+}
+
+func (m *Manager) assignSubsToConns(subs subscription.List) (map[*Connection]subscription.List, error) {
+	return nil, nil
 }
 
 // AddSubscriptions adds subscriptions to the subscription store
@@ -176,19 +194,10 @@ func (m *Manager) RemoveSubscriptions(conn Connection, subs ...*subscription.Sub
 // returns nil if no subscription is at that key or the key is nil
 // Keys can implement subscription.MatchableKey in order to provide custom matching logic
 func (m *Manager) GetSubscription(key any) *subscription.Subscription {
-	if m == nil || key == nil {
+	if err := common.NilGuard(m, key); err != nil {
 		return nil
 	}
-	for _, c := range m.connectionConfigs {
-		if c.subscriptions == nil {
-			continue
-		}
-		sub := c.subscriptions.Get(key)
-		if sub != nil {
-			return sub
-		}
-	}
-	if m.subscriptions == nil {
+	if err := common.NilGuard(m.subscriptions); err != nil {
 		return nil
 	}
 	return m.subscriptions.Get(key)
@@ -200,32 +209,14 @@ func (m *Manager) GetSubscriptions() subscription.List {
 		return nil
 	}
 	var subs subscription.List
-	for _, c := range m.connectionConfigs {
-		if c.subscriptions != nil {
-			subs = append(subs, c.subscriptions.List()...)
-		}
-	}
 	if m.subscriptions != nil {
 		subs = append(subs, m.subscriptions.List()...)
 	}
 	return subs
 }
 
+/*
 // TODO: GBJK: This needs rethinking
-// checkSubscriptions checks subscriptions against the max subscription limit and if the subscription already exists
-// The subscription state is not considered when counting existing subscriptions
-func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) error {
-	var subscriptionStore *subscription.Store
-	if wrapper, ok := m.connections[conn]; ok && conn != nil {
-		subscriptionStore = wrapper.subscriptions
-	} else {
-		subscriptionStore = m.subscriptions
-	}
-	if subscriptionStore == nil {
-		return fmt.Errorf("%w: Websocket.subscriptions", common.ErrNilPointer)
-	}
-
-	existing := subscriptionStore.Len()
 	if m.MaxSubscriptionsPerConnection > 0 && existing+len(subs) > m.MaxSubscriptionsPerConnection {
 		return fmt.Errorf("%w: current subscriptions: %v, incoming subscriptions: %v, max subscriptions per connection: %v - please reduce enabled pairs",
 			errSubscriptionsExceedsLimit,
@@ -245,6 +236,7 @@ func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) er
 
 	return nil
 }
+*/
 
 // SyncSubscriptions flushes channel subscriptions when there is a pair/asset change
 // TODO: GBJK Add window for max subscriptions per connection, to spawn new connections if needed.
@@ -294,11 +286,6 @@ func (m *Manager) SyncSubscriptions() error {
 					m.connectionConfigs[x].connection = conn
 				}
 
-				err = m.updateChannelSubscriptions(m.connectionConfigs[x].connection, m.connectionConfigs[x].subscriptions, newSubs)
-				if err != nil {
-					return err
-				}
-
 				// If there are no subscriptions to subscribe to, close the connection as it is no longer needed.
 				if m.connectionConfigs[x].subscriptions.Len() == 0 {
 					delete(m.connections, m.connectionConfigs[x].connection) // Remove from lookup map
@@ -309,30 +296,5 @@ func (m *Manager) SyncSubscriptions() error {
 				}
 			}
 	*/
-	return nil
-}
-
-// updateChannelSubscriptions subscribes or unsubscribes from channels and checks that the correct number of channels
-// have been subscribed to or unsubscribed from.
-func (m *Manager) updateChannelSubscriptions(c Connection, store *subscription.Store, incoming subscription.List) error {
-	subs, unsubs := store.Diff(incoming)
-	if len(unsubs) != 0 {
-		if err := m.UnsubscribeChannels(c, unsubs); err != nil {
-			return err
-		}
-
-		if contained := store.Contained(unsubs); len(contained) > 0 {
-			return fmt.Errorf("%v %w %q", m.exchangeName, ErrSubscriptionsNotRemoved, contained)
-		}
-	}
-	if len(subs) != 0 {
-		if err := m.SubscribeToChannels(c, subs); err != nil {
-			return err
-		}
-
-		if missing := store.Missing(subs); len(missing) > 0 {
-			return fmt.Errorf("%v %w %q", m.exchangeName, ErrSubscriptionsNotAdded, missing)
-		}
-	}
 	return nil
 }
