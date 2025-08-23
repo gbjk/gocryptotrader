@@ -7,11 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
-	"github.com/thrasher-corp/gocryptotrader/exchange/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	testexch "github.com/thrasher-corp/gocryptotrader/internal/testing/exchange"
 	testsubs "github.com/thrasher-corp/gocryptotrader/internal/testing/subscriptions"
@@ -59,7 +59,7 @@ func TestWsHandleData(t *testing.T) {
 	require.NoError(t, err)
 
 	err = dummy.wsHandleData([]byte(`{"status":"1336","resmsg":"Failed"}`))
-	require.ErrorIs(t, err, websocket.ErrSubscriptionFailure)
+	require.ErrorIs(t, err, websocket.ErrSubscribe)
 
 	err = dummy.wsHandleData(wsTransResp)
 	require.NoError(t, err)
