@@ -100,26 +100,15 @@ func (m *Manager) assignSubsToConns(subs subscription.List) (map[*Connection]sub
 
 // AddSubscriptions adds subscriptions to the subscription store
 // Sets state to Subscribing unless the state is already set
-func (m *Manager) AddSubscriptions(conn Connection, subs ...*subscription.Subscription) error {
-	if m == nil {
-		return fmt.Errorf("%w: AddSubscriptions called on nil Websocket", common.ErrNilPointer)
+// TODO: When and why and how would we do this like this?
+// I think anything we're going to add should already be in the store?
+func (m *Manager) AddSubscriptions(subs ...*subscription.Subscription) error {
+	if err := common.NilGuard(m); err != nil {
+		return err
 	}
 
-	// TODO: GBJK Please tell me we don't need to do this
-	// We definitely don't - Because we're not adding Subscriptions to a Connection
-	var subscriptionStore **subscription.Store
-	/*
-		    * TODO: GBJK - Need to work out what to add it to
-			if wrapper, ok := m.connections[conn]; ok && conn != nil {
-				subscriptionStore = &wrapper.subscriptions
-			} else {
-				subscriptionStore = &m.subscriptions
-			}
-	*/
+	// GBJK: TODO - The subscription should know it's connection already
 
-	if *subscriptionStore == nil {
-		*subscriptionStore = subscription.NewStore()
-	}
 	var errs error
 	for _, s := range subs {
 		if s.State() == subscription.InactiveState {
@@ -127,7 +116,7 @@ func (m *Manager) AddSubscriptions(conn Connection, subs ...*subscription.Subscr
 				errs = common.AppendError(errs, fmt.Errorf("%w: %s", err, s))
 			}
 		}
-		if err := (*subscriptionStore).Add(s); err != nil {
+		if err := m.subscriptions.Add(s); err != nil {
 			errs = common.AppendError(errs, err)
 		}
 	}
@@ -136,46 +125,32 @@ func (m *Manager) AddSubscriptions(conn Connection, subs ...*subscription.Subscr
 
 // AddSuccessfulSubscriptions marks subscriptions as subscribed and adds them to the subscription store
 func (m *Manager) AddSuccessfulSubscriptions(conn Connection, subs ...*subscription.Subscription) error {
-	if m == nil {
-		return fmt.Errorf("%w: AddSuccessfulSubscriptions called on nil Websocket", common.ErrNilPointer)
+	if err := common.NilGuard(m); err != nil {
+		return err
 	}
+	if err := common.NilGuard(m.subscriptions); err != nil {
+		return err
+	}
+
 	var errs error
-	/*
-	    TODO: GBJK - This doesn't feel right - Manager should be doing this internally, right?
-	   Should an exchange even get to call this?
-	   I mean, it gives us flexibility, but at the cost of control
-
-	   	var subscriptionStore **subscription.Store
-	   	if wrapper, ok := m.connections[conn]; ok && conn != nil {
-	   		subscriptionStore = &wrapper.subscriptions
-	   	} else {
-	   		subscriptionStore = &m.subscriptions
-	   	}
-
-	   	if *subscriptionStore == nil {
-	   		*subscriptionStore = subscription.NewStore()
-	   	}
-
-	   	for _, s := range subs {
-	   		if err := s.SetState(subscription.SubscribedState); err != nil {
-	   			errs = common.AppendError(errs, fmt.Errorf("%w: %s", err, s))
-	   		}
-	   		if err := (*subscriptionStore).Add(s); err != nil {
-	   			errs = common.AppendError(errs, err)
-	   		}
-	   	}
-	*/
+	for _, s := range subs {
+		if err := s.SetState(subscription.SubscribedState); err != nil {
+			errs = common.AppendError(errs, fmt.Errorf("%w: %s", err, s))
+		}
+		if err := m.subscriptions.Add(s); err != nil {
+			errs = common.AppendError(errs, err)
+		}
+	}
 	return errs
 }
 
 // RemoveSubscriptions removes subscriptions from the subscription list and sets the status to Unsubscribed
 func (m *Manager) RemoveSubscriptions(conn Connection, subs ...*subscription.Subscription) error {
-	if m == nil {
-		return fmt.Errorf("%w: RemoveSubscriptions called on nil Websocket", common.ErrNilPointer)
+	if err := common.NilGuard(m); err != nil {
+		return err
 	}
-
-	if m.subscriptions == nil {
-		return fmt.Errorf("%w: RemoveSubscriptions called on uninitialised Websocket", common.ErrNilPointer)
+	if err := common.NilGuard(m.subscriptions); err != nil {
+		return err
 	}
 
 	var errs error
@@ -205,14 +180,10 @@ func (m *Manager) GetSubscription(key any) *subscription.Subscription {
 
 // GetSubscriptions returns a new slice of the subscriptions
 func (m *Manager) GetSubscriptions() subscription.List {
-	if m == nil {
+	if err := common.NilGuard(m); err != nil {
 		return nil
 	}
-	var subs subscription.List
-	if m.subscriptions != nil {
-		subs = append(subs, m.subscriptions.List()...)
-	}
-	return subs
+	return m.subscriptions.List()
 }
 
 /*
