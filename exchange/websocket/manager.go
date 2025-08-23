@@ -67,9 +67,8 @@ const (
 
 const (
 	uninitialisedState uint32 = iota
-	disconnectedState
-	connectingState
-	connectedState
+	dormantState
+	runningState
 )
 
 // Manager provides connection and subscription management and routing
@@ -129,8 +128,6 @@ type ManagerSetup struct {
 	TradeFeed bool
 	FillsFeed bool
 
-	// TODO: GBJK - Think this is a connection setup thing, because Auth and non-auth might have different values
-	// That does imply duplicating it a lot, though
 	MaxWebsocketSubscriptionsPerConnection int
 
 	// RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections for all endpoints.
@@ -201,7 +198,7 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 		return fmt.Errorf("%s %w cannot be less than %s", m.exchangeName, errInvalidTrafficTimeout, time.Second)
 	}
 
-	m.setState(disconnectedState)
+	m.setState(dormantState)
 	m.setEnabled(s.ExchangeConfig.Features.Enabled.Websocket)
 	m.SetCanUseAuthenticatedEndpoints(s.ExchangeConfig.API.AuthenticatedWebsocketSupport)
 
@@ -269,18 +266,15 @@ func (m *Manager) getConnectionFromSetup(c *ConnectionSetup) *connection {
 	}
 }
 
-// Connect initiates a websocket connection by using a package defined connection
-// function
-func (m *Manager) Connect() error {
+// Start begins the Manager's process of checking for subscriptions and making new connections
+func (m *Manager) Start() error {
 	m.m.Lock()
 	defer m.m.Unlock()
-	return m.connect()
-}
 
-func (m *Manager) connect() error {
 	if !m.IsEnabled() {
 		return ErrWebsocketNotEnabled
 	}
+
 	if m.IsConnecting() {
 		return fmt.Errorf("%v %w", m.exchangeName, errAlreadyReconnecting)
 	}
@@ -301,6 +295,8 @@ func (m *Manager) connect() error {
 
 	ctx := context.Background()
 
+	m.SyncSubscriptions()
+
 	errs := common.CollectErrors(len(m.connectionConfigs))
 	for _, c := range m.connectionConfigs {
 		go func() {
@@ -316,8 +312,6 @@ func (m *Manager) connect() error {
 	// We can only say "Are you connected" for a specific connection setup
 	m.setState(connectedState)
 
-	m.SyncSubscriptions()
-
 	if m.connectionMonitorRunning.CompareAndSwap(false, true) {
 		// This oversees all connections and does not need to be part of wait group management.
 		go m.monitorFrame(nil, m.monitorConnection)
@@ -326,7 +320,7 @@ func (m *Manager) connect() error {
 	return nil
 }
 
-func (m *Manager) connectMulti(ctx context.Context, s *ConnectionSetup) error {
+func (m *Manager) connect(ctx context.Context, s *ConnectionSetup) error {
 	conn := m.getConnectionFromSetup(s)
 
 	if err := m.connector(ctx, conn); err != nil {
@@ -472,19 +466,14 @@ func (m *Manager) setState(s uint32) {
 	m.state.Store(s)
 }
 
-// IsInitialised returns whether the websocket has been Setup() already
+// IsInitialised returns whether the manager has been Setup() already
 func (m *Manager) IsInitialised() bool {
 	return m.state.Load() != uninitialisedState
 }
 
-// IsConnected returns whether the websocket is connected
-func (m *Manager) IsConnected() bool {
-	return m.state.Load() == connectedState
-}
-
-// IsConnecting returns whether the websocket is connecting
-func (m *Manager) IsConnecting() bool {
-	return m.state.Load() == connectingState
+// IsConnected returns whether the manager is Running
+func (m *Manager) IsRunning() bool {
+	return m.state.Load() == runningState
 }
 
 func (m *Manager) setEnabled(b bool) {
