@@ -1,14 +1,12 @@
 package websocket
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"slices"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
-	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/exchange/subscription"
 )
 
 // Public subscription errors
@@ -29,34 +27,22 @@ func (m *Manager) UnsubscribeChannels(channels subscription.List) error {
 		return nil // No channels to unsubscribe from is not an error
 	}
 
-	/*
-		TODO: GBJK This needs rethinking
-			if wrapper, ok := m.connections[conn]; ok && conn != nil {
-				return m.unsubscribe(wrapper.subscriptions, channels, func(channels subscription.List) error {
-					return wrapper.setup.Unsubscriber(context.TODO(), conn, channels)
-				})
-			}
-	*/
-
-	if m.Unsubscriber == nil {
-		return fmt.Errorf("%w: Global Unsubscriber not set", common.ErrNilPointer)
+	if err := common.NilGuard(m); err != nil {
+		return err
+	}
+	if err := common.NilGuard(m.Unsubscriber); err != nil {
+		return err
 	}
 
-	return m.unsubscribe(m.subscriptions, channels, func(channels subscription.List) error {
-		return m.Unsubscriber(channels)
-	})
-}
-
-func (m *Manager) unsubscribe(store *subscription.Store, channels subscription.List, unsub func(channels subscription.List) error) error {
-	if store == nil {
-		return nil // No channels to unsubscribe from is not an error
-	}
-	for _, s := range channels {
-		if store.Get(s) == nil {
+	connSubs := map[*Connection]subscription.List{}
+	for i, s := range channels {
+		if m.subscriptions.Get(s) == nil {
 			return fmt.Errorf("%w: %s", subscription.ErrNotFound, s)
 		}
+		connSubs[i] = s
 	}
-	return unsub(channels)
+
+	return m.Unsubscriber(subs)
 }
 
 // ResubscribeToChannel resubscribes to channel
@@ -79,22 +65,16 @@ func (m *Manager) SubscribeToChannels(subs subscription.List) error {
 	if slices.Contains(subs, nil) {
 		return fmt.Errorf("%w: List parameter contains an nil element", common.ErrNilPointer)
 	}
+
 	if err := m.checkSubscriptions(nil, subs); err != nil {
 		return err
 	}
-
-	/*
-		 TODO: GBJK: Find the right connection
-				if wrapper, ok := m.connections[conn]; ok && conn != nil {
-					return wrapper.setup.Subscriber(context.TODO(), conn, subs)
-				}
-	*/
 
 	if m.Subscriber == nil {
 		return fmt.Errorf("%w: Global Subscriber not set", common.ErrNilPointer)
 	}
 
-	if err := m.Subscriber(subs); err != nil {
+	if err := m.Subscriber(conn, subs); err != nil {
 		return fmt.Errorf("%w: %w", ErrSubscriptionFailure, err)
 	}
 	return nil
@@ -108,6 +88,7 @@ func (m *Manager) AddSubscriptions(conn Connection, subs ...*subscription.Subscr
 	}
 
 	// TODO: GBJK Please tell me we don't need to do this
+	// We definitely don't - Because we're not adding Subscriptions to a Connection
 	var subscriptionStore **subscription.Store
 	/*
 		    * TODO: GBJK - Need to work out what to add it to
@@ -140,27 +121,32 @@ func (m *Manager) AddSuccessfulSubscriptions(conn Connection, subs ...*subscript
 	if m == nil {
 		return fmt.Errorf("%w: AddSuccessfulSubscriptions called on nil Websocket", common.ErrNilPointer)
 	}
-
-	var subscriptionStore **subscription.Store
-	if wrapper, ok := m.connections[conn]; ok && conn != nil {
-		subscriptionStore = &wrapper.subscriptions
-	} else {
-		subscriptionStore = &m.subscriptions
-	}
-
-	if *subscriptionStore == nil {
-		*subscriptionStore = subscription.NewStore()
-	}
-
 	var errs error
-	for _, s := range subs {
-		if err := s.SetState(subscription.SubscribedState); err != nil {
-			errs = common.AppendError(errs, fmt.Errorf("%w: %s", err, s))
-		}
-		if err := (*subscriptionStore).Add(s); err != nil {
-			errs = common.AppendError(errs, err)
-		}
-	}
+	/*
+	    TODO: GBJK - This doesn't feel right - Manager should be doing this internally, right?
+	   Should an exchange even get to call this?
+	   I mean, it gives us flexibility, but at the cost of control
+
+	   	var subscriptionStore **subscription.Store
+	   	if wrapper, ok := m.connections[conn]; ok && conn != nil {
+	   		subscriptionStore = &wrapper.subscriptions
+	   	} else {
+	   		subscriptionStore = &m.subscriptions
+	   	}
+
+	   	if *subscriptionStore == nil {
+	   		*subscriptionStore = subscription.NewStore()
+	   	}
+
+	   	for _, s := range subs {
+	   		if err := s.SetState(subscription.SubscribedState); err != nil {
+	   			errs = common.AppendError(errs, fmt.Errorf("%w: %s", err, s))
+	   		}
+	   		if err := (*subscriptionStore).Add(s); err != nil {
+	   			errs = common.AppendError(errs, err)
+	   		}
+	   	}
+	*/
 	return errs
 }
 
@@ -170,14 +156,7 @@ func (m *Manager) RemoveSubscriptions(conn Connection, subs ...*subscription.Sub
 		return fmt.Errorf("%w: RemoveSubscriptions called on nil Websocket", common.ErrNilPointer)
 	}
 
-	var subscriptionStore *subscription.Store
-	if wrapper, ok := m.connections[conn]; ok && conn != nil {
-		subscriptionStore = wrapper.subscriptions
-	} else {
-		subscriptionStore = m.subscriptions
-	}
-
-	if subscriptionStore == nil {
+	if m.subscriptions == nil {
 		return fmt.Errorf("%w: RemoveSubscriptions called on uninitialised Websocket", common.ErrNilPointer)
 	}
 
@@ -186,7 +165,7 @@ func (m *Manager) RemoveSubscriptions(conn Connection, subs ...*subscription.Sub
 		if err := s.SetState(subscription.UnsubscribedState); err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("%w: %s", err, s))
 		}
-		if err := subscriptionStore.Remove(s); err != nil {
+		if err := m.subscriptions.Remove(s); err != nil {
 			errs = common.AppendError(errs, err)
 		}
 	}
@@ -267,8 +246,9 @@ func (m *Manager) checkSubscriptions(conn Connection, subs subscription.List) er
 	return nil
 }
 
-// FlushChannels flushes channel subscriptions when there is a pair/asset change
-func (m *Manager) FlushChannels() error {
+// SyncSubscriptions flushes channel subscriptions when there is a pair/asset change
+// TODO: GBJK Add window for max subscriptions per connection, to spawn new connections if needed.
+func (m *Manager) SyncSubscriptions() error {
 	if !m.IsEnabled() {
 		return fmt.Errorf("%s %w", m.exchangeName, ErrWebsocketNotEnabled)
 	}
@@ -277,8 +257,9 @@ func (m *Manager) FlushChannels() error {
 		return fmt.Errorf("%s %w", m.exchangeName, ErrNotConnected)
 	}
 
-	// If the exchange does not support subscribing and or unsubscribing the full connection needs to be flushed to
-	// maintain consistency.
+	// If the exchange does not support subscribing and or unsubscribing the full connection needs to be flushed to maintain consistency
+	// TODO: GBJK Any examples of this?
+	// TODO: GBJK - This isn't sane in an N+ Connections situation
 	if !m.features.Subscribe || !m.features.Unsubscribe {
 		m.m.Lock()
 		defer m.m.Unlock()
@@ -288,51 +269,46 @@ func (m *Manager) FlushChannels() error {
 		return m.connect()
 	}
 
-	if !m.useMultiConnectionManagement {
-		newSubs, err := m.GenerateSubs()
-		if err != nil {
-			return err
-		}
-		return m.updateChannelSubscriptions(nil, m.subscriptions, newSubs)
-	}
+	/*
+		    * TODO: GBJK - Generate subscriptions first. Then find the conns for them
+			for x := range m.connectionConfigs {
+				newSubs, err := m.connectionConfigs[x].setup.GenerateSubscriptions()
+				if err != nil {
+					return err
+				}
 
-	for x := range m.connectionConfigs {
-		newSubs, err := m.connectionConfigs[x].setup.GenerateSubscriptions()
-		if err != nil {
-			return err
-		}
+				// Case if there is nothing to unsubscribe from and the connection is nil
+				if len(newSubs) == 0 && m.connectionConfigs[x].connection == nil {
+					continue
+				}
 
-		// Case if there is nothing to unsubscribe from and the connection is nil
-		if len(newSubs) == 0 && m.connectionConfigs[x].connection == nil {
-			continue
-		}
+				// If there are subscriptions to subscribe to but no connection to subscribe to, establish a new connection.
+				if m.connectionConfigs[x].connection == nil {
+					conn := m.getConnectionFromSetup(m.connectionConfigs[x].setup)
+					if err := m.connectionConfigs[x].setup.Connector(context.TODO(), conn); err != nil {
+						return err
+					}
+					m.Wg.Add(1)
+					go m.Reader(context.TODO(), conn, m.connectionConfigs[x].setup.Handler)
+					m.connections[conn] = m.connectionConfigs[x]
+					m.connectionConfigs[x].connection = conn
+				}
 
-		// If there are subscriptions to subscribe to but no connection to subscribe to, establish a new connection.
-		if m.connectionConfigs[x].connection == nil {
-			conn := m.getConnectionFromSetup(m.connectionConfigs[x].setup)
-			if err := m.connectionConfigs[x].setup.Connector(context.TODO(), conn); err != nil {
-				return err
+				err = m.updateChannelSubscriptions(m.connectionConfigs[x].connection, m.connectionConfigs[x].subscriptions, newSubs)
+				if err != nil {
+					return err
+				}
+
+				// If there are no subscriptions to subscribe to, close the connection as it is no longer needed.
+				if m.connectionConfigs[x].subscriptions.Len() == 0 {
+					delete(m.connections, m.connectionConfigs[x].connection) // Remove from lookup map
+					if err := m.connectionConfigs[x].connection.Shutdown(); err != nil {
+						log.Warnf(log.WebsocketMgr, "%v websocket: failed to shutdown connection: %v", m.exchangeName, err)
+					}
+					m.connectionConfigs[x].connection = nil
+				}
 			}
-			m.Wg.Add(1)
-			go m.Reader(context.TODO(), conn, m.connectionConfigs[x].setup.Handler)
-			m.connections[conn] = m.connectionConfigs[x]
-			m.connectionConfigs[x].connection = conn
-		}
-
-		err = m.updateChannelSubscriptions(m.connectionConfigs[x].connection, m.connectionConfigs[x].subscriptions, newSubs)
-		if err != nil {
-			return err
-		}
-
-		// If there are no subscriptions to subscribe to, close the connection as it is no longer needed.
-		if m.connectionConfigs[x].subscriptions.Len() == 0 {
-			delete(m.connections, m.connectionConfigs[x].connection) // Remove from lookup map
-			if err := m.connectionConfigs[x].connection.Shutdown(); err != nil {
-				log.Warnf(log.WebsocketMgr, "%v websocket: failed to shutdown connection: %v", m.exchangeName, err)
-			}
-			m.connectionConfigs[x].connection = nil
-		}
-	}
+	*/
 	return nil
 }
 
