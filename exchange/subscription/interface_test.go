@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	shared "github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
-	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
+	"github.com/thrasher-corp/gocryptotrader/exchange/subscription"
 )
 
 // TestIExchange ensures that IExchange is a subset of IBotExchange, so when an exchange is passed by interface, it can still use ExpandTemplates
