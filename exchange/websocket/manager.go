@@ -49,7 +49,6 @@ var (
 	errReadMessageErrorsNil                 = errors.New("read message errors is nil")
 	errWebsocketSubscriptionsGeneratorUnset = errors.New("websocket subscriptions generator function needs to be set")
 	errInvalidMaxSubscriptions              = errors.New("max subscriptions cannot be less than 0")
-	errSameProxyAddress                     = errors.New("cannot set proxy address to the same address")
 	errNoConnectFunc                        = errors.New("websocket manager connect func not set")
 	errAlreadyConnected                     = errors.New("websocket already connected")
 	errCannotShutdown                       = errors.New("websocket cannot shutdown")
@@ -97,12 +96,12 @@ type Manager struct {
 	Trade                 trade.Trade // Trade is a notifier for trades
 
 	// Internal state vars
-	enabled                  atomic.Bool
-	connectionMonitorRunning atomic.Bool // GBJK: Is this just "monitor"? Is there even such a thing? What's monitor when manager is a thing
-	state                    atomic.Uint32
-	verbose                  bool
-	m                        sync.Mutex
-	Wg                       sync.WaitGroup // TODO: GBJK Privatise
+	enabled atomic.Bool
+	state   atomic.Uint32
+	verbose bool
+	m       sync.Mutex
+	Wg      sync.WaitGroup // TODO: GBJK Privatise
+	connUp  chan struct{}  // Notify there's subs that need connections
 
 	// Internal state collections
 	connectionConfigs []*ConnectionSetup
@@ -112,14 +111,10 @@ type Manager struct {
 	// Internal configuration vars
 	canUseAuthenticatedEndpoints  atomic.Bool // TODO: GBJK - Do we keep and maintain this flag, or work it out dynamically
 	connectionMonitorDelay        time.Duration
-	defaultURL                    string // TODO: GBJK - Remove
-	defaultURLAuth                string // TODO: GBJK - Remove
 	exchangeName                  string
 	features                      *protocol.Features
 	maxSubscriptionsPerConnection int
 	proxyAddr                     string
-	runningURL                    string // TODO: GBJK - Remove - can't have this
-	runningURLAuth                string // TODO: GBJK - Remove - can't have this
 	trafficTimeout                time.Duration
 	rateLimitDefinitions          request.RateLimitDefinitions // rate limiters shared between Websocket and REST connections
 }
@@ -143,6 +138,7 @@ type ManagerSetup struct {
 
 	// RateLimitDefinitions contains the rate limiters shared between WebSocket and REST connections for all endpoints.
 	// These rate limits take precedence over any rate limits specified in individual connection configurations.
+	// TODO: GBJK - Probably remove connection specific limits
 	// If no connection-specific rate limit is provided and the endpoint does not match any of these definitions,
 	// an error will be returned. However, if a connection configuration includes its own rate limit,
 	// it will fall back to that configuration’s rate limit without raising an error.
@@ -164,12 +160,11 @@ func NewManager() *Manager {
 		ToRoutine:    make(chan any, jobBuffer),
 		ShutdownC:    make(chan struct{}),
 		TrafficAlert: make(chan struct{}, 1),
-		// ReadMessageErrors is buffered for an edge case when `Connect` fails
-		// after subscriptions are made but before the connectionMonitor has
-		// started. This allows the error to be read and handled in the
-		// connectionMonitor and start a connection cycle again.
+		connUp:       make(chan struct{}, 1),
+		// TODO: GBJK - Note, this might be obsolete; Review
+		// ReadMessageErrors is buffered for an edge case when `Connect` fails after subscriptions are made but before the connectionMonitor has
+		// started. This allows the error to be read and handled in the connectionMonitor and start a connection cycle again.
 		ReadMessageErrors: make(chan error, 1),
-		Match:             NewMatch(),
 		subscriptions:     subscription.NewStore(),
 		features:          &protocol.Features{},
 		Orderbook:         buffer.Orderbook{},
@@ -253,16 +248,11 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 	return nil
 }
 
-// getConnectionFromSetup returns a websocket connection from a setup
-// configuration. This is used for setting up new connections on the fly.
-func (m *Manager) getConnectionFromSetup(c *ConnectionSetup) *connection {
-	connectionURL := m.GetWebsocketURL()
-	if c.URL != "" {
-		connectionURL = c.URL
-	}
+// newConnection returns a websocket connection from a setup configuration
+func (m *Manager) newConnection(c *ConnectionSetup) *connection {
 	return &connection{
 		ExchangeName:         m.exchangeName,
-		URL:                  connectionURL,
+		URL:                  c.URL,
 		ProxyURL:             m.GetProxyAddress(),
 		Verbose:              m.verbose,
 		ResponseMaxLimit:     c.ResponseMaxLimit,
@@ -290,26 +280,24 @@ func (m *Manager) Start() error {
 		return fmt.Errorf("%v %w", m.exchangeName, errAlreadyRunning)
 	}
 
-	m.Wg.Add(2)
+	m.Wg.Add(3)
+
 	go m.monitorFrame(&m.Wg, m.monitorData)
 	go m.monitorFrame(&m.Wg, m.monitorTraffic)
+	go m.monitorConnections()
 
 	m.setState(runningState)
 
 	go m.SyncSubscriptions()
-
-	if m.connectionMonitorRunning.CompareAndSwap(false, true) {
-		// This oversees all connections and does not need to be part of wait group management.
-		go m.monitorFrame(nil, m.monitorConnection)
-	}
 
 	return nil
 }
 
 /*
 // Connection loop for subs
+	go m.monitorFrame(nil, m.monitorConnection)
 				if m.connectionConfigs[x].connection == nil {
-					conn := m.getConnectionFromSetup(m.connectionConfigs[x].setup)
+					conn := m.newConnection(m.connectionConfigs[x].setup)
 					if err := m.connectionConfigs[x].setup.Connector(context.TODO(), conn); err != nil {
 						return err
 					}
@@ -351,11 +339,13 @@ func (m *Manager) Start() error {
 */
 
 func (m *Manager) connect(ctx context.Context, s *ConnectionSetup) error {
-	conn := m.getConnectionFromSetup(s)
+	conn := m.newConnection(s)
 
 	if err := m.connector(ctx, conn); err != nil {
 		return fmt.Errorf("%v Error connecting %w", m.exchangeName, err)
 	}
+
+	go m.monitorFrame(nil, m.monitorConnection)
 
 	if !conn.IsConnected() {
 		return fmt.Errorf("%s websocket: [conn:%d] [URL:%s] failed to connect", m.exchangeName, i+1, conn.URL)
@@ -390,6 +380,12 @@ func (m *Manager) connect(ctx context.Context, s *ConnectionSetup) error {
 			len(subs))
 	}
 	return nil
+}
+
+// Reconnect will terminate all open connections, and allow new connections to establish as needed
+func (m *Manager) Reconnect() {
+	// TODO: GBJK
+	panic("muggle")
 }
 
 // Disable disables the exchange websocket protocol
@@ -527,62 +523,6 @@ func (m *Manager) CanUseAuthenticatedWebsocketForWrapper() bool {
 	return false
 }
 
-// SetWebsocketURL sets websocket URL and can refresh underlying connections
-func (m *Manager) SetWebsocketURL(url string, auth, reconnect bool) error {
-	if m.useMultiConnectionManagement {
-		// TODO: Add functionality for multi-connection management to change URL
-		return fmt.Errorf("%s: %w", m.exchangeName, errCannotChangeConnectionURL)
-	}
-	defaultVals := url == "" || url == config.WebsocketURLNonDefaultMessage
-	if auth {
-		if defaultVals {
-			url = m.defaultURLAuth
-		}
-
-		err := checkWebsocketURL(url)
-		if err != nil {
-			return err
-		}
-		m.runningURLAuth = url
-
-		if m.verbose {
-			log.Debugf(log.WebsocketMgr, "%s websocket: setting authenticated websocket URL: %s\n", m.exchangeName, url)
-		}
-
-		if m.AuthConn != nil {
-			m.AuthConn.SetURL(url)
-		}
-	} else {
-		if defaultVals {
-			url = m.defaultURL
-		}
-		err := checkWebsocketURL(url)
-		if err != nil {
-			return err
-		}
-		m.runningURL = url
-
-		if m.verbose {
-			log.Debugf(log.WebsocketMgr, "%s websocket: setting unauthenticated websocket URL: %s\n", m.exchangeName, url)
-		}
-
-		if m.Conn != nil {
-			m.Conn.SetURL(url)
-		}
-	}
-
-	if m.IsConnected() && reconnect {
-		log.Debugf(log.WebsocketMgr, "%s websocket: flushing websocket connection to %s\n", m.exchangeName, url)
-		return m.Shutdown()
-	}
-	return nil
-}
-
-// GetWebsocketURL returns the running websocket URL
-func (m *Manager) GetWebsocketURL() string {
-	return m.runningURL
-}
-
 // SetProxyAddress sets websocket proxy address
 func (m *Manager) SetProxyAddress(proxyAddr string) error {
 	m.m.Lock()
@@ -591,42 +531,14 @@ func (m *Manager) SetProxyAddress(proxyAddr string) error {
 		if _, err := url.ParseRequestURI(proxyAddr); err != nil {
 			return fmt.Errorf("%v websocket: cannot set proxy address: %w", m.exchangeName, err)
 		}
-
-		if m.proxyAddr == proxyAddr {
-			return fmt.Errorf("%v websocket: %w '%v'", m.exchangeName, errSameProxyAddress, m.proxyAddr)
-		}
-
 		log.Debugf(log.ExchangeSys, "%s websocket: setting websocket proxy: %s", m.exchangeName, proxyAddr)
 	} else {
 		log.Debugf(log.ExchangeSys, "%s websocket: removing websocket proxy", m.exchangeName)
 	}
 
-	for _, wrapper := range m.connectionConfigs {
-		if wrapper.connection != nil {
-			wrapper.connection.SetProxy(proxyAddr)
-		}
-	}
-	if m.Conn != nil {
-		m.Conn.SetProxy(proxyAddr)
-	}
-	if m.AuthConn != nil {
-		m.AuthConn.SetProxy(proxyAddr)
-	}
+	m.Reconnect()
 
-	m.proxyAddr = proxyAddr
-
-	if !m.IsConnected() {
-		return nil
-	}
-	if err := m.shutdown(); err != nil {
-		return err
-	}
-	return m.connect()
-}
-
-// GetProxyAddress returns the current websocket proxy
-func (m *Manager) GetProxyAddress() string {
-	return m.proxyAddr
+	return nil
 }
 
 // GetName returns exchange name
@@ -680,6 +592,18 @@ func drain(ch <-chan error) {
 	}
 }
 
+func (m *Manager) monitorConnections() {
+	defer m.Wg.Done()
+	t := time.NewTimer(m.connectionMonitorDelay)
+	for {
+		select {
+		case <-m.ShutdownC:
+			return
+		case t.C:
+		}
+	}
+}
+
 // ClosureFrame is a closure function that wraps monitoring variables with observer, if the return is true the frame will exit
 type ClosureFrame func() func() bool
 
@@ -705,6 +629,7 @@ func (m *Manager) monitorData() func() bool {
 }
 
 // observeData observes data throughput and logs if there is a back log of data
+// TODO: GBJK - Remove ToRoutine - unnecessary delay
 func (m *Manager) observeData(dropped *int) (exit bool) {
 	select {
 	case <-m.ShutdownC:
@@ -734,6 +659,7 @@ func (m *Manager) monitorConnection() func() bool {
 }
 
 // observeConnection observes the connection and attempts to reconnect if the connection is lost
+// TODO: GBJK - Move to connnection
 func (m *Manager) observeConnection(t *time.Timer) (exit bool) {
 	select {
 	case err := <-m.ReadMessageErrors:
@@ -769,7 +695,6 @@ func (m *Manager) observeConnection(t *time.Timer) (exit bool) {
 				log.Debugf(log.WebsocketMgr, "%v websocket: connection monitor exiting", m.exchangeName)
 			}
 			t.Stop()
-			m.connectionMonitorRunning.Store(false)
 			return true
 		}
 		if !m.IsConnecting() && !m.IsConnected() {
@@ -785,6 +710,7 @@ func (m *Manager) observeConnection(t *time.Timer) (exit bool) {
 
 // monitorTraffic monitors to see if there has been traffic within the trafficTimeout time window. If there is no traffic
 // the connection is shutdown and will be reconnected by the connectionMonitor routine.
+// TODO: GBJK - This becomes a connection thing
 func (m *Manager) monitorTraffic() func() bool {
 	timer := time.NewTimer(m.trafficTimeout)
 	return func() bool { return m.observeTraffic(timer) }

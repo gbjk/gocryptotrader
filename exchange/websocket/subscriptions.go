@@ -209,8 +209,22 @@ func (m *Manager) syncSubscriptions() error {
 
 	subs, unsubs := m.subscriptions.Diff(subs)
 
-	return common.AppendError(
-		m.Unsubscribe(unsubs),
-		m.subscriptions.Add(subs...), // Add directly so state is Inactiev; manager will find connections
-	)
+	if len(subs) == 0 && len(unsubs) == 0 {
+		return nil
+	}
+
+	var errs error
+	if len(unsubs) > 0 {
+		errs = m.Unsubscribe(unsubs)
+	}
+	if len(subs) > 0 {
+		errs = common.AppendError(errs, m.subscriptions.Add(subs...)) // Add directly so state is Inactive; manager will find connections
+	}
+
+	select {
+	case m.connUp <- struct{}{}:
+	default: // Non-Blocking write ensures 1 buffered signal
+	}
+
+	return errs
 }
