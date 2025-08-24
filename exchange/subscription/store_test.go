@@ -205,29 +205,29 @@ func EqualLists(tb testing.TB, a, b List) {
 	}
 }
 
-func TestContained(t *testing.T) {
+func TestContains(t *testing.T) {
 	t.Parallel()
 
 	var s *Store
-	matched := s.Contained(nil)
+	matched := s.Contains(nil)
 	assert.Nil(t, matched)
 
-	matched = s.Contained(List{{Channel: TickerChannel}})
+	matched = s.Contains(List{{Channel: TickerChannel}})
 	assert.Nil(t, matched)
 
 	s = NewStore()
-	matched = s.Contained(nil)
+	matched = s.Contains(nil)
 	assert.Nil(t, matched)
 
-	matched = s.Contained(List{})
+	matched = s.Contains(List{})
 	assert.Nil(t, matched)
 
-	matched = s.Contained(List{{Channel: TickerChannel}})
+	matched = s.Contains(List{{Channel: TickerChannel}})
 	assert.Nil(t, matched)
 
 	require.NoError(t, s.add(&Subscription{Channel: TickerChannel}))
 
-	matched = s.Contained(List{{Channel: TickerChannel}})
+	matched = s.Contains(List{{Channel: TickerChannel}})
 	assert.Len(t, matched, 1)
 }
 

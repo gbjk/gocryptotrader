@@ -207,8 +207,8 @@ func (s *Store) Len() int {
 	return len(s.m)
 }
 
-// Contained returns a list of subscriptions in `compare` that are already in the store.
-func (s *Store) Contained(compare List) (matched List) {
+// Contains returns a list of subscriptions in `compare` that are already in the store.
+func (s *Store) Contains(compare List) (matched List) {
 	if s == nil || s.m == nil {
 		return nil
 	}
