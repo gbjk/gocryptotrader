@@ -214,8 +214,8 @@ func (m *Manager) GetSubscriptions() subscription.List {
 // Does not need to be called after calling any other function inside the websocket manager
 // Expceted to be called in a goro, so any errors are logged
 func (m *Manager) SyncSubscriptions() {
-	if err := m.SyncSubscriptions(); err != nil {
-		log.Errorf(log.WebsocketMgr, "%s %w: %w", m.exchangeName, ErrSyncSubscriptions, err)
+	if err := m.syncSubscriptions(); err != nil {
+		log.Errorf(log.WebsocketMgr, "%s %w: %w", m.exchangeName, errSyncSubscriptions, err)
 	}
 }
 
@@ -238,40 +238,4 @@ func (m *Manager) syncSubscriptions() error {
 		m.Unsubscribe(unsubs),
 		m.subscriptions.Add(subs...), // Add directly so state is Inactiev; manager will find connections
 	)
-	/*
-		    * TODO: GBJK - Generate subscriptions first. Then find the conns for them
-			for x := range m.connectionConfigs {
-				newSubs, err := m.connectionConfigs[x].setup.GenerateSubscriptions()
-				if err != nil {
-					return err
-				}
-
-				// Case if there is nothing to unsubscribe from and the connection is nil
-				if len(newSubs) == 0 && m.connectionConfigs[x].connection == nil {
-					continue
-				}
-
-				// If there are subscriptions to subscribe to but no connection to subscribe to, establish a new connection.
-				if m.connectionConfigs[x].connection == nil {
-					conn := m.getConnectionFromSetup(m.connectionConfigs[x].setup)
-					if err := m.connectionConfigs[x].setup.Connector(context.TODO(), conn); err != nil {
-						return err
-					}
-					m.Wg.Add(1)
-					go m.Reader(context.TODO(), conn, m.connectionConfigs[x].setup.Handler)
-					m.connections[conn] = m.connectionConfigs[x]
-					m.connectionConfigs[x].connection = conn
-				}
-
-				// If there are no subscriptions to subscribe to, close the connection as it is no longer needed.
-				if m.connectionConfigs[x].subscriptions.Len() == 0 {
-					delete(m.connections, m.connectionConfigs[x].connection) // Remove from lookup map
-					if err := m.connectionConfigs[x].connection.Shutdown(); err != nil {
-						log.Warnf(log.WebsocketMgr, "%v websocket: failed to shutdown connection: %v", m.exchangeName, err)
-					}
-					m.connectionConfigs[x].connection = nil
-				}
-			}
-	*/
-	return nil
 }

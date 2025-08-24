@@ -297,6 +297,30 @@ func (m *Manager) Start() error {
 	return nil
 }
 
+/*
+// Connection loop for subs
+				if m.connectionConfigs[x].connection == nil {
+					conn := m.getConnectionFromSetup(m.connectionConfigs[x].setup)
+					if err := m.connectionConfigs[x].setup.Connector(context.TODO(), conn); err != nil {
+						return err
+					}
+					m.Wg.Add(1)
+					go m.Reader(context.TODO(), conn, m.connectionConfigs[x].setup.Handler)
+					m.connections[conn] = m.connectionConfigs[x]
+					m.connectionConfigs[x].connection = conn
+				}
+
+				// If there are no subscriptions to subscribe to, close the connection as it is no longer needed.
+				if m.connectionConfigs[x].subscriptions.Len() == 0 {
+					delete(m.connections, m.connectionConfigs[x].connection) // Remove from lookup map
+					if err := m.connectionConfigs[x].connection.Shutdown(); err != nil {
+						log.Warnf(log.WebsocketMgr, "%v websocket: failed to shutdown connection: %v", m.exchangeName, err)
+					}
+					m.connectionConfigs[x].connection = nil
+				}
+			}
+*/
+
 func (m *Manager) connect(ctx context.Context, s *ConnectionSetup) error {
 	conn := m.getConnectionFromSetup(s)
 
