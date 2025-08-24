@@ -284,7 +284,7 @@ func (m *Manager) Start() error {
 
 	go m.monitorFrame(&m.Wg, m.monitorData)
 	go m.monitorFrame(&m.Wg, m.monitorTraffic)
-	go m.monitorConnections()
+	go m.monitorSubss()
 
 	m.setState(runningState)
 
@@ -387,6 +387,11 @@ func (m *Manager) Reconnect() {
 	// TODO: GBJK
 	panic("muggle")
 }
+
+func (m *Manager) assignSubsToConns(subs subscription.List) (map[*Connection]subscription.List, error) {
+	return nil, nil
+}
+
 
 // Disable disables the exchange websocket protocol
 // Note that connectionMonitor will be responsible for shutting down the websocket after disabling
@@ -592,7 +597,8 @@ func drain(ch <-chan error) {
 	}
 }
 
-func (m *Manager) monitorConnections() {
+// monitorSubs watches for subscriptions which don't have connections
+func (m *Manager) monitorSubs() {
 	defer m.Wg.Done()
 	t := time.NewTimer(m.connectionMonitorDelay)
 	for {
@@ -600,6 +606,28 @@ func (m *Manager) monitorConnections() {
 		case <-m.ShutdownC:
 			return
 		case t.C:
+			fallthrough
+		case <-m.connUp:
+            for _, s := range s.subscriptions.InState(subscription.InactiveState){
+                conns, err 
+                if 
+                m.assignSubsToConns(s)
+	connSubs, err := m.assignSubsToConns(subs)
+	if err != nil {
+		return err
+	}
+	errs := common.CollectErrors(len(connSubs))
+	for c, subs := range connSubs {
+		go func() {
+			defer errs.Wg.Done()
+			if err := m.Subscriber(c, subs); err != nil {
+				errs.C <- fmt.Errorf("%w: %w", ErrSubscribe, err)
+			}
+		}()
+	}
+
+	return errs.Collect()
+            }
 		}
 	}
 }

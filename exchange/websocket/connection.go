@@ -133,6 +133,11 @@ func (c *connection) Dial(ctx context.Context, dialer *gws.Dialer, headers http.
 	return nil
 }
 
+// monitor watches for when the connection needs to be re-established, or should be disconnected
+func (c *connection) monitor() {
+	// TODO: GBJK - look at subscriptions assigned to this connection and decide to disconnect
+}
+
 // SendJSONMessage sends a JSON encoded message over the connection
 func (c *connection) SendJSONMessage(ctx context.Context, epl request.EndpointLimit, data any) error {
 	return c.writeToConn(ctx, epl, func() error {

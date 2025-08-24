@@ -66,9 +66,12 @@ func (m *Manager) ResubscribeToChannel(s *subscription.Subscription) error {
 }
 
 // Subscribe subscribes to websocket channels using the exchange specific Subscriber method
-// Errors are returned for duplicates or exceeding max Subscriptions
+// GBJK: TODO: Completely remove this function
+// Doing so simplifies everything. Users don't have N+ vectors for adding subscriptions
+// All subscriptions get added by changing the exchange live config, and then from there monitorSubs kicks in
+/*
 func (m *Manager) Subscribe(subs subscription.List) error {
-	if len(subs) == 0 {
+	if len(subs) == 0 || m == nil || m.subscriptions == nil {
 		return nil // No channels to unsubscribe from is not an error
 	}
 	if err := common.NilGuard(m); err != nil {
@@ -78,27 +81,9 @@ func (m *Manager) Subscribe(subs subscription.List) error {
 		return err
 	}
 
-	connSubs, err := m.assignSubsToConns(subs)
-	if err != nil {
-		return err
-	}
-
-	errs := common.CollectErrors(len(connSubs))
-	for c, subs := range connSubs {
-		go func() {
-			defer errs.Wg.Done()
-			if err := m.Subscriber(c, subs); err != nil {
-				errs.C <- fmt.Errorf("%w: %w", ErrSubscribe, err)
-			}
-		}()
-	}
-
-	return errs.Collect()
+	return m.subscriptions.Add(subs...) // Add directly so state is Inactive; manager will find connections
 }
-
-func (m *Manager) assignSubsToConns(subs subscription.List) (map[*Connection]subscription.List, error) {
-	return nil, nil
-}
+*/
 
 // AddSubscriptions adds subscriptions to the subscription store
 // Sets state to Subscribing unless the state is already set

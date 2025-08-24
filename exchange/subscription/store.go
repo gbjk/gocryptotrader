@@ -150,6 +150,22 @@ func (s *Store) List() List {
 	return subs
 }
 
+// InState returns all subs in a givent state
+func (s *Store) InState(state State) List {
+	if s == nil || s.m == nil {
+		return nil
+	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	subs := List{}
+	for _, sub := range s.m {
+		if sub.State() == state {
+			subs = append(subs, sub)
+		}
+	}
+	return subs
+}
+
 // Clear empties the subscription store
 func (s *Store) Clear() {
 	if s == nil {
