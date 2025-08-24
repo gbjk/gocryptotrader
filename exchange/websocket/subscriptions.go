@@ -102,8 +102,6 @@ func (m *Manager) assignSubsToConns(subs subscription.List) (map[*Connection]sub
 
 // AddSubscriptions adds subscriptions to the subscription store
 // Sets state to Subscribing unless the state is already set
-// TODO: When and why and how would we do this like this?
-// I think anything we're going to add should already be in the store?
 func (m *Manager) AddSubscriptions(subs ...*subscription.Subscription) error {
 	if err := common.NilGuard(m); err != nil {
 		return err
@@ -185,29 +183,6 @@ func (m *Manager) GetSubscriptions() subscription.List {
 	}
 	return m.subscriptions.List()
 }
-
-/*
-// TODO: GBJK: This needs rethinking
-	if m.MaxSubscriptionsPerConnection > 0 && existing+len(subs) > m.MaxSubscriptionsPerConnection {
-		return fmt.Errorf("%w: current subscriptions: %v, incoming subscriptions: %v, max subscriptions per connection: %v - please reduce enabled pairs",
-			errSubscriptionsExceedsLimit,
-			existing,
-			len(subs),
-			m.MaxSubscriptionsPerConnection)
-	}
-
-	for _, s := range subs {
-		if s.State() == subscription.ResubscribingState {
-			continue
-		}
-		if found := subscriptionStore.Get(s); found != nil {
-			return fmt.Errorf("%w: %s", subscription.ErrDuplicate, s)
-		}
-	}
-
-	return nil
-}
-*/
 
 // SyncSubscriptions reconciles the existing subscriptions for changes
 // Call when after a change affecting subscriptions external to the websocket manager, e.g. changing assets or pairs
