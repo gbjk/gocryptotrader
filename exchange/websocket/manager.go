@@ -75,44 +75,53 @@ const (
 
 // Manager provides connection and subscription management and routing
 type Manager struct {
-	enabled                      atomic.Bool
-	state                        atomic.Uint32
-	verbose                      bool
-	canUseAuthenticatedEndpoints atomic.Bool // TODO: GBJK - Do we keep and maintain this flag, or work it out dynamically
-	connectionMonitorRunning     atomic.Bool
-	trafficTimeout               time.Duration // TODO: GBJK - This needs to move to connection
-	connectionMonitorDelay       time.Duration
-	proxyAddr                    string
-	defaultURL                   string
-	defaultURLAuth               string
-	runningURL                   string
-	runningURLAuth               string
-	exchangeName                 string
-	features                     *protocol.Features
-	m                            sync.Mutex
-	connectionConfigs            []*ConnectionSetup
-	connections                  []*Connection // TODO: GBJK Not sure if there will be a use for a plain slice like this
-	subscriptions                *subscription.Store
-	connector                    func(context.Context, *Connection) error
-	rateLimitDefinitions         request.RateLimitDefinitions // rate limiters shared between Websocket and REST connections
-	Subscriber                   func(subscription.Connection, subscription.List) error
-	Unsubscriber                 func(subscription.Connection, subscription.List) error
-	GenerateSubs                 func() (subscription.List, error)
-	Authenticate                 func(ctx context.Context, conn *Connection) error // TODO: GBJK - This concept is blown, isn't it? Or can we fan out inside the exchanges
-	DataHandler                  chan any
-	ToRoutine                    chan any
-	Match                        *Match // TODO: GBJK - I think we don't have a global Match available
-	ShutdownC                    chan struct{}
-	Wg                           sync.WaitGroup
-	Orderbook                    buffer.Orderbook
-	Trade                        trade.Trade // Trade is a notifier for trades
-	Fills                        fill.Fills  // Fills is a notifier for fills
-	TrafficAlert                 chan struct{}
-	ReadMessageErrors            chan error
-	ExchangeLevelReporter        Reporter // Latency reporter
-	// TODO: GBJK - Think this is a connection setup thing, because Auth and non-auth might have different values
-	// That does imply duplicating it a lot, though
-	MaxSubscriptionsPerConnection int
+	// Funcs provided by exchanges
+	// TODO: Do these need to be public?
+	Authenticate func(ctx context.Context, conn *Connection) error // TODO: GBJK - This concept is blown, isn't it? Or can we fan out inside the exchanges
+	Connector    func(context.Context, *Connection) error
+	GenerateSubs func() (subscription.List, error)
+	Subscriber   func(subscription.Connection, subscription.List) error
+	Unsubscriber func(subscription.Connection, subscription.List) error
+
+	// Public Notification channels
+	DataHandler       chan any
+	ReadMessageErrors chan error
+	ShutdownC         chan struct{}
+	ToRoutine         chan any
+	TrafficAlert      chan struct{}
+
+	// Public notifiers
+	ExchangeLevelReporter Reporter   // Latency reporter
+	Fills                 fill.Fills // Fills is a notifier for fills
+	Orderbook             buffer.Orderbook
+	Trade                 trade.Trade // Trade is a notifier for trades
+
+	// Internal state vars
+	enabled                  atomic.Bool
+	connectionMonitorRunning atomic.Bool // GBJK: Is this just "monitor"? Is there even such a thing? What's monitor when manager is a thing
+	state                    atomic.Uint32
+	verbose                  bool
+	m                        sync.Mutex
+	Wg                       sync.WaitGroup // TODO: GBJK Privatise
+
+	// Internal state collections
+	connectionConfigs []*ConnectionSetup
+	connections       []*Connection // TODO: GBJK Not sure if there will be a use for a plain slice like this
+	subscriptions     *subscription.Store
+
+	// Internal configuration vars
+	canUseAuthenticatedEndpoints  atomic.Bool // TODO: GBJK - Do we keep and maintain this flag, or work it out dynamically
+	connectionMonitorDelay        time.Duration
+	defaultURL                    string // TODO: GBJK - Remove
+	defaultURLAuth                string // TODO: GBJK - Remove
+	exchangeName                  string
+	features                      *protocol.Features
+	maxSubscriptionsPerConnection int
+	proxyAddr                     string
+	runningURL                    string // TODO: GBJK - Remove - can't have this
+	runningURLAuth                string // TODO: GBJK - Remove - can't have this
+	trafficTimeout                time.Duration
+	rateLimitDefinitions          request.RateLimitDefinitions // rate limiters shared between Websocket and REST connections
 }
 
 // ManagerSetup defines variables for setting up a websocket manager
@@ -120,7 +129,7 @@ type ManagerSetup struct {
 	ExchangeConfig *config.Exchange
 	Handler        MessageHandler
 
-	Connector             func() error
+	Connector             func(context.Context, *Connection) error
 	Subscriber            func(subscription.List) error
 	Unsubscriber          func(subscription.List) error
 	GenerateSubscriptions func() (subscription.List, error)
@@ -285,9 +294,9 @@ func (m *Manager) Start() error {
 	go m.monitorFrame(&m.Wg, m.monitorData)
 	go m.monitorFrame(&m.Wg, m.monitorTraffic)
 
-	m.SyncSubscriptions()
-
 	m.setState(runningState)
+
+	go m.SyncSubscriptions()
 
 	if m.connectionMonitorRunning.CompareAndSwap(false, true) {
 		// This oversees all connections and does not need to be part of wait group management.
@@ -319,6 +328,26 @@ func (m *Manager) Start() error {
 					m.connectionConfigs[x].connection = nil
 				}
 			}
+/*
+	if m.MaxSubscriptionsPerConnection > 0 && existing+len(subs) > m.MaxSubscriptionsPerConnection {
+		return fmt.Errorf("%w: current subscriptions: %v, incoming subscriptions: %v, max subscriptions per connection: %v - please reduce enabled pairs",
+			errSubscriptionsExceedsLimit,
+			existing,
+			len(subs),
+			m.MaxSubscriptionsPerConnection)
+	}
+
+	for _, s := range subs {
+		if s.State() == subscription.ResubscribingState {
+			continue
+		}
+		if found := subscriptionStore.Get(s); found != nil {
+			return fmt.Errorf("%w: %s", subscription.ErrDuplicate, s)
+		}
+	}
+
+	return nil
+}
 */
 
 func (m *Manager) connect(ctx context.Context, s *ConnectionSetup) error {
