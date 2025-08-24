@@ -24,8 +24,9 @@ import (
 
 // Public websocket errors
 var (
-	ErrWebsocketNotEnabled  = errors.New("websocket not enabled")
-	ErrAlreadyDisabled      = errors.New("websocket already disabled")
+	ErrWebsocketNotEnabled  = errors.New("websocket manager not enabled")
+	ErrAlreadyDisabled      = errors.New("websocket manager already disabled")
+	ErrNotRunning           = errors.New("websocket manager is not running")
 	ErrNotConnected         = errors.New("websocket is not connected")
 	ErrSignatureTimeout     = errors.New("websocket timeout waiting for response with signature")
 	ErrRequestRouteNotFound = errors.New("request route not found")
@@ -37,6 +38,7 @@ var (
 var (
 	errWebsocketAlreadyInitialised          = errors.New("websocket already initialised")
 	errWebsocketAlreadyEnabled              = errors.New("websocket already enabled")
+	errAlreadyRunning                       = errors.New("websocket already running")
 	errInvalidWebsocketURL                  = errors.New("invalid websocket url")
 	errExchangeConfigNameEmpty              = errors.New("exchange config name empty")
 	errInvalidTrafficTimeout                = errors.New("invalid traffic timeout")
@@ -48,7 +50,7 @@ var (
 	errWebsocketSubscriptionsGeneratorUnset = errors.New("websocket subscriptions generator function needs to be set")
 	errInvalidMaxSubscriptions              = errors.New("max subscriptions cannot be less than 0")
 	errSameProxyAddress                     = errors.New("cannot set proxy address to the same address")
-	errNoConnectFunc                        = errors.New("websocket connect func not set")
+	errNoConnectFunc                        = errors.New("websocket manager connect func not set")
 	errAlreadyConnected                     = errors.New("websocket already connected")
 	errCannotShutdown                       = errors.New("websocket cannot shutdown")
 	errAlreadyReconnecting                  = errors.New("websocket in the process of reconnection")
@@ -275,42 +277,17 @@ func (m *Manager) Start() error {
 		return ErrWebsocketNotEnabled
 	}
 
-	if m.IsConnecting() {
-		return fmt.Errorf("%v %w", m.exchangeName, errAlreadyReconnecting)
+	if m.IsRunning() {
+		return fmt.Errorf("%v %w", m.exchangeName, errAlreadyRunning)
 	}
-	if m.IsConnected() {
-		return fmt.Errorf("%v %w", m.exchangeName, errAlreadyConnected)
-	}
-
-	m.setState(connectingState)
 
 	m.Wg.Add(2)
 	go m.monitorFrame(&m.Wg, m.monitorData)
 	go m.monitorFrame(&m.Wg, m.monitorTraffic)
 
-	if len(m.connectionConfigs) == 0 {
-		m.setState(disconnectedState)
-		return fmt.Errorf("cannot connect: %w", errNoPendingConnections)
-	}
-
-	ctx := context.Background()
-
 	m.SyncSubscriptions()
 
-	errs := common.CollectErrors(len(m.connectionConfigs))
-	for _, c := range m.connectionConfigs {
-		go func() {
-			errs.C <- m.connectMulti(ctx, c)
-		}()
-	}
-
-	if err := errs.Collect(); err != nil {
-		return err
-	}
-
-	// TODO: GBJK Each connection's state is it's own, it doesn't belong to Websocket
-	// We can only say "Are you connected" for a specific connection setup
-	m.setState(connectedState)
+	m.setState(runningState)
 
 	if m.connectionMonitorRunning.CompareAndSwap(false, true) {
 		// This oversees all connections and does not need to be part of wait group management.

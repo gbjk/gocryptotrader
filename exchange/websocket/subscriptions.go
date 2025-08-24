@@ -6,6 +6,7 @@ import (
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchange/subscription"
+	"github.com/thrasher-corp/gocryptotrader/log"
 )
 
 // Public subscription errors
@@ -16,9 +17,10 @@ var (
 	ErrSubscriptionsNotRemoved = errors.New("subscriptions not removed")
 )
 
-// Public subscription errors
+// Private subscription errors
 var (
 	errSubscriptionsExceedsLimit = errors.New("subscriptions exceeds limit")
+	errSyncSubscriptions         = errors.New("error syncing websocket manager subscriptions")
 )
 
 // Unsubscribe unsubscribes from a list of websocket channels
@@ -106,8 +108,6 @@ func (m *Manager) AddSubscriptions(subs ...*subscription.Subscription) error {
 	if err := common.NilGuard(m); err != nil {
 		return err
 	}
-
-	// GBJK: TODO - The subscription should know it's connection already
 
 	var errs error
 	for _, s := range subs {
@@ -209,29 +209,35 @@ func (m *Manager) GetSubscriptions() subscription.List {
 }
 */
 
-// SyncSubscriptions flushes channel subscriptions when there is a pair/asset change
-// TODO: GBJK Add window for max subscriptions per connection, to spawn new connections if needed.
-func (m *Manager) SyncSubscriptions() error {
+// SyncSubscriptions reconciles the existing subscriptions for changes
+// Call when after a change affecting subscriptions external to the websocket manager, e.g. changing assets or pairs
+// Does not need to be called after calling any other function inside the websocket manager
+// Expceted to be called in a goro, so any errors are logged
+func (m *Manager) SyncSubscriptions() {
+	if err := m.SyncSubscriptions(); err != nil {
+		log.Errorf(log.WebsocketMgr, "%s %w: %w", m.exchangeName, ErrSyncSubscriptions, err)
+	}
+}
+
+func (m *Manager) syncSubscriptions() error {
 	if !m.IsEnabled() {
-		return fmt.Errorf("%s %w", m.exchangeName, ErrWebsocketNotEnabled)
+		return ErrWebsocketNotEnabled
+	}
+	if !m.IsRunning() {
+		return ErrNotRunning
 	}
 
-	if !m.IsConnected() {
-		return fmt.Errorf("%s %w", m.exchangeName, ErrNotConnected)
+	subs, err := m.GenerateSubs()
+	if err != nil {
+		return err
 	}
 
-	// If the exchange does not support subscribing and or unsubscribing the full connection needs to be flushed to maintain consistency
-	// TODO: GBJK Any examples of this?
-	// TODO: GBJK - This isn't sane in an N+ Connections situation
-	if !m.features.Subscribe || !m.features.Unsubscribe {
-		m.m.Lock()
-		defer m.m.Unlock()
-		if err := m.shutdown(); err != nil {
-			return err
-		}
-		return m.connect()
-	}
+	subs, unsubs := m.subscriptions.Diff(subs)
 
+	return common.AppendError(
+		m.Unsubscribe(unsubs),
+		m.subscriptions.Add(subs...), // Add directly so state is Inactiev; manager will find connections
+	)
 	/*
 		    * TODO: GBJK - Generate subscriptions first. Then find the conns for them
 			for x := range m.connectionConfigs {

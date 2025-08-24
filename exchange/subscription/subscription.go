@@ -12,6 +12,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
 
+// State tracks the status of a subscription channel
+type State uint8
+
 // State constants
 const (
 	InactiveState State = iota
@@ -50,9 +53,6 @@ var (
 	ErrInvalidInterval       = errors.New("invalid interval")
 	ErrInvalidLevel          = errors.New("invalid level")
 )
-
-// State tracks the status of a subscription channel
-type State uint8
 
 // ListValidator validates a list of subscriptions, this is optionally handled through expand templates method
 type ListValidator interface {

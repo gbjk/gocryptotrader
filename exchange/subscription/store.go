@@ -38,19 +38,26 @@ func NewStoreFromList(l List) (*Store, error) {
 // Add adds a subscription to the store
 // Key can be already set; if omitted EnsureKeyed will be used
 // Errors if it already exists
-func (s *Store) Add(sub *Subscription) error {
-	if s == nil {
-		return fmt.Errorf("%w: Add called on nil Store", common.ErrNilPointer)
+func (s *Store) Add(subs ...*Subscription) error {
+	if err := common.NilGuard(s); err != nil {
+		return err
 	}
-	if s.m == nil {
-		return fmt.Errorf("%w: Add called on an uninitialised Store", common.ErrNilPointer)
+	if err := common.NilGuard(s.m); err != nil {
+		return err
 	}
-	if sub == nil {
-		return fmt.Errorf("%w: Subscription param", common.ErrNilPointer)
-	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.add(sub)
+
+	for _, sub := range subs {
+		if err := common.NilGuard(sub); err != nil {
+			return err
+		}
+		if err := s.add(sub); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // add adds a subscription to the store
