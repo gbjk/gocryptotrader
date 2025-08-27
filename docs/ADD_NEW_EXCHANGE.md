@@ -360,9 +360,8 @@ Ensure each endpoint is implemented and has an associated test to improve test c
 
 #### Message IDs
 
-If the exchange uses unique string message IDs, then your API functions can call e.MessageID() to get a UUID V7 message ID.
-However if the exchange does not support that format then you should override MessageID with an appropriate implementation.
-For Example: Consider `common.Counter` if universal uniqueness is not a requirement and you need an integer id.
+Use e.MessageID() to get a UUIDv7 if the exchange supports unique string IDs. Otherwise override MessageID with a suitable alternative.
+For example: Consider common.Counter for simple integer IDs if uniqueness isn't critical.
 
 #### Authenticated functions
 
