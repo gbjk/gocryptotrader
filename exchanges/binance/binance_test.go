@@ -1510,7 +1510,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 				args: &AggregatedTradeRequestParams{StartTime: start, EndTime: start.Add(75 * time.Minute)},
 				expFunc: func(t *testing.T, results []AggregatedTrade) {
 					t.Helper()
-					require.Equal(t, 1012, len(results), "must return currect number of records")
+					require.Equal(t, 1012, len(results), "must return correct number of records")
 					assert.Equal(t,
 						time.Date(2020, 1, 2, 16, 18, 31, int(919*time.Millisecond), time.UTC),
 						results[len(results)-1].TimeStamp.Time().UTC(),
@@ -1523,7 +1523,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 				args: &AggregatedTradeRequestParams{StartTime: start, Limit: 1001},
 				expFunc: func(t *testing.T, results []AggregatedTrade) {
 					t.Helper()
-					require.Equal(t, 1001, len(results), "must return currect number of records")
+					require.Equal(t, 1001, len(results), "must return correct number of records")
 					assert.Equal(t,
 						time.Date(2020, 1, 2, 15, 18, 39, int(226*time.Millisecond), time.UTC),
 						results[len(results)-1].TimeStamp.Time().UTC(),
@@ -1536,7 +1536,7 @@ func TestGetAggregatedTradesBatched(t *testing.T) {
 				args: &AggregatedTradeRequestParams{Limit: 3},
 				expFunc: func(t *testing.T, results []AggregatedTrade) {
 					t.Helper()
-					require.Equal(t, 3, len(results), "must return currect number of records")
+					require.Equal(t, 3, len(results), "must return correct number of records")
 					assert.Equal(t,
 						time.Date(2020, 1, 2, 16, 19, 5, int(200*time.Millisecond), time.UTC),
 						results[len(results)-1].TimeStamp.Time().UTC(),
