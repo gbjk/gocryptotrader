@@ -74,14 +74,6 @@ const (
 
 // Manager provides connection and subscription management and routing
 type Manager struct {
-	// Funcs provided by exchanges
-	// TODO: Do these need to be public?
-	Authenticate func(ctx context.Context, conn *Connection) error // TODO: GBJK - This concept is blown, isn't it? Or can we fan out inside the exchanges
-	Connector    func(context.Context, *Connection) error
-	GenerateSubs func() (subscription.List, error)
-	Subscriber   func(subscription.Connection, subscription.List) error
-	Unsubscriber func(subscription.Connection, subscription.List) error
-
 	// Public Notification channels
 	DataHandler       chan any
 	ReadMessageErrors chan error
@@ -101,7 +93,7 @@ type Manager struct {
 	verbose bool
 	m       sync.Mutex
 	Wg      sync.WaitGroup // TODO: GBJK Privatise
-	connUp  chan struct{}  // Notify there's subs that need connections
+	connUp  chan struct{}  // connUp notifies there's subs that need connections
 
 	// Internal state collections
 	connectionConfigs []*ConnectionSetup
@@ -109,7 +101,7 @@ type Manager struct {
 	subscriptions     *subscription.Store
 
 	// Internal configuration vars
-	canUseAuthenticatedEndpoints  atomic.Bool // TODO: GBJK - Do we keep and maintain this flag, or work it out dynamically
+	canUseAuthenticatedEndpoints  atomic.Bool
 	connectionMonitorDelay        time.Duration
 	exchangeName                  string
 	features                      *protocol.Features
@@ -117,6 +109,13 @@ type Manager struct {
 	proxyAddr                     string
 	trafficTimeout                time.Duration
 	rateLimitDefinitions          request.RateLimitDefinitions // rate limiters shared between Websocket and REST connections
+
+	// Funcs provided by exchanges
+	authenticate func(context.Context, Connection) error
+	connector    func(context.Context, Connection) error
+	generateSubs func() (subscription.List, error)
+	subscriber   func(subscription.Connection, subscription.List) error
+	unsubscriber func(subscription.Connection, subscription.List) error
 }
 
 // ManagerSetup defines variables for setting up a websocket manager
@@ -168,7 +167,7 @@ func NewManager() *Manager {
 		subscriptions:     subscription.NewStore(),
 		features:          &protocol.Features{},
 		Orderbook:         buffer.Orderbook{},
-		connections:       []*Connection{},
+		connections:       []Connection{},
 	}
 }
 
@@ -389,6 +388,17 @@ func (m *Manager) Reconnect() {
 }
 
 func (m *Manager) assignSubsToConns(subs subscription.List) (map[*Connection]subscription.List, error) {
+	/*
+			   Okay, so how do we work out the connections for a sub?
+			   The pattern in GateIO doesn't actually tie them together.
+			   We could have each connection have it's own ExpandTemplates and GenerateSubs ?
+			   That feels wrong though...
+			   Overload GenerateSubs?
+			   If we just call GenerateSubs... that'd work
+		        So Can the template use the messageFilter as it is to compare against asset types?
+	*/
+	for _, s := range subs {
+	}
 	return nil, nil
 }
 
@@ -542,6 +552,11 @@ func (m *Manager) SetProxyAddress(proxyAddr string) error {
 	m.Reconnect()
 
 	return nil
+}
+
+// GetProxyAddress returns the current websocket proxy
+func (m *Manager) GetProxyAddress() string {
+	return m.proxyAddr
 }
 
 // GetName returns exchange name
