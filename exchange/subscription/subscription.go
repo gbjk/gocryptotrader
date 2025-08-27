@@ -23,6 +23,7 @@ const (
 	ResubscribingState
 	UnsubscribingState
 	UnsubscribedState
+	FailedState
 )
 
 // Channel constants
@@ -110,7 +111,7 @@ func (s *Subscription) SetState(state State) error {
 	if state == s.state {
 		return ErrInStateAlready
 	}
-	if state > UnsubscribedState {
+	if state > FailedState {
 		return ErrInvalidState
 	}
 	s.state = state

@@ -23,14 +23,9 @@ var (
 	errSyncSubscriptions         = errors.New("error syncing websocket manager subscriptions")
 )
 
-// Unsubscribe unsubscribes from a list of websocket channels
-func (m *Manager) Unsubscribe(subs subscription.List) error {
+func (m *Manager) unsubscribe(subs subscription.List) error {
 	if len(subs) == 0 {
 		return nil // No channels to unsubscribe from is not an error
-	}
-
-	if err := common.NilGuard(m); err != nil {
-		return err
 	}
 	if err := common.NilGuard(m.Unsubscriber); err != nil {
 		return err
@@ -51,39 +46,19 @@ func (m *Manager) Unsubscribe(subs subscription.List) error {
 	return errs.Collect()
 }
 
-// ResubscribeToChannel resubscribes to channel
+// Resubscribe resubscribes to channel
 // Sets state to Resubscribing, and exchanges which want to maintain a lock on it can respect this state and not RemoveSubscription
 // Errors if subscription is already subscribing
-func (m *Manager) ResubscribeToChannel(s *subscription.Subscription) error {
+func (m *Manager) Resubscribe(s *subscription.Subscription) error {
 	l := subscription.List{s}
 	if err := s.SetState(subscription.ResubscribingState); err != nil {
 		return fmt.Errorf("%w: %s", err, s)
 	}
-	if err := m.Unsubscribe(l); err != nil {
+	if err := m.unsubscribe(l); err != nil {
 		return err
 	}
-	return m.Subscribe(l)
+	return m.subscribe(l)
 }
-
-// Subscribe subscribes to websocket channels using the exchange specific Subscriber method
-// GBJK: TODO: Completely remove this function
-// Doing so simplifies everything. Users don't have N+ vectors for adding subscriptions
-// All subscriptions get added by changing the exchange live config, and then from there monitorSubs kicks in
-/*
-func (m *Manager) Subscribe(subs subscription.List) error {
-	if len(subs) == 0 || m == nil || m.subscriptions == nil {
-		return nil // No channels to unsubscribe from is not an error
-	}
-	if err := common.NilGuard(m); err != nil {
-		return err
-	}
-	if err := common.NilGuard(m.Subscriber); err != nil {
-		return err
-	}
-
-	return m.subscriptions.Add(subs...) // Add directly so state is Inactive; manager will find connections
-}
-*/
 
 // AddSubscriptions adds subscriptions to the subscription store
 // Sets state to Subscribing unless the state is already set
@@ -141,6 +116,7 @@ func (m *Manager) RemoveSubscriptions(conn Connection, subs ...*subscription.Sub
 		if err := s.SetState(subscription.UnsubscribedState); err != nil {
 			errs = common.AppendError(errs, fmt.Errorf("%w: %s", err, s))
 		}
+		// TODO: GBJK - We don't want to remove it here, do we - Would connection still see it as gone?
 		if err := m.subscriptions.Remove(s); err != nil {
 			errs = common.AppendError(errs, err)
 		}

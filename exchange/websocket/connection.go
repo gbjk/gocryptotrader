@@ -32,6 +32,7 @@ var (
 
 // Connection defines the interface for websocket connections
 type Connection interface {
+	IsConnected() bool
 	Dial(context.Context, *gws.Dialer, http.Header) error
 	ReadMessage() Response
 	SetupPingHandler(request.EndpointLimit, PingHandler)
@@ -51,6 +52,7 @@ type Connection interface {
 	Shutdown() error
 	// RequireMatchWithData routes incoming data using the connection specific match system to the correct handler
 	RequireMatchWithData(signature any, incoming []byte) error
+	MessageFilter() any
 }
 
 // ConnectionSetup contains per connection configuration
@@ -426,4 +428,8 @@ func removeURLQueryString(url string) string {
 // RequireMatchWithData routes incoming data using the connection specific match system to the correct handler
 func (c *connection) RequireMatchWithData(signature any, incoming []byte) error {
 	return c.Match.RequireMatchWithData(signature, incoming)
+}
+
+func (c *connection) MessageFilter() any {
+	return c.messageFilter
 }

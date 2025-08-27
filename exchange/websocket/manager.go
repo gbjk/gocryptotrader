@@ -105,7 +105,7 @@ type Manager struct {
 
 	// Internal state collections
 	connectionConfigs []*ConnectionSetup
-	connections       []*Connection // TODO: GBJK Not sure if there will be a use for a plain slice like this
+	connections       []Connection
 	subscriptions     *subscription.Store
 
 	// Internal configuration vars
@@ -284,7 +284,7 @@ func (m *Manager) Start() error {
 
 	go m.monitorFrame(&m.Wg, m.monitorData)
 	go m.monitorFrame(&m.Wg, m.monitorTraffic)
-	go m.monitorSubss()
+	go m.monitorSubs()
 
 	m.setState(runningState)
 
@@ -391,7 +391,6 @@ func (m *Manager) Reconnect() {
 func (m *Manager) assignSubsToConns(subs subscription.List) (map[*Connection]subscription.List, error) {
 	return nil, nil
 }
-
 
 // Disable disables the exchange websocket protocol
 // Note that connectionMonitor will be responsible for shutting down the websocket after disabling
@@ -519,12 +518,11 @@ func (m *Manager) IsEnabled() bool {
 // CanUseAuthenticatedWebsocketForWrapper Handles a common check to
 // verify whether a wrapper can use an authenticated websocket endpoint
 func (m *Manager) CanUseAuthenticatedWebsocketForWrapper() bool {
-	if m.IsConnected() {
-		if m.CanUseAuthenticatedEndpoints() {
-			return true
-		}
-		log.Infof(log.WebsocketMgr, "%v - Websocket not authenticated, using REST\n", m.exchangeName)
+	if m.CanUseAuthenticatedEndpoints() {
+		return true
 	}
+	// TODO: GBJK This *so* should not be here; Looking at the calls to it, it'll be spammy as hell
+	log.Infof(log.WebsocketMgr, "%v - Websocket not authenticated, using REST\n", m.exchangeName)
 	return false
 }
 
@@ -605,13 +603,17 @@ func (m *Manager) monitorSubs() {
 		select {
 		case <-m.ShutdownC:
 			return
-		case t.C:
-			fallthrough
+		case <-t.C:
 		case <-m.connUp:
-            for _, s := range s.subscriptions.InState(subscription.InactiveState){
-                conns, err 
-                if 
-                m.assignSubsToConns(s)
+		}
+		if err := m.assignInactiveSubs(); err != nil {
+			log.Errorf(log.WebsocketMgr, "%s %s", m.exchangeName, err)
+		}
+	}
+}
+
+func (m *Manager) assignInactiveSubs() error {
+	subs := m.subscriptions.InState(subscription.InactiveState)
 	connSubs, err := m.assignSubsToConns(subs)
 	if err != nil {
 		return err
@@ -621,15 +623,11 @@ func (m *Manager) monitorSubs() {
 		go func() {
 			defer errs.Wg.Done()
 			if err := m.Subscriber(c, subs); err != nil {
-				errs.C <- fmt.Errorf("%w: %w", ErrSubscribe, err)
+				errs.C <- fmt.Errorf("%w: %w (connection: %s)", ErrSubscribe, err, c)
 			}
 		}()
 	}
-
 	return errs.Collect()
-            }
-		}
-	}
 }
 
 // ClosureFrame is a closure function that wraps monitoring variables with observer, if the return is true the frame will exit
@@ -793,20 +791,12 @@ func (m *Manager) GetConnection(messageFilter any) (Connection, error) {
 	m.m.Lock()
 	defer m.m.Unlock()
 
-	if !m.useMultiConnectionManagement {
-		return nil, fmt.Errorf("%s: multi connection management not enabled %w please use exported Conn and AuthConn fields", m.exchangeName, errCannotObtainOutboundConnection)
-	}
-
-	if !m.IsConnected() {
-		return nil, ErrNotConnected
-	}
-
-	for _, wrapper := range m.connectionConfigs {
-		if wrapper.setup.MessageFilter == messageFilter {
-			if wrapper.connection == nil {
+	for _, c := range m.connections {
+		if c.messageFilter == messageFilter {
+			if c.IsConnected() {
 				return nil, fmt.Errorf("%s: %s %w associated with message filter: '%v'", m.exchangeName, wrapper.setup.URL, ErrNotConnected, messageFilter)
 			}
-			return wrapper.connection, nil
+			return c, nil
 		}
 	}
 
