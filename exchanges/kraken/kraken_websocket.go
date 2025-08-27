@@ -761,7 +761,8 @@ func (e *Exchange) Subscribe(in subscription.List) error {
 
 	for _, s := range subs {
 		if s.State() != subscription.SubscribedState {
-			_ = s.SetState(subscription.InactiveState)
+			// TODO: GBJK - Do not remove subscriptions, or we will just retry them
+			_ = s.SetState(subscription.FailedState)
 			if err := e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s); err != nil {
 				errs = common.AppendError(errs, fmt.Errorf("error removing failed subscription: %w; Channel: %s Pairs: %s", err, s.Channel, s.Pairs.Join()))
 			}
@@ -781,6 +782,7 @@ func (e *Exchange) Unsubscribe(keys subscription.List) error {
 		if s := e.Websocket.GetSubscription(key); s == nil {
 			errs = common.AppendError(errs, fmt.Errorf("%w; Channel: %s Pairs: %s", subscription.ErrNotFound, key.Channel, key.Pairs.Join()))
 		} else {
+			// TODO - Not sure if we should set state here like this
 			if s.State() != subscription.ResubscribingState {
 				if err := s.SetState(subscription.UnsubscribingState); err != nil {
 					errs = common.AppendError(errs, fmt.Errorf("%w; Channel: %s Pairs: %s", err, s.Channel, s.Pairs.Join()))
@@ -977,8 +979,13 @@ func (e *Exchange) wsProcessSubStatus(resp []byte) {
 
 	if status == krakenWsSubscribed {
 		err = s.SetState(subscription.SubscribedState)
-	} else if s.State() != subscription.ResubscribingState { // Do not remove a resubscribing sub which just unsubbed
+	} else {
+		err = s.SetUnsubscribed()
+	}
+	if s.State() != subscription.ResubscribingState { // Do not remove a resubscribing sub which just unsubbed
+		// TODO: GBJK - Do not remove here. Just set the state
 		err = e.Websocket.RemoveSubscriptions(e.Websocket.Conn, s)
+
 		if e2 := s.SetState(subscription.UnsubscribedState); e2 != nil {
 			err = common.AppendError(err, e2)
 		}
