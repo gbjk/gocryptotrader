@@ -1965,7 +1965,7 @@ func (*Base) WebsocketSubmitOrders(context.Context, []*order.Submit) (responses 
 }
 
 // MessageID returns a universally unique id using UUID V7
-// Additional parameters may be added to provide context for the message id
+// In the future additional params may be added to method signature to provide context for the message id for overriding exchange implementations
 func (b *Base) MessageID() string {
 	return uuid.Must(uuid.NewV7()).String()
 }
