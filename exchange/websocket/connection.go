@@ -92,7 +92,7 @@ type connection struct {
 	ExchangeName         string
 	URL                  string
 	ProxyURL             string
-	Wg                   *sync.WaitGroup
+	Wg                   *sync.WaitGroup // Privatise
 	Underlying           *gws.Conn
 	shutdown             chan struct{}
 	Match                *Match
@@ -132,6 +132,8 @@ func (c *connection) Dial(ctx context.Context, dialer *gws.Dialer, headers http.
 	default:
 	}
 	c.setConnectedStatus(true)
+	// TODO: WaitGroup handling for this
+	go c.monitor()
 	return nil
 }
 
