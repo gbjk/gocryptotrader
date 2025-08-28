@@ -73,9 +73,6 @@ type ConnectionSetup struct {
 	// exchange's websocket server. This will be called once when the stream
 	// service is started. Any bespoke connection logic should be handled here.
 	Connector func(ctx context.Context, conn Connection) error
-	// GenerateSubscriptions is a function that will be called to generate a
-	// list of subscriptions to be made to the exchange's websocket server.
-	GenerateSubscriptions func() (subscription.List, error)
 	// Subscriber is a function that will be called to send subscription
 	// messages based on the exchange's websocket server requirements to
 	// subscribe to specific channels.

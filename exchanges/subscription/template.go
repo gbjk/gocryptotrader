@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"text/template"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -33,6 +34,15 @@ type tplCtx struct {
 	PairSeparator  string
 	AssetSeparator string
 	BatchSize      string
+}
+
+var TemplateFuncs = template.FuncMap{
+	"isAssetType": isAssetType,
+}
+
+func generateSubs(messageFilter any) subscriptions.List {
+	// TODO: Current problem is that we can't get at e.Features to know what subsciptions we should have
+	return e.Features.Subscriptions.ExpandTemplates(e)
 }
 
 // ExpandTemplates returns a list of Subscriptions with Template expanded

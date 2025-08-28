@@ -13,6 +13,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket/buffer"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/fill"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -33,33 +34,32 @@ var (
 
 // Private websocket errors
 var (
-	errWebsocketAlreadyInitialised          = errors.New("websocket already initialised")
-	errWebsocketAlreadyEnabled              = errors.New("websocket already enabled")
-	errDefaultURLIsEmpty                    = errors.New("default url is empty")
-	errRunningURLIsEmpty                    = errors.New("running url cannot be empty")
-	errInvalidWebsocketURL                  = errors.New("invalid websocket url")
-	errExchangeConfigNameEmpty              = errors.New("exchange config name empty")
-	errInvalidTrafficTimeout                = errors.New("invalid traffic timeout")
-	errTrafficAlertNil                      = errors.New("traffic alert is nil")
-	errWebsocketSubscriberUnset             = errors.New("websocket subscriber function needs to be set")
-	errWebsocketUnsubscriberUnset           = errors.New("websocket unsubscriber functionality allowed but unsubscriber function not set")
-	errWebsocketConnectorUnset              = errors.New("websocket connector function not set")
-	errWebsocketDataHandlerUnset            = errors.New("websocket data handler not set")
-	errReadMessageErrorsNil                 = errors.New("read message errors is nil")
-	errWebsocketSubscriptionsGeneratorUnset = errors.New("websocket subscriptions generator function needs to be set")
-	errInvalidMaxSubscriptions              = errors.New("max subscriptions cannot be less than 0")
-	errSameProxyAddress                     = errors.New("cannot set proxy address to the same address")
-	errNoConnectFunc                        = errors.New("websocket connect func not set")
-	errAlreadyConnected                     = errors.New("websocket already connected")
-	errCannotShutdown                       = errors.New("websocket cannot shutdown")
-	errAlreadyReconnecting                  = errors.New("websocket in the process of reconnection")
-	errConnSetup                            = errors.New("error in connection setup")
-	errNoPendingConnections                 = errors.New("no pending connections, call SetupNewConnection first")
-	errDuplicateConnectionSetup             = errors.New("duplicate connection setup")
-	errCannotChangeConnectionURL            = errors.New("cannot change connection URL when using multi connection management")
-	errExchangeConfigEmpty                  = errors.New("exchange config is empty")
-	errCannotObtainOutboundConnection       = errors.New("cannot obtain outbound connection")
-	errMessageFilterNotComparable           = errors.New("message filter is not comparable")
+	errWebsocketAlreadyInitialised    = errors.New("websocket already initialised")
+	errWebsocketAlreadyEnabled        = errors.New("websocket already enabled")
+	errDefaultURLIsEmpty              = errors.New("default url is empty")
+	errRunningURLIsEmpty              = errors.New("running url cannot be empty")
+	errInvalidWebsocketURL            = errors.New("invalid websocket url")
+	errExchangeConfigNameEmpty        = errors.New("exchange config name empty")
+	errInvalidTrafficTimeout          = errors.New("invalid traffic timeout")
+	errTrafficAlertNil                = errors.New("traffic alert is nil")
+	errWebsocketSubscriberUnset       = errors.New("websocket subscriber function needs to be set")
+	errWebsocketUnsubscriberUnset     = errors.New("websocket unsubscriber functionality allowed but unsubscriber function not set")
+	errWebsocketConnectorUnset        = errors.New("websocket connector function not set")
+	errWebsocketDataHandlerUnset      = errors.New("websocket data handler not set")
+	errReadMessageErrorsNil           = errors.New("read message errors is nil")
+	errInvalidMaxSubscriptions        = errors.New("max subscriptions cannot be less than 0")
+	errSameProxyAddress               = errors.New("cannot set proxy address to the same address")
+	errNoConnectFunc                  = errors.New("websocket connect func not set")
+	errAlreadyConnected               = errors.New("websocket already connected")
+	errCannotShutdown                 = errors.New("websocket cannot shutdown")
+	errAlreadyReconnecting            = errors.New("websocket in the process of reconnection")
+	errConnSetup                      = errors.New("error in connection setup")
+	errNoPendingConnections           = errors.New("no pending connections, call SetupNewConnection first")
+	errDuplicateConnectionSetup       = errors.New("duplicate connection setup")
+	errCannotChangeConnectionURL      = errors.New("cannot change connection URL when using multi connection management")
+	errExchangeConfigEmpty            = errors.New("exchange config is empty")
+	errCannotObtainOutboundConnection = errors.New("cannot obtain outbound connection")
+	errMessageFilterNotComparable     = errors.New("message filter is not comparable")
 )
 
 // Websocket functionality list and state consts
@@ -98,7 +98,6 @@ type Manager struct {
 	rateLimitDefinitions          request.RateLimitDefinitions // rate limiters shared between Websocket and REST connections
 	Subscriber                    func(subscription.List) error
 	Unsubscriber                  func(subscription.List) error
-	GenerateSubs                  func() (subscription.List, error)
 	useMultiConnectionManagement  bool
 	DataHandler                   chan any
 	ToRoutine                     chan any
@@ -133,7 +132,6 @@ type ManagerSetup struct {
 	Connector             func() error
 	Subscriber            func(subscription.List) error
 	Unsubscriber          func(subscription.List) error
-	GenerateSubscriptions func() (subscription.List, error)
 	Features              *protocol.Features
 	OrderbookBufferConfig buffer.Config
 
@@ -238,9 +236,6 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 		if s.Unsubscriber == nil && m.features.Unsubscribe {
 			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketUnsubscriberUnset)
 		}
-		if s.GenerateSubscriptions == nil {
-			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketSubscriptionsGeneratorUnset)
-		}
 		if s.DefaultURL == "" {
 			return fmt.Errorf("%s websocket %w", m.exchangeName, errDefaultURLIsEmpty)
 		}
@@ -252,7 +247,6 @@ func (m *Manager) Setup(s *ManagerSetup) error {
 		m.connector = s.Connector
 		m.Subscriber = s.Subscriber
 		m.Unsubscriber = s.Unsubscriber
-		m.GenerateSubs = s.GenerateSubscriptions
 
 		err := m.SetWebsocketURL(s.RunningURL, false, false)
 		if err != nil {
@@ -333,9 +327,6 @@ func (m *Manager) SetupNewConnection(c *ConnectionSetup) error {
 		}
 		if c.Connector == nil {
 			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketConnectorUnset)
-		}
-		if c.GenerateSubscriptions == nil {
-			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketSubscriptionsGeneratorUnset)
 		}
 		if c.Subscriber == nil {
 			return fmt.Errorf("%w: %w", errConnSetup, errWebsocketSubscriberUnset)
@@ -452,7 +443,7 @@ func (m *Manager) connect() error {
 			go m.monitorFrame(nil, m.monitorConnection)
 		}
 
-		subs, err := m.GenerateSubs() // regenerate state on new connection
+		subs, err := m.generateSubs(asset.All) // regenerate state on new connection
 		if err != nil {
 			return fmt.Errorf("%s websocket: %w", m.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
 		}
@@ -482,11 +473,6 @@ func (m *Manager) connect() error {
 
 	// TODO: Implement concurrency below.
 	for i := range m.connectionManager {
-		if m.connectionManager[i].setup.GenerateSubscriptions == nil {
-			multiConnectFatalError = fmt.Errorf("cannot connect to [conn:%d] [URL:%s]: %w ", i+1, m.connectionManager[i].setup.URL, errWebsocketSubscriptionsGeneratorUnset)
-			break
-		}
-
 		subs, err := m.connectionManager[i].setup.GenerateSubscriptions() // regenerate state on new connection
 		if err != nil {
 			multiConnectFatalError = fmt.Errorf("%s websocket: %w", m.exchangeName, common.AppendError(ErrSubscriptionFailure, err))
