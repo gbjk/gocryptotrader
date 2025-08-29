@@ -96,9 +96,10 @@ type Manager struct {
 	connUp  chan struct{}  // connUp notifies there's subs that need connections
 
 	// Internal state collections
-	connectionConfigs []*ConnectionSetup
-	connections       []Connection
-	subscriptions     *subscription.Store
+	connectionConfigs   []*ConnectionSetup
+	connections         []Connection
+	subscriptionsConfig subscription.List   // User configured unexpanded list of subscriptions
+	subscriptions       *subscription.Store // Internal store of expanded and in-flight subscriptions
 
 	// Internal configuration vars
 	canUseAuthenticatedEndpoints  atomic.Bool
@@ -164,6 +165,7 @@ func NewManager() *Manager {
 		// ReadMessageErrors is buffered for an edge case when `Connect` fails after subscriptions are made but before the connectionMonitor has
 		// started. This allows the error to be read and handled in the connectionMonitor and start a connection cycle again.
 		ReadMessageErrors: make(chan error, 1),
+		Subscriptions:     subscription.List{},
 		subscriptions:     subscription.NewStore(),
 		features:          &protocol.Features{},
 		Orderbook:         buffer.Orderbook{},

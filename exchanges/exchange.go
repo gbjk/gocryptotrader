@@ -170,11 +170,14 @@ func (b *Base) SetFeatureDefaults() {
 // allowing e.SetDefaults to set default subscriptions for an exchange to update user's config
 // Subscriptions not Enabled are skipped, meaning that e.Features.Subscriptions only contains Enabled subscriptions
 func (b *Base) SetSubscriptionsFromConfig() {
+	if b.Websocket == nil {
+		return
+	}
 	b.settingsMutex.Lock()
 	defer b.settingsMutex.Unlock()
 	if len(b.Config.Features.Subscriptions) == 0 {
 		// Set config from the defaults, including any disabled subscriptions
-		b.Config.Features.Subscriptions = b.Features.Subscriptions
+		b.Config.Features.Subscriptions = b.Websocket.SubscriptionsConfig
 	}
 	b.Features.Subscriptions = b.Config.Features.Subscriptions.Enabled()
 	if b.Verbose {
