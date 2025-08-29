@@ -308,7 +308,7 @@ func (e *Exchange) batchAggregateTrades(ctx context.Context, args *AggregatedTra
 	// other requests follow from the last aggregate trade id and have no time window
 	params.Del("startTime")
 	params.Del("endTime")
-	// while we haven't reached the limit
+outer:
 	for ; args.Limit == 0 || len(resp) < args.Limit; fromID = resp[len(resp)-1].ATradeID {
 		// Keep requesting new data after last retrieved trade
 		params.Set("fromId", strconv.FormatInt(fromID, 10))
@@ -319,7 +319,7 @@ func (e *Exchange) batchAggregateTrades(ctx context.Context, args *AggregatedTra
 		}
 		switch len(additionalTrades) {
 		case 0, 1:
-			break // We only got the one we already have
+			break outer // We only got the one we already have
 		default:
 			additionalTrades = additionalTrades[1:] // Remove the record we already have
 		}
