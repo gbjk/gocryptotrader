@@ -7,6 +7,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
@@ -17,7 +18,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
-	"github.com/thrasher-corp/gocryptotrader/exchange/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
@@ -294,16 +294,6 @@ func (c *CustomEx) IsWebsocketEnabled() bool {
 // SupportsWebsocket is a mock method for CustomEx
 func (c *CustomEx) SupportsWebsocket() bool {
 	return false
-}
-
-// SubscribeToWebsocketChannels is a mock method for CustomEx
-func (c *CustomEx) SubscribeToWebsocketChannels(_ subscription.List) error {
-	return nil
-}
-
-// UnsubscribeToWebsocketChannels is a mock method for CustomEx
-func (c *CustomEx) UnsubscribeToWebsocketChannels(_ subscription.List) error {
-	return nil
 }
 
 // IsAssetWebsocketSupported is a mock method for CustomEx

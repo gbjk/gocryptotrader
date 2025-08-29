@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/account"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -27,7 +28,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/protocol"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
-	"github.com/thrasher-corp/gocryptotrader/exchange/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
@@ -1585,30 +1585,6 @@ func TestFlushWebsocketChannels(t *testing.T) {
 	if err == nil {
 		t.Fatal(err)
 	}
-}
-
-func TestSubscribeToWebsocketChannels(t *testing.T) {
-	b := Base{}
-	err := b.SubscribeToWebsocketChannels(nil)
-	if err == nil {
-		t.Fatal(err)
-	}
-
-	b.Websocket = websocket.NewManager()
-	err = b.SubscribeToWebsocketChannels(nil)
-	if err == nil {
-		t.Fatal(err)
-	}
-}
-
-func TestUnsubscribeToWebsocketChannels(t *testing.T) {
-	b := Base{}
-	err := b.UnsubscribeToWebsocketChannels(nil)
-	assert.ErrorIs(t, err, common.ErrFunctionNotSupported, "UnsubscribeToWebsocketChannels should error correctly with a nil Websocket")
-
-	b.Websocket = websocket.NewManager()
-	err = b.UnsubscribeToWebsocketChannels(nil)
-	assert.NoError(t, err, "UnsubscribeToWebsocketChannels from an empty/nil list should not error")
 }
 
 func TestGetSubscriptions(t *testing.T) {
