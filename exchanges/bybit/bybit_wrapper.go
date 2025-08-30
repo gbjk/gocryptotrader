@@ -228,6 +228,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:               exch,
+		Exchange:                     e,
 		Features:                     &e.Features.Supports.WebsocketCapabilities,
 		OrderbookBufferConfig:        buffer.Config{SortBuffer: true, SortBufferByUpdateIDs: true},
 		TradeFeed:                    e.Features.Enabled.TradeFeed,

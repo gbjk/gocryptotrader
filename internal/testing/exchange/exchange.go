@@ -47,6 +47,7 @@ func Setup(e exchange.IBotExchange) error {
 	e.SetDefaults()
 	b := e.GetBase()
 	b.Websocket = sharedtestvalues.NewTestWebsocket()
+	b.Websocket.Exchange = e
 	err = e.Setup(exchConf)
 	if err != nil {
 		return fmt.Errorf("Setup() error: %w", err)
@@ -117,9 +118,15 @@ func MockWsInstance[T any, PT interface {
 	}
 
 	// For testing we never want to use the default subscriptions; Tests of GenerateSubscriptions should be exercising it directly
-	b.Features.Subscriptions = subscription.List{}
-	// Exchanges which don't support subscription conf; Can be removed when all exchanges support sub conf
-	b.Websocket.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
+	// TODO: GBJK - Pretty sure this is always a no-op, because it's part of Websocket and we NewTestWebsocket now
+	/*
+		b.Websocket.Subscriptions = subscription.List{}
+		b.Features.Subscriptions = subscription.List{} // TODO : GBJK - This will need removing
+		// Exchanges which don't support subscription conf; Can be removed when all exchanges support sub conf
+		// TODO: GBJK is this not already true?
+		// The other things we're missing would be in the multi-conn setup
+		b.Websocket.GenerateSubs = func() (subscription.List, error) { return subscription.List{}, nil }
+	*/
 
 	err = b.Websocket.Connect()
 	require.NoError(tb, err, "Connect must not error")
