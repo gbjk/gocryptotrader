@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -48,6 +49,13 @@ var (
 	// jobs from the job channel
 	maxWSOrderbookWorkers = 10
 )
+
+var defaultSubscriptions = subscription.List{
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.TickerChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.AllTradesChannel},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.CandlesChannel, Interval: kline.OneMin},
+	{Enabled: true, Asset: asset.Spot, Channel: subscription.OrderbookChannel, Interval: kline.HundredMilliseconds},
+}
 
 // WsConnect initiates a websocket connection
 func (e *Exchange) WsConnect() error {
@@ -508,16 +516,6 @@ func (e *Exchange) UpdateLocalBuffer(wsdp *WebsocketDepthStream) (bool, error) {
 	}
 
 	return false, err
-}
-
-func (e *Exchange) generateSubscriptions() (subscription.List, error) {
-	for _, s := range e.Features.Subscriptions {
-		if s.Asset == asset.Empty {
-			// Handle backwards compatibility with config without assets, all binance subs are spot
-			s.Asset = asset.Spot
-		}
-	}
-	return e.Features.Subscriptions.ExpandTemplates(e)
 }
 
 var subTemplate *template.Template

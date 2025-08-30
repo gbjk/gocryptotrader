@@ -151,7 +151,7 @@ type WithdrawalHistory struct {
 type Features struct {
 	Supports             FeaturesSupported
 	Enabled              FeaturesEnabled
-	Subscriptions        subscription.List
+	Subscriptions        subscription.List // TODO: GBJK must remove this
 	CurrencyTranslations currency.Translations
 	TradingRequirements  protocol.TradingRequirements
 }
