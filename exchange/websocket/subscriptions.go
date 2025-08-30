@@ -23,6 +23,22 @@ var (
 	errSubscriptionsExceedsLimit = errors.New("subscriptions exceeds limit")
 )
 
+// TODO: GBJK - This should be gone before this branch is merged
+func (m *Manager) transitionGenerateSubs(conns ...*connectionWrapper) (subscription.List, error) {
+	if len(conns) == 1 {
+		if conns[0].setup.GenerateSubscriptions != nil {
+			return conns[0].setup.GenerateSubscriptions()
+		}
+	} else if m.GenerateSubs != nil {
+		return m.GenerateSubs()
+	}
+	return m.GenerateSubscriptions()
+}
+
+func (m *Manager) GenerateSubscriptions() (subscription.List, error) {
+	return m.Subscriptions.ExpandTemplates(m.Exchange)
+}
+
 // UnsubscribeChannels unsubscribes from a list of websocket channel
 func (m *Manager) UnsubscribeChannels(conn Connection, channels subscription.List) error {
 	if len(channels) == 0 {
@@ -276,7 +292,7 @@ func (m *Manager) FlushChannels() error {
 	}
 
 	if !m.useMultiConnectionManagement {
-		newSubs, err := m.GenerateSubs()
+		newSubs, err := m.transitionGenerateSubs()
 		if err != nil {
 			return err
 		}
@@ -284,7 +300,7 @@ func (m *Manager) FlushChannels() error {
 	}
 
 	for x := range m.connectionManager {
-		newSubs, err := m.connectionManager[x].setup.GenerateSubscriptions()
+		newSubs, err := m.transitionGenerateSubs(m.connectionManager[x])
 		if err != nil {
 			return err
 		}
