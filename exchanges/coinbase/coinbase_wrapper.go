@@ -146,6 +146,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 
 	if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:        exch,
+		Exchange:              e,
 		DefaultURL:            coinbaseWebsocketURL,
 		RunningURL:            wsRunningURL,
 		Connector:             e.WsConnect,

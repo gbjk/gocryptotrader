@@ -206,6 +206,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 	if err := e.Websocket.Setup(&websocket.ManagerSetup{
 		ExchangeConfig:                         exch,
+		Exchange:                               e,
 		DefaultURL:                             apiWebsocketPublicURL,
 		RunningURL:                             wsRunningEndpoint,
 		Connector:                              e.WsConnect,
