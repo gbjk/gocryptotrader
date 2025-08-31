@@ -2,7 +2,12 @@ package v9
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"strconv"
+
+	"github.com/buger/jsonparser"
+	"github.com/thrasher-corp/gocryptotrader/common"
 )
 
 // Version is an ExchangeVersion to ensure all binance subscriptions have asset set
@@ -13,15 +18,33 @@ func (v *Version) Exchanges() []string { return []string{"Binance"} }
 
 // UpgradeExchange adds asset to all fluffins
 func (v *Version) UpgradeExchange(_ context.Context, e []byte) ([]byte, error) {
-	// GBJK thought this was enough
-	fmt.Println("\n\nnGBJK obviously didn't self review!")
-	/*
-		if s.Asset == asset.Empty {
-			// Handle backwards compatibility with config without assets, all binance subs are spot
-			s.Asset = asset.Spot
+	var errs error
+	newSubs := [][]byte{}
+	subsFn := func(sub []byte, valueType jsonparser.ValueType, i int, _ error) {
+		if valueType == jsonparser.Object {
+			assetType, err := jsonparser.GetString(sub, "asset")
+			if err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError) {
+				errs = common.AppendError(errs, err)
+				return
+			}
+			if assetType == "" {
+				if sub, err = jsonparser.Set(sub, []byte(`"spot"`), "asset"); err != nil {
+					errs = common.AppendError(errs, err)
+					return
+				}
+			}
 		}
-	*/
-	return e, nil
+		newSubs = append(newSubs, sub)
+	}
+	_, err := jsonparser.ArrayEach(e, subsFn, "features", "subscriptions")
+	if err != nil && !errors.Is(err, jsonparser.KeyPathNotFoundError) {
+		return e, fmt.Errorf("error upgrading subscription assets: %w", err)
+	}
+	for i, s := range newSubs {
+		e, err = jsonparser.Set(e, s, "features", "subscriptions", "["+strconv.Itoa(i)+"]")
+		errs = common.AppendError(errs, err)
+	}
+	return e, errs
 }
 
 // DowngradeExchange is a no-op for v9
