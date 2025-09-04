@@ -218,7 +218,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		GenerateSubscriptions: e.generateSubscriptionsSpot,
 		Connector:             e.WsConnectSpot,
 		Authenticate:          e.authenticateSpot,
-		MessageFilter:         asset.Spot,
+		MessageFilter:         websocket.AssetFilter(asset.Spot),
 		RequestIDGenerator:    e.messageIDSeq.IncrementAndGet,
 	})
 	if err != nil {
@@ -239,7 +239,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		},
 		Connector:          e.WsFuturesConnect,
 		Authenticate:       e.authenticateFutures,
-		MessageFilter:      asset.USDTMarginedFutures,
+		MessageFilter:      websocket.AssetFilter(asset.USDTMarginedFutures),
 		RequestIDGenerator: e.messageIDSeq.IncrementAndGet,
 	})
 	if err != nil {
@@ -260,7 +260,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			return e.GenerateFuturesDefaultSubscriptions(asset.CoinMarginedFutures)
 		},
 		Connector:          e.WsFuturesConnect,
-		MessageFilter:      asset.CoinMarginedFutures,
+		MessageFilter:      websocket.AssetFilter(asset.CoinMarginedFutures),
 		RequestIDGenerator: e.messageIDSeq.IncrementAndGet,
 	})
 	if err != nil {
@@ -280,14 +280,14 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber:          e.DeliveryFuturesUnsubscribe,
 		GenerateSubscriptions: e.GenerateDeliveryFuturesDefaultSubscriptions,
 		Connector:             e.WsDeliveryFuturesConnect,
-		MessageFilter:         asset.DeliveryFutures,
+		MessageFilter:         websocket.AssetFilter(asset.DeliveryFutures),
 		RequestIDGenerator:    e.messageIDSeq.IncrementAndGet,
 	})
 	if err != nil {
 		return err
 	}
 
-	// Futures connection - Options
+	// Options connection
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                   optionsWebsocketURL,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
@@ -297,7 +297,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Unsubscriber:          e.OptionsUnsubscribe,
 		GenerateSubscriptions: e.GenerateOptionsDefaultSubscriptions,
 		Connector:             e.WsOptionsConnect,
-		MessageFilter:         asset.Options,
+		MessageFilter:         websocket.AssetFilter(asset.Options),
 		RequestIDGenerator:    e.messageIDSeq.IncrementAndGet,
 	})
 }

@@ -20,6 +20,7 @@ import (
 
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/log"
@@ -95,7 +96,7 @@ type ConnectionSetup struct {
 	Authenticate       func(ctx context.Context, conn Connection) error
 	// MessageFilter defines the criteria used to match messages to a specific connection.
 	// The filter enables precise routing and handling of messages for distinct connection contexts.
-	MessageFilter any
+	MessageFilter MessageFilter
 }
 
 // Inspector is used to verify messages via SendMessageReturnResponsesWithInspection
@@ -477,4 +478,15 @@ func removeURLQueryString(u string) string {
 // RequireMatchWithData routes incoming data using the connection specific match system to the correct handler
 func (c *connection) RequireMatchWithData(signature any, incoming []byte) error {
 	return c.Match.RequireMatchWithData(signature, incoming)
+}
+
+type MessageFilter interface {
+	MatchesSub(*subscription.Subscription) bool
+}
+
+// TODO: test assert that AssetFilter is a MessageFilter
+type AssetFilter asset.Item
+
+func (a AssetFilter) MatchesSub(s *subscription.Subscription) bool {
+	return s.Asset == asset.Item(a)
 }

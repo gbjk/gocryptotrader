@@ -308,7 +308,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			return e.wsHandleData(conn, asset.USDTMarginedFutures, resp)
 		},
 		RequestIDGenerator: e.messageIDSeq.IncrementAndGet,
-		MessageFilter:      asset.USDTMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+		MessageFilter:      websocket.AssetFilter(asset.USDTMarginedFutures), // Unused but it allows us to differentiate between the two linear futures types.
 	}); err != nil {
 		return err
 	}
@@ -338,7 +338,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			return e.wsHandleData(conn, asset.USDCMarginedFutures, resp)
 		},
 		RequestIDGenerator: e.messageIDSeq.IncrementAndGet,
-		MessageFilter:      asset.USDCMarginedFutures, // Unused but it allows us to differentiate between the two linear futures types.
+		MessageFilter:      websocket.AssetFilter(asset.USDCMarginedFutures), // Unused but it allows us to differentiate between the two linear futures types.
 	}); err != nil {
 		return err
 	}
