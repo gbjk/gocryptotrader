@@ -249,7 +249,7 @@ func (a *Accounts) Save(ctx context.Context, subAccts SubAccounts, isSnapshot bo
 			if newBal.UpdatedAt.IsZero() {
 				newBal.UpdatedAt = time.Now()
 			}
-			if newBal.Currency == currency.EMPTYCODE {
+			if newBal.Currency.IsEmpty() {
 				newBal.Currency = curr
 			}
 			s.Balances[curr] = newBal
