@@ -535,22 +535,24 @@ func (e *Exchange) processSpotBalances(ctx context.Context, data []byte) error {
 
 func (e *Exchange) processMarginBalances(ctx context.Context, data []byte) error {
 	resp := struct {
-		Time    types.Time        `json:"time"`
-		Channel string            `json:"channel"`
-		Event   string            `json:"event"`
-		Result  []WsMarginBalance `json:"result"`
+		Time    types.Time         `json:"time"`
+		Channel string             `json:"channel"`
+		Event   string             `json:"event"`
+		Result  []*WsMarginBalance `json:"result"`
 	}{}
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
-	subAccts := accounts.SubAccounts{accounts.NewSubAccount(asset.Margin, "")}
-	for x := range resp.Result {
-		subAccts[0].Balances.Set(resp.Result[x].Currency, accounts.Balance{
-			Total:     resp.Result[x].Available.Float64() + resp.Result[x].Freeze.Float64(),
-			Free:      resp.Result[x].Available.Float64(),
-			Hold:      resp.Result[x].Freeze.Float64(),
-			UpdatedAt: resp.Result[x].Timestamp.Time(),
+	subAccts := accounts.SubAccounts{}
+	for _, bal := range resp.Result {
+		a := accounts.NewSubAccount(asset.Margin, bal.User)
+		a.Balances.Set(bal.Currency, accounts.Balance{
+			Total:     bal.Available.Float64() + bal.Freeze.Float64(),
+			Free:      bal.Available.Float64(),
+			Hold:      bal.Freeze.Float64(),
+			UpdatedAt: bal.Timestamp.Time(),
 		})
+		subAccts = subAccts.Merge(a)
 	}
 	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
 		return err
