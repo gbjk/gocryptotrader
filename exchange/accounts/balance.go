@@ -93,9 +93,9 @@ func (b *Balance) Add(a Balance) Balance { //nolint:gocritic // hugeparam not re
 	}
 }
 
-func (c *currencyBalances) Public() CurrencyBalances {
-	n := make(CurrencyBalances, len(*c))
-	for curr, bal := range *c {
+func (c currencyBalances) Public() CurrencyBalances {
+	n := make(CurrencyBalances, len(c))
+	for curr, bal := range c {
 		n[curr.Currency()] = bal.Balance()
 	}
 	return n
