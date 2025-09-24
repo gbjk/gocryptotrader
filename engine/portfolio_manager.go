@@ -173,7 +173,7 @@ func (m *portfolioManager) updateExchangeBalances() error {
 	return errs
 }
 
-// updateExchangeAddressBalances transfer exchange account balances into portfolio addresses for exchanges
+// updateExchangeAddressBalances fetches and collates all account balances with their deposit addresses
 func (m *portfolioManager) updateExchangeAddressBalances(e exchange.IBotExchange) error {
 	currs, err := e.GetBase().Accounts.CurrencyBalances(nil, asset.All)
 	if err != nil {
