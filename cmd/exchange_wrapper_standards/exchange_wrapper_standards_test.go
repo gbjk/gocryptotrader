@@ -51,9 +51,9 @@ func TestAllExchangeWrappers(t *testing.T) {
 	t.Parallel()
 	cfg := config.GetConfig()
 	err := cfg.LoadConfig("../../testdata/configtest.json", true)
-	if err != nil {
-		t.Fatal("load config error", err)
-	}
+	require.NoError(t, err, "LoadConfig must not error")
+	err = dispatch.EnsureRunning(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
+	require.NoError(t, err, "dispatch.EnsureRunning must not error")
 	for i := range cfg.Exchanges {
 		name := strings.ToLower(cfg.Exchanges[i].Name)
 		t.Run(name+" wrapper tests", func(t *testing.T) {
@@ -144,9 +144,6 @@ assets:
 		})
 	}
 	assetPairs = append(assetPairs, assetPair{})
-
-	err = dispatch.EnsureRunning(dispatch.DefaultMaxWorkers, dispatch.DefaultJobsLimit)
-	require.NoError(t, err, "dispatch.EnsureRunning must not error")
 
 	return exch, assetPairs
 }
