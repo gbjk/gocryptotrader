@@ -578,22 +578,22 @@ func (e *Exchange) processFundingBalances(data []byte) error {
 
 func (e *Exchange) processCrossMarginBalance(ctx context.Context, data []byte) error {
 	resp := struct {
-		Time    types.Time             `json:"time"`
-		Channel string                 `json:"channel"`
-		Event   string                 `json:"event"`
-		Result  []WsCrossMarginBalance `json:"result"`
+		Time    types.Time              `json:"time"`
+		Channel string                  `json:"channel"`
+		Event   string                  `json:"event"`
+		Result  []*WsCrossMarginBalance `json:"result"`
 	}{}
 	err := json.Unmarshal(data, &resp)
 	if err != nil {
 		return err
 	}
 	subAccts := accounts.SubAccounts{}
-	for x := range resp.Result {
-		a := accounts.NewSubAccount(asset.Margin, resp.Result[x].User)
-		a.Balances.Set(resp.Result[x].Currency, accounts.Balance{
-			Total:     resp.Result[x].Total.Float64(),
-			Free:      resp.Result[x].Available.Float64(),
-			UpdatedAt: resp.Result[x].Timestamp.Time(),
+	for _, bal := range resp.Result {
+		a := accounts.NewSubAccount(asset.CrossMargin, bal.User)
+		a.Balances.Set(bal.Currency, accounts.Balance{
+			Total:     bal.Total.Float64(),
+			Free:      bal.Available.Float64(),
+			UpdatedAt: bal.Timestamp.Time(),
 		})
 		subAccts = subAccts.Merge(a)
 	}
