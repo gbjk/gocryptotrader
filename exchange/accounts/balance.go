@@ -130,7 +130,7 @@ func (b *balance) update(change Balance) (bool, error) { //nolint:gocritic // hu
 	return true, nil
 }
 
-// balance rutens a balance for a currency
+// balance returns a balance for a currency
 func (c currencyBalances) balance(curr *currency.Item) *balance {
 	if _, ok := c[curr]; !ok {
 		c[curr] = &balance{internal: Balance{Currency: curr.Currency()}}
