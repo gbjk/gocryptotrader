@@ -56,6 +56,9 @@ func (s *Store) GetExchangeAccounts(e exchange) (a *Accounts, err error) {
 	a, ok := s.exchangeAccounts[e]
 	if !ok {
 		a, err = NewAccounts(e, s.mux)
+		if err != nil {
+			return nil, err
+		}
 		s.exchangeAccounts[e] = a
 	}
 	return a, err
