@@ -132,8 +132,10 @@ func (b *balance) update(change Balance) (bool, error) { //nolint:gocritic // hu
 
 // balance returns a balance for a currency
 func (c currencyBalances) balance(curr *currency.Item) *balance {
-	if _, ok := c[curr]; !ok {
-		c[curr] = &balance{internal: Balance{Currency: curr.Currency()}}
+	b, ok := c[curr]
+	if !ok {
+		b = &balance{internal: Balance{Currency: curr.Currency()}}
+		c[curr] = b
 	}
-	return c[curr]
+	return b
 }
