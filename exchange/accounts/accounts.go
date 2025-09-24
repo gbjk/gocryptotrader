@@ -279,6 +279,9 @@ func (a *Accounts) Save(ctx context.Context, subAccts SubAccounts, isSnapshot bo
 // If no SubAccount matches, s is appended
 // Duplicate Currency Balances are added together
 func (l SubAccounts) Merge(s *SubAccount) SubAccounts {
+	if err := common.NilGuard(s); err != nil {
+		return nil
+	}
 	i := slices.IndexFunc(l, func(b *SubAccount) bool { return s.AssetType == b.AssetType && s.ID == b.ID })
 	if i == -1 {
 		return append(l, s)
