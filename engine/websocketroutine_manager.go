@@ -329,13 +329,9 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		return fmt.Errorf("%w %s", d.Err, d.Error())
 	case websocket.UnhandledMessageWarning:
 		log.Warnf(log.WebsocketMgr, "%s unhandled message - %s", exchName, d.Message)
-	case accounts.Change:
+	case []accounts.Change, accounts.Change:
 		if m.verbose {
-			m.printAccountHoldingsChangeSummary(exchName, d)
-		}
-	case []accounts.Change:
-		if m.verbose {
-			m.printAccountHoldingsChangeSummary(exchName, d...)
+			log.Debugf(log.WebsocketMgr, "%+v", d)
 		}
 	case []trade.Data, trade.Data:
 		if m.verbose {
@@ -389,23 +385,6 @@ func (m *WebsocketRoutineManager) printOrderSummary(o *order.Detail, isUpdate bo
 		o.Amount,
 		o.ExecutedAmount,
 		o.RemainingAmount)
-}
-
-// printAccountHoldingsChangeSummary this function will be deprecated when a account holdings update is done.
-func (m *WebsocketRoutineManager) printAccountHoldingsChangeSummary(exch string, changes ...accounts.Change) {
-	if m == nil || atomic.LoadInt32(&m.state) == stoppedState {
-		return
-	}
-	for i := range changes {
-		c := changes[i]
-		log.Debugf(log.WebsocketMgr, "Account Holdings Balance Changed: %s %s %s has changed balance by %f for account: %s",
-			exch,
-			c.AssetType,
-			c.Balance.Currency,
-			c.Balance.Total,
-			c.Account,
-		)
-	}
 }
 
 // registerWebsocketDataHandler registers an externally (GCT Library) defined
