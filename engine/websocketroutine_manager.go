@@ -331,7 +331,7 @@ func (m *WebsocketRoutineManager) websocketDataHandler(exchName string, data any
 		log.Warnf(log.WebsocketMgr, "%s unhandled message - %s", exchName, d.Message)
 	case []accounts.Change, accounts.Change:
 		if m.verbose {
-			log.Debugf(log.WebsocketMgr, "%+v", d)
+			log.Debugf(log.WebsocketMgr, "%s %+v", exchName, d)
 		}
 	case []trade.Data, trade.Data:
 		if m.verbose {
