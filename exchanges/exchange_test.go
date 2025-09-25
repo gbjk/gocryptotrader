@@ -784,7 +784,12 @@ func TestSetupDefaults(t *testing.T) {
 		ConnectionMonitorDelay: time.Second * 5,
 	}
 
+	accountsStore := accounts.GetStore()
 	require.NoError(t, b.SetupDefaults(&cfg))
+	// If this fails, something raced and changed accounts.global under us. Probably accounts.TestGetStore.
+	// Highly unlikey, but this check will clarify what happened
+	require.Same(t, accountsStore, accounts.GetStore(), "Global accounts Store must not change during SetupDefaults")
+
 	assert.Equal(t, 15*time.Second, cfg.HTTPTimeout, "config.HTTPTimeout should default correctly")
 
 	cfg.HTTPTimeout = time.Second * 30
@@ -801,7 +806,7 @@ func TestSetupDefaults(t *testing.T) {
 	require.NoError(t, err, "CurrencyPairs.Get must not error")
 	assert.True(t, ps.Enabled.Contains(btcusdPair, true), "default pair should be stored in the configs pair store")
 
-	exp, err := accounts.GetStore().GetExchangeAccounts(&b)
+	exp, err := accountsStore.GetExchangeAccounts(&b)
 	require.NoError(t, err, "GetExchangeAccounts must not error")
 	assert.Same(t, exp, b.Accounts, "SetupDefaults should default accounts from the global accounts store")
 	b.Accounts = accounts.MustNewAccounts(&b)
