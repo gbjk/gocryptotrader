@@ -48,7 +48,10 @@ type CurrencyBalances map[currency.Code]Balance
 type currencyBalances map[*currency.Item]*balance
 
 // Set will set a currency balance, overwriting any previous Balance
-func (c *CurrencyBalances) Set(curr currency.Code, b Balance) { //nolint:gocritic // hugeparam not relevant; we want to store a value so we'd deref anyway
+//
+//nolint:gocritic // Ignoring hugeparam because we want the convenience of all callers passing by value
+//nolint:gocritic // and we want to store a copy anyway so the hugeparam warning that this copies a value is not relevant
+func (c *CurrencyBalances) Set(curr currency.Code, b Balance) {
 	b.Currency = curr
 	(*c)[curr] = b
 }
