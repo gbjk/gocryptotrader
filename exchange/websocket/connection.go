@@ -526,3 +526,11 @@ var _ MessageFilter = AssetFilter(asset.Spot)
 func (a AssetFilter) MatchesSub(s *subscription.Subscription) bool {
 	return s.Asset == asset.Item(a)
 }
+
+type AuthenticatedFilter bool
+
+var _ MessageFilter = AuthenticatedFilter(true)
+
+func (a AuthenticatedFilter) MatchesSub(s *subscription.Subscription) bool {
+	return s.Authenticated == bool(a)
+}

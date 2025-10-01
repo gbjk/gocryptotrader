@@ -379,7 +379,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		},
 		RequestIDGenerator:       e.messageIDSeq.IncrementAndGet,
 		Authenticate:             e.WebsocketAuthenticateTradeConnection,
-		MessageFilter:            OutboundTradeConnection,
+		MessageFilter:            outboundTradeConnection,
 		SubscriptionsNotRequired: true,
 	}); err != nil {
 		return err
@@ -403,7 +403,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		Handler:               e.wsHandleAuthenticatedData,
 		RequestIDGenerator:    e.messageIDSeq.IncrementAndGet,
 		Authenticate:          e.WebsocketAuthenticatePrivateConnection,
-		MessageFilter:         InboundPrivateConnection,
+		MessageFilter:         inboundPrivateConnection,
 	})
 }
 
