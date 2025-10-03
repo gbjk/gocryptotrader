@@ -565,7 +565,6 @@ func (f *FundManager) UpdateFundingFromLiveData(initialFundsSet bool) error {
 		return err
 	}
 	for _, e := range exchanges {
-		eName := e.GetName()
 		for _, a := range e.GetAssetTypes(false) {
 			if a.IsFutures() {
 				// we set all holdings as spot
@@ -578,7 +577,7 @@ func (f *FundManager) UpdateFundingFromLiveData(initialFundsSet bool) error {
 			}
 			for _, subAcct := range subAccts {
 				for _, bal := range subAcct.Balances {
-					if err := f.SetFunding(eName, a, &bal, initialFundsSet); err != nil {
+					if err := f.SetFunding(e.GetName(), a, &bal, initialFundsSet); err != nil {
 						return err
 					}
 				}
