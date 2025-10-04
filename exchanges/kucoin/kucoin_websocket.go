@@ -1089,10 +1089,10 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
+func (e *Exchange) GetSubscriptionTemplate(s *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").
 		Funcs(template.FuncMap{
-			"channelName":           channelName,
+			"channelName":           func(a asset.Item) string { return s.ExchangeChannelName(subscriptionNames, a) },
 			"mergeMarginPairs":      e.mergeMarginPairs,
 			"isCurrencyChannel":     isCurrencyChannel,
 			"isSymbolChannel":       isSymbolChannel,
@@ -1679,21 +1679,6 @@ func (e *Exchange) checkSubscriptions() {
 	}
 }
 
-// channelName returns the correct channel name for the asset
-func channelName(s *subscription.Subscription, a asset.Item) string {
-	if byAsset, hasAsset := subscriptionNames[a]; hasAsset {
-		if name, ok := byAsset[s.Channel]; ok {
-			return name
-		}
-	}
-	if allAssets, hasAll := subscriptionNames[asset.All]; hasAll {
-		if name, ok := allAssets[s.Channel]; ok {
-			return name
-		}
-	}
-	return s.Channel
-}
-
 // mergeMarginPairs merges margin pairs into spot pairs for shared subs (ticker, orderbook, etc) if Spot asset and sub are enabled,
 // because Kucoin errors on duplicate pairs in separate subs, and doesn't have separate subs for spot and margin
 func (e *Exchange) mergeMarginPairs(s *subscription.Subscription, ap map[asset.Item]currency.Pairs) string {
@@ -1739,7 +1724,7 @@ func (e *Exchange) mergeMarginPairs(s *subscription.Subscription, ap map[asset.I
 
 // isSymbolChannel returns if the channel expects receive a symbol
 func isSymbolChannel(s *subscription.Subscription) bool {
-	switch channelName(s, s.Asset) {
+	switch s.ExchangeChannelName(subscriptionNames, s.Asset) {
 	case privateSpotTradeOrders, accountBalanceChannel, marginPositionChannel, spotMarketAdvancedChannel, futuresSystemAnnouncementChannel,
 		futuresTradeOrderChannel, futuresStopOrdersLifecycleEventChannel, futuresAccountBalanceEventChannel:
 		return false
@@ -1753,8 +1738,8 @@ func isCurrencyChannel(s *subscription.Subscription) bool {
 }
 
 // channelInterval returns the channel interval if it has one
-func channelInterval(s *subscription.Subscription) string {
-	if channelName(s, s.Asset) == marketCandlesChannel {
+func channelInterval(s *subscription.Subscription, name string) string {
+	if name == marketCandlesChannel {
 		if i, err := IntervalToString(s.Interval); err == nil {
 			return i
 		}
@@ -1791,13 +1776,13 @@ func joinPairsWithInterval(b currency.Pairs, s *subscription.Subscription) strin
 const subTplText = `
 {{- mergeMarginPairs $.S $.AssetPairs }}
 {{- if isCurrencyChannel $.S }}
-	{{- channelName $.S $.S.Asset -}} : {{- (assetCurrencies $.S $.AssetPairs).Join }}
+	{{- channelName $.S.Asset -}} : {{- (assetCurrencies $.S $.AssetPairs).Join }}
 {{- else if isSymbolChannel $.S }}
 	{{- range $asset, $pairs := $.AssetPairs }}
-		{{- with $name := channelName $.S $asset }}
+		{{- with $name := channelName $asset }}
 			{{- if and (eq $name "/market/ticker") (gt (len $pairs) 10) }}
 				{{- $name -}} :all
-				{{- with $i := channelInterval $.S }}_{{ $i }}{{ end }}
+				{{- with $i := channelInterval $.S $name }}_{{ $i }}{{ end }}
 				{{- $.BatchSize }} {{- len $pairs }}
 			{{- else }}
 				{{- range $b := batch $pairs 100 }}
@@ -1810,6 +1795,6 @@ const subTplText = `
 		{{- $.AssetSeparator }}
 	{{- end }}
 {{- else }}
-	{{- channelName $.S $.S.Asset }}
+	{{- channelName $.S.Asset }}
 {{- end }}
 `
