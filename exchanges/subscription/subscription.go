@@ -174,3 +174,17 @@ func (s *Subscription) AddPairs(pairs ...currency.Pair) {
 	s.Pairs = s.Pairs.Add(pairs...)
 	s.m.Unlock()
 }
+
+func (s *Subscription) ExchangeChannelName(channelNames map[asset.Item]map[string]string, a asset.Item) string {
+	if byAsset, hasAsset := channelNames[a]; hasAsset {
+		if name, ok := byAsset[s.Channel]; ok {
+			return name
+		}
+	}
+	if allAssets, hasAll := channelNames[asset.All]; hasAll {
+		if name, ok := allAssets[s.Channel]; ok {
+			return name
+		}
+	}
+	return s.Channel
+}

@@ -1,6 +1,7 @@
 package subscription
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -138,4 +139,38 @@ func TestAddPairs(t *testing.T) {
 	assert.Empty(t, s.Pairs, "Should not have added any pairs")
 	s.AddPairs(btcusdtPair)
 	assert.Len(t, s.Pairs, 1, "Should not have added any pairs")
+}
+
+// TestExchangeChannelName exercises ExchangeChannelName
+func TestExchangeChannelName(t *testing.T) {
+	t.Parallel()
+	channelNames := map[asset.Item]map[string]string{
+		asset.Spot: {
+			TickerChannel:    "spot_ticker",
+			OrderbookChannel: "spot_orderbook",
+		},
+		asset.Futures: {
+			TickerChannel: "futures_ticker",
+		},
+		asset.All: {
+			CandlesChannel: "all_candles",
+		},
+	}
+	for _, tc := range []struct {
+		channel   string
+		assetType asset.Item
+		exp       string
+	}{
+		{TickerChannel, asset.Spot, "spot_ticker"},
+		{TickerChannel, asset.Futures, "futures_ticker"},
+		{CandlesChannel, asset.Spot, "all_candles"},
+		{MyTradesChannel, asset.Spot, MyTradesChannel},
+	} {
+		name := fmt.Sprintf("%s_%s", tc.channel, tc.assetType)
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			result := (&Subscription{Channel: tc.channel}).ExchangeChannelName(channelNames, tc.assetType)
+			assert.Equal(t, tc.exp, result)
+		})
+	}
 }

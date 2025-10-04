@@ -759,17 +759,7 @@ func channelName(s *subscription.Subscription, a asset.Item) string {
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
 		a = asset.Futures
 	}
-	if byAsset, hasAsset := subscriptionNames[a]; hasAsset {
-		if name, ok := byAsset[s.Channel]; ok {
-			return name
-		}
-	}
-	if allAssets, hasAll := subscriptionNames[asset.All]; hasAll {
-		if name, ok := allAssets[s.Channel]; ok {
-			return name
-		}
-	}
-	return s.Channel
+	return s.ExchangeChannelName(subscriptionNames, a)
 }
 
 // underlyingPairs converts option pairs to unique underlying pairs for underlying option subscriptions
