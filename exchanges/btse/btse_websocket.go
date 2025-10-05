@@ -412,6 +412,7 @@ func (e *Exchange) Unsubscribe(subs subscription.List) error {
 	return err
 }
 
+panic("TODO: finish this work")
 // channelName returns the correct channel name for the asset
 func channelName(s *subscription.Subscription) string {
 	if name, ok := subscriptionNames[s.Channel]; ok {

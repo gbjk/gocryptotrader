@@ -981,13 +981,10 @@ func TestGenerateSubscriptions(t *testing.T) {
 		if !s.Authenticated && s.Channel != subscription.HeartbeatChannel {
 			s.Pairs = pairs
 		}
-		s.QualifiedChannel = channelName(s)
+		var err error
+		s.QualifiedChannel, err = s.ExchangeChannelName(subscriptionNames, s.Asset)
+		require.NoError(t, err)
 		exp = append(exp, s)
 	}
 	testsubs.EqualLists(t, exp, subs)
-	assert.PanicsWithError(t,
-		"subscription channel not supported: wibble",
-		func() { channelName(&subscription.Subscription{Channel: "wibble"}) },
-		"should panic on invalid channel",
-	)
 }

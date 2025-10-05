@@ -1937,7 +1937,9 @@ func TestGenerateSubscriptions(t *testing.T) {
 	for _, s := range e.Features.Subscriptions {
 		if s.Asset == asset.Empty {
 			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
-			s.QualifiedChannel = channelName(s)
+			var err error
+			s.QualifiedChannel, err = channelName(s)
+			require.NoError(t, err)
 			exp = append(exp, s)
 			continue
 		}
@@ -1952,13 +1954,15 @@ func TestGenerateSubscriptions(t *testing.T) {
 			s.Asset = a
 			if isWildcardChannel(s) {
 				s.Pairs = pairs
-				s.QualifiedChannel = channelName(s)
+				s.QualifiedChannel, err = channelName(s)
+				require.NoError(t, err)
 				exp = append(exp, s)
 				continue
 			}
 			for i, p := range pairs {
 				s := s.Clone() //nolint:govet // Intentional lexical scope shadow
-				s.QualifiedChannel = channelName(s, p)
+				s.QualifiedChannel, err = channelName(s, p)
+				require.NoError(t, err)
 				switch s.Channel {
 				case subscription.OrderbookChannel:
 					s.QualifiedChannel += ".step0"
@@ -2026,15 +2030,27 @@ func TestAuthSubscribe(t *testing.T) {
 }
 
 func TestChannelName(t *testing.T) {
-	assert.Equal(t, "market.BTC-USD.kline", channelName(&subscription.Subscription{Channel: subscription.CandlesChannel}, btcusdPair))
-	assert.Equal(t, "trade.clearing#*#1", channelName(&subscription.Subscription{Channel: subscription.MyTradesChannel}, btcusdPair))
-	assert.Panics(t, func() { channelName(&subscription.Subscription{Channel: wsOrderbookChannel}, btcusdPair) })
+	result, err := channelName(&subscription.Subscription{Channel: subscription.CandlesChannel}, btcusdPair)
+	require.NoError(t, err)
+	assert.Equal(t, "market.BTC-USD.kline", result)
+
+	_, err = channelName(&subscription.Subscription{Channel: subscription.CandlesChannel})
+	assert.ErrorIs(t, err, currency.ErrCurrencyPairEmpty)
+
+	result, err = channelName(&subscription.Subscription{Channel: subscription.MyTradesChannel}, btcusdPair)
+	require.NoError(t, err)
+	assert.Equal(t, "trade.clearing#*#1", result)
+
+	_, err = channelName(&subscription.Subscription{Channel: wsOrderbookChannel}, btcusdPair)
+	assert.ErrorIs(t, err, subscription.ErrUseConstChannelName)
 }
 
 func TestIsWildcardChannel(t *testing.T) {
 	assert.False(t, isWildcardChannel(&subscription.Subscription{Channel: subscription.CandlesChannel}))
 	assert.True(t, isWildcardChannel(&subscription.Subscription{Channel: subscription.MyOrdersChannel}))
-	assert.Panics(t, func() { channelName(&subscription.Subscription{Channel: wsOrderbookChannel}) })
+
+	_, err := channelName(&subscription.Subscription{Channel: wsOrderbookChannel})
+	assert.ErrorIs(t, err, subscription.ErrUseConstChannelName)
 }
 
 func TestGetErrResp(t *testing.T) {

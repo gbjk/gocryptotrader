@@ -2312,7 +2312,8 @@ func TestGenerateSubscriptions(t *testing.T) {
 			pairs = common.SortStrings(pairs).Format(currency.PairFormat{Uppercase: true, Delimiter: "_"})
 			s := s.Clone() //nolint:govet // Intentional lexical scope shadow
 			s.Asset = a
-			n := channelName(s, a)
+			n, err := channelName(s, a)
+			require.NoError(t, err, "channelName must not error")
 			if strings.HasPrefix(n, "options.ul_") {
 				var underlyings currency.Pairs
 				for _, p := range pairs {
@@ -2490,7 +2491,8 @@ func TestSubToJson(t *testing.T) {
 			}
 
 			s := tc.s
-			cName := channelName(s, s.Asset)
+			cName, err := channelName(s, s.Asset)
+			require.NoError(t, err, "channelName must not error")
 			pairArg := tc.pairArg
 			if pairArg == nil {
 				pairArg = currency.NewBTCUSDT()

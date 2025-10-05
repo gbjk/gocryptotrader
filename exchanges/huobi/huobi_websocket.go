@@ -64,14 +64,14 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.MyAccountChannel, Authenticated: true},
 }
 
-var subscriptionNames = map[string]string{
-	subscription.TickerChannel:    wsMarketDetailChannel,
-	subscription.CandlesChannel:   wsCandlesChannel,
-	subscription.OrderbookChannel: wsOrderbookChannel,
-	subscription.AllTradesChannel: wsTradesChannel,
-	subscription.MyTradesChannel:  wsMyTradesChannel,
-	subscription.MyOrdersChannel:  wsMyOrdersChannel,
-	subscription.MyAccountChannel: wsMyAccountChannel,
+var subscriptionNames = []subscription.ChannelAsset{
+	{Channel: subscription.TickerChannel, ExchangeChannel: wsMarketDetailChannel},
+	{Channel: subscription.CandlesChannel, ExchangeChannel: wsCandlesChannel},
+	{Channel: subscription.OrderbookChannel, ExchangeChannel: wsOrderbookChannel},
+	{Channel: subscription.AllTradesChannel, ExchangeChannel: wsTradesChannel},
+	{Channel: subscription.MyTradesChannel, ExchangeChannel: wsMyTradesChannel},
+	{Channel: subscription.MyOrdersChannel, ExchangeChannel: wsMyOrdersChannel},
+	{Channel: subscription.MyAccountChannel, ExchangeChannel: wsMyAccountChannel},
 }
 
 // WsConnect initiates a new websocket connection
@@ -682,16 +682,18 @@ func getErrResp(msg []byte) error {
 	return nil
 }
 
-// channelName converts global channel Names used in config of channel input into exchange channel names
-// returns the name unchanged if no match is found
-func channelName(s *subscription.Subscription, p ...currency.Pair) string {
-	if n, ok := subscriptionNames[s.Channel]; ok {
-		if strings.Contains(n, "%s") {
-			return fmt.Sprintf(n, p[0])
-		}
-		return n
+func channelName(s *subscription.Subscription, p ...currency.Pair) (string, error) {
+	n, err := s.ExchangeChannelName(subscriptionNames, s.Asset)
+	if err != nil {
+		return "", err
 	}
-	panic(subscription.ErrUseConstChannelName)
+	if strings.Contains(n, "%s") {
+		if len(p) == 0 {
+            return "", fmt.Errorf("%w: %s", currency.ErrCurrencyPairEmpty, s.Channel)
+		}
+		return fmt.Sprintf(n, p[0]), nil
+	}
+	return n, nil
 }
 
 func isWildcardChannel(s *subscription.Subscription) bool {

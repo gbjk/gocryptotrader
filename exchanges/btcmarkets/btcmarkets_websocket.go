@@ -40,13 +40,13 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: true, Channel: subscription.HeartbeatChannel},
 }
 
-var subscriptionNames = map[string]string{
-	subscription.OrderbookChannel: wsOrderbookUpdate,
-	subscription.TickerChannel:    tick,
-	subscription.AllTradesChannel: tradeEndPoint,
-	subscription.MyOrdersChannel:  orderChange,
-	subscription.MyAccountChannel: fundChange,
-	subscription.HeartbeatChannel: heartbeat,
+var subscriptionNames = []subscription.ChannelAsset{
+	{Channel: subscription.OrderbookChannel, ExchangeChannel: wsOrderbookUpdate},
+	{Channel: subscription.TickerChannel, ExchangeChannel: tick},
+	{Channel: subscription.AllTradesChannel, ExchangeChannel: tradeEndPoint},
+	{Channel: subscription.MyOrdersChannel, ExchangeChannel: orderChange},
+	{Channel: subscription.MyAccountChannel, ExchangeChannel: fundChange},
+	{Channel: subscription.HeartbeatChannel, ExchangeChannel: heartbeat},
 }
 
 // WsConnect connects to a websocket feed
@@ -315,8 +315,10 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 }
 
 // GetSubscriptionTemplate returns a subscription channel template
-func (e *Exchange) GetSubscriptionTemplate(_ *subscription.Subscription) (*template.Template, error) {
-	return template.New("master.tmpl").Funcs(template.FuncMap{"channelName": channelName}).Parse(subTplText)
+func (e *Exchange) GetSubscriptionTemplate(s *subscription.Subscription) (*template.Template, error) {
+	return template.New("master.tmpl").Funcs(template.FuncMap{
+		"channelName": func() (string, error) { return s.ExchangeChannelName(subscriptionNames, s.Asset) },
+	}).Parse(subTplText)
 }
 
 // Subscribe sends a websocket message to receive data from the channel
@@ -441,16 +443,9 @@ func trim(value float64) string {
 	return valstr
 }
 
-func channelName(s *subscription.Subscription) string {
-	if n, ok := subscriptionNames[s.Channel]; ok {
-		return n
-	}
-	panic(fmt.Errorf("%w: %s", subscription.ErrNotSupported, s.Channel))
-}
-
 const subTplText = `
 {{ range $asset, $pairs := $.AssetPairs }}
-	{{- channelName $.S -}}
+	{{- channelName -}}
 	{{ $.AssetSeparator }}
 {{- end }}
 `

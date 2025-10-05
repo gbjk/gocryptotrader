@@ -90,17 +90,13 @@ var (
 	maxWSOrderbookWorkers = 10
 )
 
-var subscriptionNames = map[asset.Item]map[string]string{
-	asset.Futures: {
-		subscription.TickerChannel:    futuresTickerChannel,
-		subscription.OrderbookChannel: futuresOrderbookDepth5Channel, // This does not require a REST request to get the orderbook.
-	},
-	asset.All: {
-		subscription.TickerChannel:    marketTickerChannel,
-		subscription.OrderbookChannel: marketOrderbookDepth5Channel, // This does not require a REST request to get the orderbook.
-		subscription.CandlesChannel:   marketCandlesChannel,
-		subscription.AllTradesChannel: marketMatchChannel,
-	},
+var subscriptionNames = []subscription.ChannelAsset{
+	{Channel: subscription.TickerChannel, Asset: asset.Futures, ExchangeChannel: futuresTickerChannel},
+	{Channel: subscription.OrderbookChannel, Asset: asset.Futures, ExchangeChannel: futuresOrderbookDepth5Channel}, // This does not require a REST request to get the orderbook.
+	{Channel: subscription.TickerChannel, ExchangeChannel: marketTickerChannel},
+	{Channel: subscription.OrderbookChannel, ExchangeChannel: marketOrderbookDepth5Channel}, // This does not require a REST request to get the orderbook.
+	{Channel: subscription.CandlesChannel, ExchangeChannel: marketCandlesChannel},
+	{Channel: subscription.AllTradesChannel, ExchangeChannel: marketMatchChannel},
 }
 
 var defaultSubscriptions = subscription.List{
@@ -1092,7 +1088,7 @@ func (e *Exchange) generateSubscriptions() (subscription.List, error) {
 func (e *Exchange) GetSubscriptionTemplate(s *subscription.Subscription) (*template.Template, error) {
 	return template.New("master.tmpl").
 		Funcs(template.FuncMap{
-			"channelName":           func(a asset.Item) string { return s.ExchangeChannelName(subscriptionNames, a) },
+			"channelName": func(a asset.Item) (string, error) { return s.ExchangeChannelName(subscriptionNames, a) },
 			"mergeMarginPairs":      e.mergeMarginPairs,
 			"isCurrencyChannel":     isCurrencyChannel,
 			"isSymbolChannel":       isSymbolChannel,
@@ -1724,7 +1720,11 @@ func (e *Exchange) mergeMarginPairs(s *subscription.Subscription, ap map[asset.I
 
 // isSymbolChannel returns if the channel expects receive a symbol
 func isSymbolChannel(s *subscription.Subscription) bool {
-	switch s.ExchangeChannelName(subscriptionNames, s.Asset) {
+	channelName, err := s.ExchangeChannelName(subscriptionNames, s.Asset)
+	if err != nil {
+		return true
+	}
+	switch channelName {
 	case privateSpotTradeOrders, accountBalanceChannel, marginPositionChannel, spotMarketAdvancedChannel, futuresSystemAnnouncementChannel,
 		futuresTradeOrderChannel, futuresStopOrdersLifecycleEventChannel, futuresAccountBalanceEventChannel:
 		return false

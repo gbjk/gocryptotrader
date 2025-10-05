@@ -109,7 +109,11 @@ func (c *updateCache) SyncOrderbook(ctx context.Context, e *Exchange, pair curre
 		return fmt.Errorf("no subscription found for %q", wanted)
 	}
 	obParams := make(map[string]string)
-	if err := orderbookPayload(sub, a, channelName(sub, a), obParams); err != nil {
+	cName, err := channelName(sub, a)
+	if err != nil {
+		return err
+	}
+	if err := orderbookPayload(sub, a, cName, obParams); err != nil {
 		return err
 	}
 	var levels uint64

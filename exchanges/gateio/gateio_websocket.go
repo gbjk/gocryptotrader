@@ -86,31 +86,25 @@ var defaultSubscriptions = subscription.List{
 	{Enabled: false, Channel: spotOrderbookChannel, Asset: asset.Spot, Interval: kline.HundredMilliseconds, Levels: 100},
 }
 
-var subscriptionNames = map[asset.Item]map[string]string{
-	asset.Options: {
-		subscription.TickerChannel:    optionsContractTickersChannel,
-		subscription.OrderbookChannel: optionsOrderbookUpdateChannel,
-		subscription.CandlesChannel:   optionsContractCandlesChannel,
-		subscription.AllTradesChannel: optionsTradesChannel,
-		subscription.MyWalletChannel:  optionsBalancesChannel,
-		subscription.MyTradesChannel:  optionsUserTradesChannel,
-	},
-	asset.Spot: {
-		subscription.TickerChannel:    spotTickerChannel,
-		subscription.OrderbookChannel: spotOrderbookUpdateChannel,
-		subscription.CandlesChannel:   spotCandlesticksChannel,
-		subscription.AllTradesChannel: spotTradesChannel,
-		subscription.MyWalletChannel:  spotBalancesChannel,
-		subscription.MyTradesChannel:  spotUserTradesChannel,
-	},
-	asset.Futures: {
-		subscription.TickerChannel:    futuresTickersChannel,
-		subscription.OrderbookChannel: futuresOrderbookUpdateChannel,
-		subscription.CandlesChannel:   futuresCandlesticksChannel,
-		subscription.AllTradesChannel: futuresTradesChannel,
-		subscription.MyWalletChannel:  futuresBalancesChannel,
-		subscription.MyTradesChannel:  futuresUserTradesChannel,
-	},
+var subscriptionNames = []subscription.ChannelAsset{
+	{Channel: subscription.TickerChannel, Asset: asset.Options, ExchangeChannel: optionsContractTickersChannel},
+	{Channel: subscription.OrderbookChannel, Asset: asset.Options, ExchangeChannel: optionsOrderbookUpdateChannel},
+	{Channel: subscription.CandlesChannel, Asset: asset.Options, ExchangeChannel: optionsContractCandlesChannel},
+	{Channel: subscription.AllTradesChannel, Asset: asset.Options, ExchangeChannel: optionsTradesChannel},
+	{Channel: subscription.MyWalletChannel, Asset: asset.Options, ExchangeChannel: optionsBalancesChannel},
+	{Channel: subscription.MyTradesChannel, Asset: asset.Options, ExchangeChannel: optionsUserTradesChannel},
+	{Channel: subscription.TickerChannel, Asset: asset.Spot, ExchangeChannel: spotTickerChannel},
+	{Channel: subscription.OrderbookChannel, Asset: asset.Spot, ExchangeChannel: spotOrderbookUpdateChannel},
+	{Channel: subscription.CandlesChannel, Asset: asset.Spot, ExchangeChannel: spotCandlesticksChannel},
+	{Channel: subscription.AllTradesChannel, Asset: asset.Spot, ExchangeChannel: spotTradesChannel},
+	{Channel: subscription.MyWalletChannel, Asset: asset.Spot, ExchangeChannel: spotBalancesChannel},
+	{Channel: subscription.MyTradesChannel, Asset: asset.Spot, ExchangeChannel: spotUserTradesChannel},
+	{Channel: subscription.TickerChannel, Asset: asset.Futures, ExchangeChannel: futuresTickersChannel},
+	{Channel: subscription.OrderbookChannel, Asset: asset.Futures, ExchangeChannel: futuresOrderbookUpdateChannel},
+	{Channel: subscription.CandlesChannel, Asset: asset.Futures, ExchangeChannel: futuresCandlesticksChannel},
+	{Channel: subscription.AllTradesChannel, Asset: asset.Futures, ExchangeChannel: futuresTradesChannel},
+	{Channel: subscription.MyWalletChannel, Asset: asset.Futures, ExchangeChannel: futuresBalancesChannel},
+	{Channel: subscription.MyTradesChannel, Asset: asset.Futures, ExchangeChannel: futuresUserTradesChannel},
 }
 
 var (
@@ -754,7 +748,7 @@ func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, s
 }
 
 // channelName returns the correct channel name for the asset
-func channelName(s *subscription.Subscription, a asset.Item) string {
+func channelName(s *subscription.Subscription, a asset.Item) (string, error) {
 	switch a {
 	case asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.DeliveryFutures:
 		a = asset.Futures
@@ -828,7 +822,10 @@ func (e *Exchange) getUserID() (string, error) {
 func (e *Exchange) ValidateSubscriptions(l subscription.List) error {
 	orderbookGuard := map[key.PairAsset]string{}
 	for _, s := range l {
-		n := channelName(s, asset.Spot)
+		n, err := channelName(s, asset.Spot)
+		if err != nil {
+			return err
+		}
 		if !isSingleOrderbookChannel(n) {
 			continue
 		}

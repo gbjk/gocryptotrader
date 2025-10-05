@@ -144,33 +144,35 @@ func TestAddPairs(t *testing.T) {
 // TestExchangeChannelName exercises ExchangeChannelName
 func TestExchangeChannelName(t *testing.T) {
 	t.Parallel()
-	channelNames := map[asset.Item]map[string]string{
-		asset.Spot: {
-			TickerChannel:    "spot_ticker",
-			OrderbookChannel: "spot_orderbook",
-		},
-		asset.Futures: {
-			TickerChannel: "futures_ticker",
-		},
-		asset.All: {
-			CandlesChannel: "all_candles",
-		},
+	channelNames := []ChannelAsset{
+		{Channel: TickerChannel, Asset: asset.Spot, ExchangeChannel: "spot_ticker"},
+		{Channel: OrderbookChannel, Asset: asset.Spot, ExchangeChannel: "spot_orderbook"},
+		{Channel: TickerChannel, Asset: asset.Futures, ExchangeChannel: "futures_ticker"},
+		{Channel: CandlesChannel, ExchangeChannel: "all_candles"},
 	}
 	for _, tc := range []struct {
 		channel   string
 		assetType asset.Item
 		exp       string
+		expectErr error
 	}{
-		{TickerChannel, asset.Spot, "spot_ticker"},
-		{TickerChannel, asset.Futures, "futures_ticker"},
-		{CandlesChannel, asset.Spot, "all_candles"},
-		{MyTradesChannel, asset.Spot, MyTradesChannel},
+		{TickerChannel, asset.Spot, "spot_ticker", nil},
+		{TickerChannel, asset.Futures, "futures_ticker", nil},
+		{CandlesChannel, asset.Spot, "all_candles", nil},
+		{MyTradesChannel, asset.Spot, MyTradesChannel, nil},
+		{"spot_ticker", asset.Spot, "", ErrUseConstChannelName},
+		{"all_candles", asset.Futures, "", ErrUseConstChannelName},
 	} {
 		name := fmt.Sprintf("%s_%s", tc.channel, tc.assetType)
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			result := (&Subscription{Channel: tc.channel}).ExchangeChannelName(channelNames, tc.assetType)
-			assert.Equal(t, tc.exp, result)
+			result, err := (&Subscription{Channel: tc.channel}).ExchangeChannelName(channelNames, tc.assetType)
+			if tc.expectErr != nil {
+				assert.ErrorIs(t, err, tc.expectErr)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tc.exp, result)
+			}
 		})
 	}
 }

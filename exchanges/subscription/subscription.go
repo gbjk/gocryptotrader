@@ -54,11 +54,6 @@ var (
 // State tracks the status of a subscription channel
 type State uint8
 
-// ListValidator validates a list of subscriptions, this is optionally handled through expand templates method
-type ListValidator interface {
-	ValidateSubscriptions(List) error
-}
-
 // Subscription container for streaming subscriptions
 type Subscription struct {
 	Enabled          bool           `json:"enabled"`
@@ -73,6 +68,18 @@ type Subscription struct {
 	QualifiedChannel string         `json:"-"`
 	state            State
 	m                sync.RWMutex
+}
+
+// ChannelAsset maps a standard channel name to an exchange-specific channel
+type ChannelAsset struct {
+	Channel         string     // Standard constant channel name (e.g., subscription.TickerChannel)
+	ExchangeChannel string     // Exchange-specific channel name
+	Asset           asset.Item // Asset type (or asset.Empty for all assets)
+}
+
+// ListValidator validates a list of subscriptions, this is optionally handled through expand templates method
+type ListValidator interface {
+	ValidateSubscriptions(List) error
 }
 
 // String implements Stringer, and aims to informatively and uniquely identify a subscription for errors and information
@@ -175,16 +182,32 @@ func (s *Subscription) AddPairs(pairs ...currency.Pair) {
 	s.m.Unlock()
 }
 
-func (s *Subscription) ExchangeChannelName(channelNames map[asset.Item]map[string]string, a asset.Item) string {
-	if byAsset, hasAsset := channelNames[a]; hasAsset {
-		if name, ok := byAsset[s.Channel]; ok {
-			return name
+// ExchangeChannelName returns the exchange specific channel name for a given asset/channel constant
+// If no entry is found for the specific asset, then asset.Empty is checked
+// Returns an error if the channel name sholud have used a standard constant
+// Returns name unchanged if no entry was found
+func (s *Subscription) ExchangeChannelName(channelNames []ChannelAsset, a asset.Item) (string, error) {
+	// Look for Asset specific entry
+	for _, cn := range channelNames {
+		if cn.Asset == a && cn.Channel == s.Channel {
+			return cn.ExchangeChannel, nil
 		}
 	}
-	if allAssets, hasAll := channelNames[asset.All]; hasAll {
-		if name, ok := allAssets[s.Channel]; ok {
-			return name
+
+	// Look for fallback to asset.Empty
+	for _, cn := range channelNames {
+		if cn.Asset == asset.Empty && cn.Channel == s.Channel {
+			return cn.ExchangeChannel, nil
 		}
 	}
-	return s.Channel
+
+	// Check if s.Channel should be a constant
+	for _, cn := range channelNames {
+		if (cn.Asset == a || cn.Asset == asset.Empty) && cn.ExchangeChannel == s.Channel && s.Channel != cn.Channel {
+			return "", ErrUseConstChannelName
+		}
+	}
+
+	// Otherwise return original channel name
+	return s.Channel, nil
 }
