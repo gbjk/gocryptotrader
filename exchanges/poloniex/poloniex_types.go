@@ -35,11 +35,20 @@ func (t timeInForce) MarshalText() ([]byte, error) {
 func (o orderType) MarshalText() ([]byte, error) {
 	t := order.Type(o)
 	switch t {
+	case order.Market:
+		return []byte("MARKET"), nil
+	case order.Limit:
+		return []byte("LIMIT"), nil
+	case order.LimitMaker:
+		return []byte("LIMIT_MAKER"), nil
+	case order.Stop:
+		return []byte("STOP"), nil
 	case order.StopLimit:
 		return []byte("STOP_LIMIT"), nil
-	case order.Market, order.Limit, order.LimitMaker,
-		order.Stop, order.TrailingStop, order.TrailingStopLimit:
-		return []byte(t.String()), nil
+	case order.TrailingStop:
+		return []byte("TRAILING_STOP"), nil
+	case order.TrailingStopLimit:
+		return []byte("TRAILING_STOP_LIMIT"), nil
 	case order.AnyType, order.UnknownType:
 		return nil, nil
 	}
@@ -534,27 +543,10 @@ type MaxBuySellAmount struct {
 
 // PlaceOrderRequest represents place order parameters.
 type PlaceOrderRequest struct {
-	Symbol      currency.Pair `json:"symbol"`
-	Side        string        `json:"side"`
-	Type        orderType     `json:"type,omitempty"`
-	AccountType string        `json:"accountType,omitempty"`
-
-	// Quantity Base units for the order. Quantity is required for MARKET SELL or any LIMIT orders
-	Quantity float64 `json:"quantity,omitempty,string"`
-
-	// Amount Quote units for the order. Amount is required for MARKET BUY order
-	Amount float64 `json:"amount,omitempty,string"`
-
-	// Price is required for non-market orders
-	Price float64 `json:"price,omitempty,string"`
-
-	TimeInForce   timeInForce `json:"timeInForce,omitempty"` // GTC, IOC, FOK (Default: GTC)
-	ClientOrderID string      `json:"clientOrderId,omitempty"`
-
-	AllowBorrow bool   `json:"allowBorrow,omitempty"`
-	STPMode     string `json:"stpMode,omitempty"` // self-trade prevention. Defaults to EXPIRE_TAKER. None: enable self-trade; EXPIRE_TAKER: Taker order will be canceled when self-trade happens
-
-	SlippageTolerance string `json:"slippageTolerance,omitempty"` // Used to control the maximum slippage ratio, the value range is greater than 0 and less than 1
+	*TradeOrder
+	AllowBorrow             bool   `json:"allowBorrow,omitempty"`
+	SelfTradePreventionMode string `json:"stpMode,omitempty"`           // Defaults to EXPIRE_TAKER. Empty: enable self-trade; EXPIRE_TAKER: Taker order will be canceled when self-trade happens
+	SlippageTolerance       string `json:"slippageTolerance,omitempty"` // Used to control the maximum slippage ratio, the value range is greater than 0 and less than 1
 }
 
 // PlaceOrderResponse represents a response structure for placing order.
@@ -615,45 +607,36 @@ type OrdersHistoryRequest struct {
 	HideCancel  bool
 }
 
-// TradeOrder represents a trade order instance.
+// TradeOrder represents a trade order
 type TradeOrder struct {
-	ID             string            `json:"id"`
-	ClientOrderID  string            `json:"clientOrderId"`
-	Symbol         string            `json:"symbol"`
-	State          string            `json:"state"`
-	AccountType    string            `json:"accountType"`
-	Side           string            `json:"side"`
-	Type           string            `json:"type"`
-	TimeInForce    order.TimeInForce `json:"timeInForce"`
-	Quantity       types.Number      `json:"quantity"`
-	Price          types.Number      `json:"price"`
-	AveragePrice   types.Number      `json:"avgPrice"`
-	Amount         types.Number      `json:"amount"`
-	FilledQuantity types.Number      `json:"filledQuantity"`
-	FilledAmount   types.Number      `json:"filledAmount"`
-	CreateTime     types.Time        `json:"createTime"`
-	UpdateTime     types.Time        `json:"updateTime"`
-	OrderSource    string            `json:"orderSource"`
-	Loan           bool              `json:"loan"`
-	CancelReason   int64             `json:"cancelReason"`
+	ID             string        `json:"id"`
+	ClientOrderID  string        `json:"clientOrderId,omitempty"`
+	Symbol         currency.Pair `json:"symbol"`
+	State          string        `json:"state"`
+	AccountType    accountType   `json:"accountType,omitempty"`
+	Side           order.Side    `json:"side"`
+	Type           orderType     `json:"type,omitempty"`
+	TimeInForce    timeInForce   `json:"timeInForce,omitempty"`
+	Quantity       types.Number  `json:"quantity,omitempty,string"`
+	Price          types.Number  `json:"price,omitempty,string"` // Price is required for non-market orders
+	AveragePrice   types.Number  `json:"avgPrice"`
+	Amount         types.Number  `json:"amount,omitempty,string"`
+	FilledQuantity types.Number  `json:"filledQuantity"`
+	FilledAmount   types.Number  `json:"filledAmount"`
+	CreateTime     types.Time    `json:"createTime"`
+	UpdateTime     types.Time    `json:"updateTime"`
+	OrderSource    string        `json:"orderSource"`
+	Loan           bool          `json:"loan"`
+	CancelReason   int64         `json:"cancelReason"`
 }
 
 // SmartOrder represents a smart order detail.
 type SmartOrder struct {
-	ID            string            `json:"id"`
-	ClientOrderID string            `json:"clientOrderId"`
-	Symbol        string            `json:"symbol"`
-	State         string            `json:"state"`
-	AccountType   string            `json:"accountType"`
-	Side          string            `json:"side"`
-	Type          string            `json:"type"`
-	TimeInForce   order.TimeInForce `json:"timeInForce"`
-	Quantity      types.Number      `json:"quantity"`
-	Price         types.Number      `json:"price"`
-	Amount        types.Number      `json:"amount"`
-	StopPrice     types.Number      `json:"stopPrice"`
-	CreateTime    types.Time        `json:"createTime"`
-	UpdateTime    types.Time        `json:"updateTime"`
+	StopPrice      types.Number `json:"stopPrice,omitempty,string"`
+	TrailingOffset string       `json:"trailingOffset,omitempty"` // Append % to trail percentage
+	LimitOffset    string       `json:"limitOffset,omitempty"`    // When trigger price is reached a limit order is placed. Append % for percentage
+	Operator       string       `json:"operator,omitempty"`       // Direction for TRAILING_STOP orders; Allowed values: `GTE` for >= or `LTE` for <=
+	*TradeOrder
 }
 
 // CancelOrderResponse represents a cancel order response instance.
@@ -682,23 +665,6 @@ type CancelOrdersRequest struct {
 type KillSwitchStatus struct {
 	StartTime        types.Time `json:"startTime"`
 	CancellationTime types.Time `json:"cancellationTime"`
-}
-
-// SmartOrderRequestRequest represents a smart trade order parameters
-type SmartOrderRequestRequest struct {
-	Symbol         currency.Pair `json:"symbol"`
-	Side           order.Side    `json:"side"`
-	TimeInForce    timeInForce   `json:"timeInForce,omitempty"`
-	AccountType    accountType   `json:"accountType,omitempty"`
-	Type           string        `json:"type,omitempty"`
-	Price          float64       `json:"price,omitempty,string"`
-	StopPrice      float64       `json:"stopPrice,omitempty,string"`
-	Quantity       float64       `json:"quantity,omitempty,string"`
-	Amount         float64       `json:"amount,omitempty,string"`
-	ClientOrderID  string        `json:"clientOrderId,omitempty"`
-	TrailingOffset string        `json:"trailingOffset,omitempty"` // trailing stop price offset (Suffix with%, to trailing the proportion, without%, to trailing the price distance)
-	LimitOffset    string        `json:"limitOffset,omitempty"`    // When the order is triggered, the order is issued with a limit order based on the offset of the market price. ( Suffix with%, to limit the proportion, without%, to limit the price distance)
-	Operator       string        `json:"operator,omitempty"`       // Activation the price operator when orderType is TRAILING_STOP or TRAILING_STOP_LIMIT. Possible values are: GTE - Greater than or equal and LTE - Less than or equal
 }
 
 // CancelReplaceSmartOrderRequest represents a cancellation and order replacement request parameter for smart orders.

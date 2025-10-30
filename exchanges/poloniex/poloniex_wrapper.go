@@ -674,89 +674,56 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 	if err != nil {
 		return nil, err
 	}
-	oTypeString, err := orderTypeString(s.Type)
-	if err != nil {
-		return nil, err
+	var stpMode string
+	switch s.TimeInForce {
+	case order.PostOnly:
+		stpMode = "EXPIRE_MAKER"
+	case order.GoodTillCancel:
+		stpMode = "EXPIRE_TAKER"
 	}
+	o := &TradeOrder{
+		ClientOrderID: s.ClientOrderID,
+		Symbol:        s.Pair,
+		Type:          orderType(s.Type),
+		Side:          s.Side,
+		AccountType:   accountType(s.AssetType),
+		Price:         types.Number(s.Price),
+		Quantity:      types.Number(s.Amount),
+		TimeInForce:   timeInForce(s.TimeInForce),
+	}
+	var resp *PlaceOrderResponse
 	switch s.AssetType {
 	case asset.Spot:
-		var smartOrder bool
 		switch s.Type {
 		case order.Stop, order.StopLimit, order.TrailingStop:
-			smartOrder = true
-		}
-		if smartOrder {
-			sOrder, err := e.CreateSmartOrder(ctx, &SmartOrderRequestRequest{
-				Symbol:        s.Pair,
-				Type:          oTypeString,
-				Side:          s.Side,
-				AccountType:   accountType(s.AssetType),
-				Price:         s.Price,
-				StopPrice:     s.TriggerPrice,
-				Quantity:      s.Amount,
-				ClientOrderID: s.ClientOrderID,
-				TimeInForce:   timeInForce(s.TimeInForce),
+			resp, err = e.CreateSmartOrder(ctx, &SmartOrder{
+				TradeOrder: o,
+				StopPrice:  types.Number(s.TriggerPrice),
 			})
-			if err != nil {
-				return nil, err
-			}
-			return s.DeriveSubmitResponse(sOrder.ID)
+		default:
+			resp, err = e.PlaceOrder(ctx, &PlaceOrderRequest{
+				TradeOrder:              o,
+				AllowBorrow:             false,
+				SlippageTolerance:       "0",
+				SelfTradePreventionMode: stpMode,
+			})
 		}
-		response, err := e.PlaceOrder(ctx, &PlaceOrderRequest{
-			Symbol:        s.Pair,
-			Price:         s.Price,
-			Amount:        s.Amount,
-			AllowBorrow:   false,
-			Type:          orderType(s.Type),
-			Side:          s.Side.String(),
-			TimeInForce:   timeInForce(s.TimeInForce),
-			ClientOrderID: s.ClientOrderID,
-		})
-		if err != nil {
-			return nil, err
-		}
-		return s.DeriveSubmitResponse(response.ID)
 	case asset.Futures:
-		side := "BUY"
-		positionSide := "LONG"
-		if s.Side.IsShort() {
-			side = "SELL"
-			positionSide = "SHORT"
-		}
-		var marginMode string
-		switch s.MarginType {
-		case margin.Multi:
-			marginMode = "CROSS"
-		case margin.Isolated:
-			marginMode = "ISOLATED"
-		}
-		var stpMode string
-		switch s.TimeInForce {
-		case order.PostOnly:
-			stpMode = "EXPIRE_MAKER"
-		case order.GoodTillCancel:
-			stpMode = "EXPIRE_TAKER"
-		}
-		response, err := e.PlaceFuturesOrder(ctx, &FuturesOrderRequest{
-			ClientOrderID:           s.ClientOrderID,
-			Side:                    side,
-			PositionSide:            positionSide,
-			Symbol:                  s.Pair.String(),
-			OrderType:               oTypeString,
+		resp, err = e.PlaceFuturesOrder(ctx, &FuturesOrderRequest{
+			TradeOrder:              o,
+			PositionSide:            s.Side.Position(),
 			ReduceOnly:              s.ReduceOnly,
-			TimeInForce:             timeInForce(s.TimeInForce),
-			Price:                   s.Price,
 			Size:                    s.Amount,
-			MarginMode:              marginMode,
+			MarginMode:              marginMode(s.MarginType),
 			SelfTradePreventionMode: stpMode,
 		})
-		if err != nil {
-			return nil, err
-		}
-		return s.DeriveSubmitResponse(response.OrderID)
 	default:
 		return nil, fmt.Errorf("%w: %q", asset.ErrNotSupported, s.AssetType)
 	}
+	if err != nil {
+		return nil, err
+	}
+	return s.DeriveSubmitResponse(resp.ID)
 }
 
 // ModifyOrder modifies an existing order
@@ -1967,54 +1934,4 @@ func (e *Exchange) WebsocketCancelOrder(ctx context.Context, req *order.Cancel) 
 		return fmt.Errorf("%w: code: %d message: %s", common.ErrInvalidResponse, resp[0].Code, resp[0].Message)
 	}
 	return nil
-}
-
-// orderTypeString return a string representation of order type
-func orderTypeString(oType order.Type) (string, error) {
-	switch oType {
-	case order.Market, order.Limit, order.LimitMaker:
-		return oType.String(), nil
-	case order.StopLimit:
-		return "STOP_LIMIT", nil
-	case order.TrailingStopLimit:
-		return "TRAILING_STOP_LIMIT", nil
-	case order.AnyType, order.UnknownType:
-		return "", nil
-	}
-	return "", fmt.Errorf("%w: %q", order.ErrUnsupportedOrderType, oType)
-}
-
-// StringToOrderType returns an order.Type instance from string
-func StringToOrderType(oTypeString string) order.Type {
-	switch strings.ToUpper(oTypeString) {
-	case "STOP":
-		return order.Stop
-	case "STOP_LIMIT":
-		return order.StopLimit
-	case "TRAILING_STOP":
-		return order.TrailingStop
-	case "TRAILING_STOP_LIMIT":
-		return order.TrailingStopLimit
-	case "MARKET":
-		return order.Market
-	case "LIMIT_MAKER":
-		return order.LimitMaker
-	default:
-		return order.Limit
-	}
-}
-
-// timeInForceString return a string representation of time-in-force value
-func timeInForceString(tif order.TimeInForce) (string, error) {
-	switch {
-	case tif.Is(order.GoodTillCancel):
-		return order.GoodTillCancel.String(), nil
-	case tif.Is(order.FillOrKill):
-		return order.FillOrKill.String(), nil
-	case tif.Is(order.ImmediateOrCancel):
-		return order.ImmediateOrCancel.String(), nil
-	case tif == order.UnknownTIF:
-		return "", nil
-	}
-	return "", fmt.Errorf("%w: TimeInForce value %v is not supported", order.ErrInvalidTimeInForce, tif)
 }

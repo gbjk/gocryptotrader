@@ -1,8 +1,11 @@
 package poloniex
 
 import (
+	"fmt"
+
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
@@ -59,19 +62,26 @@ type BillDetails struct {
 	Size         types.Number  `json:"sz"`
 }
 
+type marginMode margin.Type
+
+func (m marginMode) MarshalText() ([]byte, error) {
+	switch margin.Type(m) {
+	case margin.Multi:
+		return []byte("CROSS"), nil
+	case margin.Isolated:
+		return []byte("ISOLATED"), nil
+	}
+	return nil, fmt.Errorf("%w: %q", margin.ErrMarginTypeUnsupported, m)
+}
+
 // FuturesOrderRequest represents a futures order parameters
 type FuturesOrderRequest struct {
-	Symbol                  string      `json:"symbol"`
-	Side                    string      `json:"side"`
-	MarginMode              string      `json:"mgnMode"`
-	PositionSide            string      `json:"posSide"`
-	OrderType               string      `json:"type,omitempty"`
-	ClientOrderID           string      `json:"clOrdId,omitempty"`
-	Price                   float64     `json:"px,omitempty,string"`
-	Size                    float64     `json:"sz,omitempty,string"`
-	ReduceOnly              bool        `json:"reduceOnly,omitempty"`
-	TimeInForce             timeInForce `json:"timeInForce,omitempty"`
-	SelfTradePreventionMode string      `json:"stpMode,omitempty"`
+	*TradeOrder
+	MarginMode              marginMode `json:"mgnMode"`
+	PositionSide            order.Side `json:"posSide"`
+	Size                    float64    `json:"sz,omitempty,string"`
+	ReduceOnly              bool       `json:"reduceOnly,omitempty"`
+	SelfTradePreventionMode string     `json:"stpMode,omitempty"`
 }
 
 // FuturesOrderIDResponse represents a futures order creation response

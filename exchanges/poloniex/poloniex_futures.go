@@ -61,7 +61,7 @@ func (e *Exchange) GetAccountBills(ctx context.Context, startTime, endTime time.
 }
 
 // PlaceFuturesOrder place an order in futures trading.
-func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *FuturesOrderRequest) (*FuturesOrderIDResponse, error) {
+func (e *Exchange) PlaceFuturesOrder(ctx context.Context, arg *FuturesOrderRequest) (*PlaceOrderResponse, error) {
 	if arg.Symbol == "" {
 		return nil, currency.ErrSymbolStringEmpty
 	}
