@@ -1,6 +1,7 @@
 package order
 
 import (
+	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/signal"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -52,13 +53,8 @@ func (o *Order) GetStatus() order.Status {
 	return o.Status
 }
 
-// SetID sets the order id
-func (o *Order) SetID(id string) {
-	o.ID = id
-}
-
 // GetID returns the ID
-func (o *Order) GetID() string {
+func (o *Order) GetID() uuid.UUID {
 	return o.ID
 }
 

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -39,6 +40,7 @@ var (
 // Event interface implements required GetTime() & Pair() return
 type Event interface {
 	GetBase() *event.Base
+	GetID() uuid.UUID
 	GetOffset() int64
 	SetOffset(int64)
 	IsEvent() bool

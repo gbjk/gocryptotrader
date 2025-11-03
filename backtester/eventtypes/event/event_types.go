@@ -3,6 +3,7 @@ package event
 import (
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -13,6 +14,7 @@ import (
 // consistent information
 type Base struct {
 	Offset         int64          `json:"-"`
+	ID             uuid.UUID      `json:"id"`
 	Exchange       string         `json:"exchange"`
 	Time           time.Time      `json:"timestamp"`
 	Interval       kline.Interval `json:"interval-size"`

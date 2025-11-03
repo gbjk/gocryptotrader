@@ -50,6 +50,10 @@ func TestLoad(t *testing.T) {
 	}
 	err = d.Load()
 	assert.NoError(t, err)
+
+	k, err := d.Latest()
+	require.NoError(t, err, "Latest must not error")
+	assert.NotEmpty(t, k.GetID(), "kline should set ID")
 }
 
 func TestHasDataAtTime(t *testing.T) {

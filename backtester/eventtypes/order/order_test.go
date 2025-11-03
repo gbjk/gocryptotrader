@@ -53,17 +53,6 @@ func TestIsEmpty(t *testing.T) {
 	}
 }
 
-func TestSetID(t *testing.T) {
-	t.Parallel()
-	o := Order{
-		ID: "decimal.NewFromInt(1337)",
-	}
-	o.SetID("1338")
-	if o.GetID() != "1338" {
-		t.Error("expected 1338")
-	}
-}
-
 func TestLeverage(t *testing.T) {
 	t.Parallel()
 	o := Order{

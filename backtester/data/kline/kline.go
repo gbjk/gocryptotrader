@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
 	"github.com/thrasher-corp/gocryptotrader/backtester/eventtypes/event"
@@ -55,6 +56,7 @@ func (d *DataFromKline) Load() error {
 	for i := range d.Item.Candles {
 		newKline := &kline.Kline{
 			Base: &event.Base{
+				ID:             uuid.Must(uuid.NewV7()),
 				Offset:         int64(i + 1),
 				Exchange:       d.Item.Exchange,
 				Time:           d.Item.Candles[i].Time.UTC(),
@@ -107,6 +109,7 @@ candleLoop:
 		d.Item.Candles = append(d.Item.Candles, gctCandles[i])
 		newKline := &kline.Kline{
 			Base: &event.Base{
+				ID:             uuid.Must(uuid.NewV7()),
 				Exchange:       d.Item.Exchange,
 				Interval:       d.Item.Interval,
 				CurrencyPair:   d.Item.Pair,

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
@@ -43,6 +44,11 @@ func (b *Base) GetUnderlyingPair() currency.Pair {
 // GetExchange returns the exchange
 func (b *Base) GetExchange() string {
 	return strings.ToLower(b.Exchange)
+}
+
+// GetID returns the exchange
+func (b *Base) GetID() uuid.UUID {
+	return b.ID
 }
 
 // GetAssetType returns the asset type

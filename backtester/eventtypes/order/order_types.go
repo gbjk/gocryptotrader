@@ -11,7 +11,6 @@ import (
 // Order contains all details for an order event
 type Order struct {
 	*event.Base
-	ID                  string
 	Direction           order.Side
 	Status              order.Status
 	ClosePrice          decimal.Decimal
@@ -37,8 +36,6 @@ type Event interface {
 	GetAmount() decimal.Decimal
 	IsOrder() bool
 	GetStatus() order.Status
-	SetID(id string)
-	GetID() string
 	IsLeveraged() bool
 	GetAllocatedFunds() decimal.Decimal
 	GetFillDependentEvent() signal.Event

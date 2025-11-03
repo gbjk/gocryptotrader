@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/shopspring/decimal"
 	"github.com/thrasher-corp/gocryptotrader/backtester/common"
 	"github.com/thrasher-corp/gocryptotrader/backtester/data"
@@ -518,6 +519,7 @@ func (p *Portfolio) CreateLiquidationOrdersForExchange(ev data.Event, funds fund
 			}
 			closingOrders = append(closingOrders, &order.Order{
 				Base: &event.Base{
+					ID:             uuid.Must(uuid.NewV7()),
 					Offset:         ev.GetOffset(),
 					Exchange:       pos.Exchange,
 					Time:           ev.GetTime(),
@@ -552,6 +554,7 @@ func (p *Portfolio) CreateLiquidationOrdersForExchange(ev data.Event, funds fund
 				cp := currency.NewPair(mapKey.Base.Currency(), mapKey.Quote.Currency())
 				closingOrders = append(closingOrders, &order.Order{
 					Base: &event.Base{
+						ID:           uuid.Must(uuid.NewV7()),
 						Offset:       ev.GetOffset(),
 						Exchange:     ev.GetExchange(),
 						Time:         ev.GetTime(),

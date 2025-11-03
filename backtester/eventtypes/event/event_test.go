@@ -5,10 +5,20 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofrs/uuid"
+	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	gctkline "github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 )
+
+func TestGetID(t *testing.T) {
+	t.Parallel()
+	b := &Base{
+		ID: uuid.Must(uuid.NewV7()),
+	}
+	require.NotEmpty(t, b.GetID())
+}
 
 func TestGetConcatReasons(t *testing.T) {
 	t.Parallel()
