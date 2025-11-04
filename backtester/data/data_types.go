@@ -52,6 +52,7 @@ type Loader interface {
 // Streamer interface handles loading, parsing, distributing BackTest Data
 type Streamer interface {
 	Next() (Event, error)
+	Previous(Event) (Event, error)
 	GetStream() (Events, error)
 	History() (Events, error)
 	Latest() (Event, error)
