@@ -1,7 +1,6 @@
 package data
 
 import (
-	"errors"
 	"sync"
 	"time"
 
@@ -10,20 +9,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
-)
-
-var (
-	// ErrHandlerNotFound returned when a handler is not found for specified exchange, asset, pair
-	ErrHandlerNotFound = errors.New("handler not found")
-	// ErrInvalidEventSupplied returned when a bad event is supplied
-	ErrInvalidEventSupplied = errors.New("invalid event supplied")
-	// ErrEmptySlice is returned when the supplied slice is nil or empty
-	ErrEmptySlice = errors.New("empty slice")
-	// ErrEndOfData is returned when attempting to load the next offset when there is no more
-	ErrEndOfData = errors.New("no more data to retrieve")
-
-	errNothingToAdd    = errors.New("cannot append empty event to stream")
-	errMismatchedEvent = errors.New("cannot add event to stream, does not match")
 )
 
 // HandlerHolder stores an event handler per exchange asset pair

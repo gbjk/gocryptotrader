@@ -1,6 +1,7 @@
 package data
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -10,6 +11,17 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+)
+
+// Public errors
+var (
+	ErrHandlerNotFound      = errors.New("handler not found")
+	ErrInvalidEventSupplied = errors.New("invalid event supplied")
+	ErrEmptySlice           = errors.New("empty slice")
+	ErrEndOfData            = errors.New("no more data to retrieve")
+	ErrNoPrevEvent          = errors.New("no previous event found")
+	errNothingToAdd         = errors.New("cannot append empty event to stream")
+	errMismatchedEvent      = errors.New("cannot add event to stream, does not match")
 )
 
 // NewHandlerHolder returns a new HandlerHolder
