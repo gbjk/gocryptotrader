@@ -258,6 +258,44 @@ func TestNext(t *testing.T) {
 	assert.ErrorIs(t, err, gctcommon.ErrNilPointer)
 }
 
+func TestPrevious(t *testing.T) {
+	t.Parallel()
+
+	_, err := (*Base)(nil).Previous(nil)
+	require.ErrorContains(t, err, "nil pointer: *data.Base, nil pointer: <nil>")
+
+	b := &Base{}
+	cp := currency.NewBTCUSD()
+	err = b.SetStream([]Event{
+		&fakeEvent{
+			Base: &event.Base{
+				Offset:       2048,
+				Time:         time.Now(),
+				Exchange:     "test",
+				AssetType:    asset.Spot,
+				CurrencyPair: cp,
+			},
+		},
+		&fakeEvent{
+			Base: &event.Base{
+				Offset:       1337,
+				Time:         time.Now().Add(-time.Hour),
+				Exchange:     "test",
+				AssetType:    asset.Spot,
+				CurrencyPair: cp,
+			},
+		},
+	})
+	require.NoError(t, err, "SetStream must not error")
+
+	_, err = b.Previous(b.stream[0])
+	require.ErrorIs(t, err, ErrNoPrevEvent)
+
+	e, err := b.Previous(b.stream[1])
+	require.NoError(t, err)
+	assert.Equal(t, b.stream[0], e, "Previous should return correct Event")
+}
+
 func TestHistory(t *testing.T) {
 	t.Parallel()
 	b := &Base{}

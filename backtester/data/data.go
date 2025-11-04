@@ -233,6 +233,21 @@ func (b *Base) Next() (Event, error) {
 	return ret, nil
 }
 
+// Previous will return the next event in the list and also shift the offset one
+func (b *Base) Previous(e Event) (Event, error) {
+	if err := gctcommon.NilGuard(b, e); err != nil {
+		return nil, err
+	}
+	b.m.Lock()
+	defer b.m.Unlock()
+	for i := len(b.stream) - 1; i >= 0; i-- {
+		if e == b.stream[i] && i >= 1 {
+			return b.stream[i-1], nil
+		}
+	}
+	return nil, ErrNoPrevEvent
+}
+
 // History will return all previous Data events that have happened
 func (b *Base) History() (Events, error) {
 	if b == nil {
