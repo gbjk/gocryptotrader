@@ -43,6 +43,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
@@ -393,8 +394,7 @@ func (s *RPCServer) GetExchangeInfo(_ context.Context, r *gctrpc.GenericExchange
 	return resp, nil
 }
 
-// GetTicker returns the ticker for a specified exchange, currency pair and
-// asset type
+// GetTicker returns the ticker for a specified exchange, currency pair and asset type
 func (s *RPCServer) GetTicker(_ context.Context, r *gctrpc.GetTickerRequest) (*gctrpc.TickerResponse, error) {
 	a, err := asset.New(r.AssetType)
 	if err != nil {
@@ -2314,6 +2314,82 @@ func (s *RPCServer) GetAuditEvent(_ context.Context, r *gctrpc.GetAuditEventRequ
 	}
 
 	return &resp, nil
+}
+
+// StreamCandles streams candles for an exchange
+func (s *RPCServer) StreamCandles(r *gctrpc.StreamCandlesRequest, stream gctrpc.GoCryptoTraderService_StreamCandlesServer) error {
+	if r.Exchange == "" {
+		return common.ErrExchangeNameNotSet
+	}
+
+	e, err := s.GetExchangeByName(r.Exchange)
+	if err != nil {
+		return err
+	}
+
+	a, err := asset.New(r.AssetType)
+	if err != nil {
+		return err
+	}
+
+	if r.Pair.String() == "" {
+		return errCurrencyPairUnset
+	}
+
+	if r.AssetType == "" {
+		return errAssetTypeUnset
+	}
+
+	p, err := currency.NewPairFromStrings(r.Pair.Base, r.Pair.Quote)
+	if err != nil {
+		return err
+	}
+
+	sub := &subscription.Subscription{
+		Channel:  subscription.CandlesChannel,
+		Asset:    a,
+		Pairs:    currency.Pairs{p},
+		Interval: kline.Interval(r.Interval),
+	}
+
+	if err := s.Engine.RegisterWebsocketDataHandler(
+		func(_ string, msg any) error {
+			i, ok := msg.(kline.Item)
+			if !ok || i.Exchange != r.Exchange || i.Pair != p || i.Asset != a || i.Interval != sub.Interval {
+				return nil
+			}
+			for _, c := range i.Candles {
+				if err := stream.Send(&gctrpc.Candle{
+					Time:      c.Time.UTC().Format(common.SimpleTimeFormatWithTimezone),
+					Low:       c.Low,
+					High:      c.High,
+					Open:      c.Open,
+					Close:     c.Close,
+					Volume:    c.Volume,
+					IsPartial: c.ValidationIssues != "",
+				}); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+		false,
+	); err != nil {
+		return err
+	}
+
+	if err := e.SubscribeToWebsocketChannels(subscription.List{sub}); err != nil {
+		return err
+	}
+	ctx := stream.Context()
+
+	<-ctx.Done()
+
+	if err := e.UnsubscribeToWebsocketChannels(subscription.List{sub}); err != nil {
+		return err
+	}
+
+	return ctx.Err()
 }
 
 // GetHistoricCandles returns historical candles for a given exchange

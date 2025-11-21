@@ -35,6 +35,7 @@ import (
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
+	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
@@ -46,12 +47,14 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/subscription"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/gctrpc"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/banking"
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/goose"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -60,6 +63,7 @@ const (
 	migrationsFolder      = "migrations"
 	databaseFolder        = "database"
 	fakeExchangeName      = "fake"
+	testExchange2         = "Binance"
 )
 
 var errExpectedTestError = errors.New("expected test error")
@@ -68,6 +72,11 @@ var errExpectedTestError = errors.New("expected test error")
 // we're not testing an actual exchange's implemented functions
 type fExchange struct {
 	exchange.IBotExchange
+}
+
+func (f fExchange) SetDefaults() {
+	f.IBotExchange.SetDefaults()
+	f.GetBase().Name = fakeExchangeName
 }
 
 func (f fExchange) GetFuturesPositionSummary(context.Context, *futures.PositionSummaryRequest) (*futures.PositionSummary, error) {
@@ -247,6 +256,60 @@ func generateCandles(amount int, timeStart time.Time, interval kline.Interval) [
 		timeStart = timeStart.Add(interval.Duration())
 	}
 	return candy
+}
+
+func (f fExchange) SubscribeToWebsocketChannels(subs subscription.List) error {
+	w, err := f.GetWebsocket()
+	if err != nil {
+		return err
+	}
+	for _, s := range subs {
+		switch s.Channel {
+		case subscription.CandlesChannel:
+			if len(s.Pairs) != 1 {
+				return subscription.ErrNotSinglePair
+			}
+			//nolint:gosec // G404 weak rand generator okay for candles in a test
+			go func() {
+				eName := f.GetName()
+				if _, ok := s.Params["switch-exchange"]; ok {
+					eName = "canary-exchange"
+				}
+				c, o := 10.0, 10.0
+				if s.QualifiedChannel == "canary" {
+					c, o = 100000, 10000
+				}
+				for {
+					o, c = c, o+(rand.Float64()*2-1)
+					w.DataHandler <- websocket.KlineData{
+						Exchange:   eName,
+						Pair:       s.Pairs[0],
+						AssetType:  s.Asset,
+						StartTime:  time.Now(),
+						CloseTime:  time.Now().Add(s.Interval.Duration()),
+						Interval:   s.Interval.Short(),
+						OpenPrice:  o,
+						HighPrice:  c + rand.Float64(),
+						LowPrice:   c - rand.Float64(),
+						ClosePrice: c,
+						Volume:     rand.Float64() * 5,
+					}
+					time.Sleep(time.Millisecond)
+				}
+			}()
+		case subscription.TickerChannel:
+			go func() {
+				for {
+					w.DataHandler <- &ticker.Price{}
+					time.Sleep(time.Millisecond)
+				}
+			}()
+		default:
+			return subscription.ErrNotSupported
+		}
+	}
+
+	return nil
 }
 
 func (f fExchange) GetHistoricCandlesExtended(_ context.Context, p currency.Pair, a asset.Item, interval kline.Interval, timeStart, _ time.Time) (*kline.Item, error) {
@@ -443,13 +506,11 @@ func RPCTestSetup(t *testing.T) *Engine {
 			Database: "test123.db",
 		},
 	}
-	engerino := new(Engine)
 	dbm, err := SetupDatabaseConnectionManager(&dbConf)
 	if err != nil {
 		t.Fatal(err)
 	}
 	dbm.dbConn.DataPath = t.TempDir()
-	engerino.DatabaseManager = dbm
 	var wg sync.WaitGroup
 	err = dbm.Start(&wg)
 	if err != nil {
@@ -461,53 +522,40 @@ func RPCTestSetup(t *testing.T) *Engine {
 			t.Fatal(err)
 		}
 	})
-
-	engerino.Config = &config.Config{}
-	em := NewExchangeManager()
-	exch, err := em.NewExchangeByName(testExchange)
-	if err != nil {
-		t.Fatal(err)
+	bot := &Engine{
+		ExchangeManager: NewExchangeManager(),
+		Settings:        Settings{},
+		Config: &config.Config{
+			Exchanges: []config.Exchange{},
+			Database:  dbConf,
+		},
+		DatabaseManager: dbm,
 	}
-	exch.SetDefaults()
-	b := exch.GetBase()
-	cp := currency.NewBTCUSD()
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		Available:     currency.Pairs{cp},
-		Enabled:       currency.Pairs{cp},
-		AssetEnabled:  true,
-		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-	}
-	err = em.Add(exch)
-	require.NoError(t, err)
 
-	exch, err = em.NewExchangeByName("Binance")
-	if err != nil {
-		t.Fatal(err)
+	for _, eName := range []string{testExchange, testExchange2} {
+		bot.Config.Exchanges = append(bot.Config.Exchanges, config.Exchange{
+			Name:                    eName,
+			WebsocketTrafficTimeout: time.Second,
+			CurrencyPairs: &currency.PairsManager{
+				Pairs: currency.FullStore{
+					asset.Spot: &currency.PairStore{
+						AssetEnabled:  true,
+						ConfigFormat:  &currency.PairFormat{Uppercase: true},
+						RequestFormat: &currency.PairFormat{Uppercase: true},
+						Available:     currency.Pairs{currency.NewBTCUSD()},
+						Enabled:       currency.Pairs{currency.NewBTCUSD()},
+					},
+				},
+			},
+		})
+		require.NoErrorf(t, bot.LoadExchange(eName), "LoadExchange must not fail for %s", eName)
 	}
-	exch.SetDefaults()
-	b = exch.GetBase()
-	cp = currency.NewBTCUSDT()
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
-		Available:     currency.Pairs{cp},
-		Enabled:       currency.Pairs{cp},
-		AssetEnabled:  true,
-		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-	}
-	err = em.Add(exch)
-	require.NoError(t, err)
 
-	engerino.ExchangeManager = em
-
-	engerino.Config.Database = dbConf
-	engerino.DatabaseManager, err = SetupDatabaseConnectionManager(&engerino.Config.Database)
+	bot.DatabaseManager, err = SetupDatabaseConnectionManager(&bot.Config.Database)
 	if err != nil {
 		log.Fatal(err)
 	}
-	err = engerino.DatabaseManager.Start(&engerino.ServicesWG)
+	err = bot.DatabaseManager.Start(&bot.ServicesWG)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -524,12 +572,12 @@ func RPCTestSetup(t *testing.T) *Engine {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = dbexchange.InsertMany([]dbexchange.Details{{Name: testExchange, UUID: uuider}, {Name: "Binance", UUID: uuider2}})
+	err = dbexchange.InsertMany([]dbexchange.Details{{Name: testExchange, UUID: uuider}, {Name: testExchange2, UUID: uuider2}})
 	if err != nil {
 		t.Fatalf("failed to insert exchange %v", err)
 	}
 
-	return engerino
+	return bot
 }
 
 func CleanRPCTest(t *testing.T, engerino *Engine) {
@@ -744,6 +792,81 @@ func TestConvertTradesToCandles(t *testing.T) {
 
 	if len(candles.Candle) != 1 {
 		t.Error("expected only one candle")
+	}
+}
+
+type mockStreamCandlesServer struct {
+	grpc.ServerStream
+	candles chan *gctrpc.Candle
+	ctx     context.Context //nolint:containedctx // same as grpc ServerStream
+}
+
+func (m *mockStreamCandlesServer) Send(c *gctrpc.Candle) error {
+	m.candles <- c
+	return nil
+}
+
+func (m *mockStreamCandlesServer) Context() context.Context {
+	return m.ctx
+}
+
+func TestStreamCandles(t *testing.T) {
+	t.Parallel()
+
+	s := mockServer(t)
+
+	p := currency.NewBTCUSD()
+	pairs := currency.Pairs{p}
+
+	e, err := s.GetExchangeByName(fakeExchangeName)
+	require.NoError(t, err, "GetExchangeByName must not error")
+
+	// Canary Subscriptions to ensure we only forward the subs we want
+	for _, f := range []func(*subscription.Subscription){
+		func(s *subscription.Subscription) { s.Channel = subscription.TickerChannel },
+		func(s *subscription.Subscription) { s.Params = map[string]any{"switch-exchange": true} },
+		func(s *subscription.Subscription) { s.Asset = asset.Futures },
+		func(s *subscription.Subscription) { s.Interval = kline.OneMin },
+		func(s *subscription.Subscription) { s.Pairs[0] = currency.NewBTCUSDT() },
+	} {
+		s := &subscription.Subscription{
+			Channel:          subscription.CandlesChannel,
+			Asset:            asset.Spot,
+			Pairs:            pairs,
+			Interval:         kline.OneHour,
+			QualifiedChannel: "canary",
+		}
+		f(s)
+		require.NoError(t, e.SubscribeToWebsocketChannels(subscription.List{s}), "SubscribeToWebsocketChannels must not error")
+	}
+
+	req := &gctrpc.StreamCandlesRequest{
+		Exchange: fakeExchangeName,
+		Pair: &gctrpc.CurrencyPair{
+			Delimiter: currency.DashDelimiter,
+			Base:      currency.BTC.String(),
+			Quote:     currency.USD.String(),
+		},
+		AssetType: asset.Spot.String(),
+		Interval:  int64(kline.OneHour.Duration()),
+	}
+	ch := make(chan *gctrpc.Candle, 1024)
+	ctx, cancel := context.WithCancel(t.Context())
+	resp := &mockStreamCandlesServer{candles: ch, ctx: ctx}
+	errs := make(chan error)
+	go func() {
+		errs <- s.StreamCandles(req, resp)
+	}()
+
+	require.Eventuallyf(t, func() bool { return len(ch) > 50 }, time.Second, 5*time.Millisecond, "Should receive more than 50 candles: %d", len(ch))
+
+	cancel()
+	// We deliberately don't mock Unsubscribe, so we will get this testable error back
+	require.ErrorIs(t, <-errs, subscription.ErrNotFound, "StreamCandles should error on unsubscribe")
+
+	for range 50 {
+		c := <-ch
+		require.Less(t, c.Open, 1000.0, "must not recieve any canary candles")
 	}
 }
 
@@ -1259,7 +1382,7 @@ func TestUpdateAccountBalances(t *testing.T) {
 
 func TestGetOrders(t *testing.T) {
 	t.Parallel()
-	exchName := "Binance"
+	exchName := testExchange2
 	engerino := &Engine{}
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(exchName)
@@ -1268,7 +1391,7 @@ func TestGetOrders(t *testing.T) {
 	}
 	exch.SetDefaults()
 	b := exch.GetBase()
-	cp := currency.NewBTCUSDT()
+	cp := currency.NewBTCUSD()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:     currency.Pairs{cp},
@@ -1290,7 +1413,7 @@ func TestGetOrders(t *testing.T) {
 	p := &gctrpc.CurrencyPair{
 		Delimiter: "-",
 		Base:      currency.BTC.String(),
-		Quote:     currency.USDT.String(),
+		Quote:     currency.USD.String(),
 	}
 
 	_, err = s.GetOrders(t.Context(), nil)
@@ -1354,7 +1477,7 @@ func TestGetOrders(t *testing.T) {
 
 func TestGetOrder(t *testing.T) {
 	t.Parallel()
-	exchName := "Binance"
+	exchName := testExchange2
 	engerino := &Engine{}
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(exchName)
@@ -1363,7 +1486,7 @@ func TestGetOrder(t *testing.T) {
 	}
 	exch.SetDefaults()
 	b := exch.GetBase()
-	cp := currency.NewBTCUSDT()
+	cp := currency.NewBTCUSD()
 	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
 	b.CurrencyPairs.Pairs[asset.Spot] = &currency.PairStore{
 		Available:     currency.Pairs{cp},
@@ -1386,7 +1509,7 @@ func TestGetOrder(t *testing.T) {
 	p := &gctrpc.CurrencyPair{
 		Delimiter: "-",
 		Base:      "BTC",
-		Quote:     "USDT",
+		Quote:     "USD",
 	}
 
 	_, err = s.GetOrder(t.Context(), nil)
@@ -1436,16 +1559,16 @@ func TestGetOrder(t *testing.T) {
 func TestCheckVars(t *testing.T) {
 	t.Parallel()
 	var e exchange.IBotExchange
-	err := checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
+	err := checkParams(testExchange2, e, asset.Spot, currency.NewBTCUSDT())
 	assert.ErrorIs(t, err, errExchangeNotLoaded, "checkParams should error correctly")
 
 	e = &binance.Exchange{}
-	err = checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
+	err = checkParams(testExchange2, e, asset.Spot, currency.NewBTCUSDT())
 	assert.ErrorIs(t, err, errExchangeNotEnabled, "checkParams should error correctly")
 
 	e.SetEnabled(true)
 
-	err = checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
+	err = checkParams(testExchange2, e, asset.Spot, currency.NewBTCUSDT())
 	assert.ErrorIs(t, err, currency.ErrPairManagerNotInitialised, "checkParams should error correctly")
 
 	b := e.GetBase()
@@ -1466,7 +1589,7 @@ func TestCheckVars(t *testing.T) {
 		require.NoError(t, b.SetAssetPairStore(a, ps), "SetAssetPairStore must not error")
 	}
 
-	err = checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
+	err = checkParams(testExchange2, e, asset.Spot, currency.NewBTCUSDT())
 	assert.ErrorIs(t, err, errCurrencyPairInvalid, "checkParams should error correctly")
 
 	data := []currency.Pair{
@@ -1476,19 +1599,19 @@ func TestCheckVars(t *testing.T) {
 	err = b.CurrencyPairs.StorePairs(asset.Spot, data, false)
 	require.NoError(t, err, "StorePairs must not error")
 
-	err = checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
+	err = checkParams(testExchange2, e, asset.Spot, currency.NewBTCUSDT())
 	require.ErrorIs(t, err, errCurrencyNotEnabled, "checkParams must error correctly")
 
 	err = b.CurrencyPairs.EnablePair(asset.Spot, currency.Pair{Delimiter: currency.DashDelimiter, Base: currency.BTC, Quote: currency.USDT})
 	require.NoError(t, err, "EnablePair must not error")
 
-	err = checkParams("Binance", e, asset.Spot, currency.NewBTCUSDT())
+	err = checkParams(testExchange2, e, asset.Spot, currency.NewBTCUSDT())
 	require.NoError(t, err, "checkParams must not error")
 }
 
 func TestParseEvents(t *testing.T) {
 	t.Parallel()
-	exchangeName := "Binance"
+	exchangeName := testExchange2
 	testData := make([]*withdraw.Response, 5)
 	for x := range 5 {
 		test := fmt.Sprintf("test-%v", x)
@@ -1778,7 +1901,7 @@ func TestGetDataHistoryJobSummary(t *testing.T) {
 }
 
 func TestGetManagedOrders(t *testing.T) {
-	exchName := "Binance"
+	exchName := testExchange2
 	engerino := &Engine{}
 	em := NewExchangeManager()
 	exch, err := em.NewExchangeByName(exchName)
@@ -1843,7 +1966,7 @@ func TestGetManagedOrders(t *testing.T) {
 	o := order.Detail{
 		Price:     100000,
 		Amount:    0.002,
-		Exchange:  "Binance",
+		Exchange:  testExchange2,
 		Type:      order.Limit,
 		Side:      order.Sell,
 		Status:    order.New,
@@ -3820,32 +3943,10 @@ func TestRPCProxyAuthClient(t *testing.T) {
 
 func TestGetCurrencyTradeURL(t *testing.T) {
 	t.Parallel()
-	em := NewExchangeManager()
-	exch, err := em.NewExchangeByName("binance")
-	require.NoError(t, err)
 
-	exch.SetDefaults()
-	b := exch.GetBase()
-	b.Name = fakeExchangeName
-	b.Enabled = true
-	b.CurrencyPairs.Pairs = make(map[asset.Item]*currency.PairStore)
-	err = b.CurrencyPairs.Store(asset.Spot, &currency.PairStore{
-		AssetEnabled:  true,
-		Enabled:       []currency.Pair{currency.NewBTCUSDT()},
-		Available:     []currency.Pair{currency.NewBTCUSDT()},
-		RequestFormat: &currency.PairFormat{Uppercase: true},
-		ConfigFormat:  &currency.PairFormat{Uppercase: true},
-	})
-	require.NoError(t, err)
+	s := mockServer(t)
 
-	fakeExchange := fExchange{
-		IBotExchange: exch,
-	}
-	err = em.Add(fakeExchange)
-	require.NoError(t, err)
-
-	s := RPCServer{Engine: &Engine{ExchangeManager: em}}
-	_, err = s.GetCurrencyTradeURL(t.Context(), nil)
+	_, err := s.GetCurrencyTradeURL(t.Context(), nil)
 	assert.ErrorIs(t, err, common.ErrNilPointer)
 
 	req := &gctrpc.GetCurrencyTradeURLRequest{}
@@ -3868,4 +3969,66 @@ func TestGetCurrencyTradeURL(t *testing.T) {
 	resp, err := s.GetCurrencyTradeURL(t.Context(), req)
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp.Url)
+}
+
+// mockServer returns a RPCServer with a fExhcange loaded, backed by binance exchange
+// WebsocketRoutineManager is started so that tests using RegisterWebsocketDataHandler will work
+// Does not provide database support
+func mockServer(tb testing.TB) RPCServer {
+	tb.Helper()
+
+	mockBuilder := newMockExchangeBuilder()
+	em := &ExchangeManager{
+		Builder:   mockBuilder,
+		exchanges: map[string]exchange.IBotExchange{},
+	}
+	mockBuilder.builders[fakeExchangeName] = func() exchange.IBotExchange {
+		exch := &binance.Exchange{}
+		b := exch.GetBase()
+		b.Name = fakeExchangeName
+		return fExchange{IBotExchange: exch}
+	}
+
+	ccCfg := &currency.Config{CurrencyPairFormat: &currency.PairFormat{
+		Uppercase: false,
+		Delimiter: "-",
+	}}
+	wsm, err := setupWebsocketRoutineManager(em, &OrderManager{}, &SyncManager{}, ccCfg, false)
+	require.NoError(tb, err, "setupWebsocketRoutineManager must not error")
+
+	bot := &Engine{
+		ExchangeManager:         em,
+		WebsocketRoutineManager: wsm,
+		Settings: Settings{
+			CoreSettings: CoreSettings{
+				EnableWebsocketRoutine: true,
+			},
+		},
+		Config: &config.Config{
+			Exchanges: []config.Exchange{{
+				Name:                    fakeExchangeName,
+				WebsocketTrafficTimeout: time.Second,
+				CurrencyPairs: &currency.PairsManager{
+					Pairs: currency.FullStore{
+						asset.Spot: &currency.PairStore{
+							AssetEnabled:  true,
+							Available:     currency.Pairs{currency.NewBTCUSDT(), currency.NewBTCUSD()},
+							Enabled:       currency.Pairs{currency.NewBTCUSDT(), currency.NewBTCUSD()},
+							ConfigFormat:  &currency.PairFormat{Uppercase: true},
+							RequestFormat: &currency.PairFormat{Uppercase: true},
+						},
+					},
+				},
+				Features: &config.FeaturesConfig{
+					Enabled: config.FeaturesEnabledConfig{
+						Websocket: true,
+					},
+				},
+			}},
+		},
+	}
+	require.NoError(tb, bot.LoadExchange(fakeExchangeName), "LoadExchange must not error")
+	require.NoError(tb, wsm.Start(), "WebsocketRoutineManager.Start must not error")
+
+	return RPCServer{Engine: bot}
 }

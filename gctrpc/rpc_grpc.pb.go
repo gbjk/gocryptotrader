@@ -82,6 +82,7 @@ const (
 	GoCryptoTraderService_GCTScriptStopAll_FullMethodName                  = "/gctrpc.GoCryptoTraderService/GCTScriptStopAll"
 	GoCryptoTraderService_GCTScriptListAll_FullMethodName                  = "/gctrpc.GoCryptoTraderService/GCTScriptListAll"
 	GoCryptoTraderService_GCTScriptAutoLoadToggle_FullMethodName           = "/gctrpc.GoCryptoTraderService/GCTScriptAutoLoadToggle"
+	GoCryptoTraderService_StreamCandles_FullMethodName                     = "/gctrpc.GoCryptoTraderService/StreamCandles"
 	GoCryptoTraderService_GetHistoricCandles_FullMethodName                = "/gctrpc.GoCryptoTraderService/GetHistoricCandles"
 	GoCryptoTraderService_SetExchangeAsset_FullMethodName                  = "/gctrpc.GoCryptoTraderService/SetExchangeAsset"
 	GoCryptoTraderService_SetAllExchangePairs_FullMethodName               = "/gctrpc.GoCryptoTraderService/SetAllExchangePairs"
@@ -203,6 +204,7 @@ type GoCryptoTraderServiceClient interface {
 	GCTScriptStopAll(ctx context.Context, in *GCTScriptStopAllRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 	GCTScriptListAll(ctx context.Context, in *GCTScriptListAllRequest, opts ...grpc.CallOption) (*GCTScriptStatusResponse, error)
 	GCTScriptAutoLoadToggle(ctx context.Context, in *GCTScriptAutoLoadRequest, opts ...grpc.CallOption) (*GenericResponse, error)
+	StreamCandles(ctx context.Context, in *StreamCandlesRequest, opts ...grpc.CallOption) (GoCryptoTraderService_StreamCandlesClient, error)
 	GetHistoricCandles(ctx context.Context, in *GetHistoricCandlesRequest, opts ...grpc.CallOption) (*GetHistoricCandlesResponse, error)
 	SetExchangeAsset(ctx context.Context, in *SetExchangeAssetRequest, opts ...grpc.CallOption) (*GenericResponse, error)
 	SetAllExchangePairs(ctx context.Context, in *SetExchangeAllPairsRequest, opts ...grpc.CallOption) (*GenericResponse, error)
@@ -947,6 +949,38 @@ func (c *goCryptoTraderServiceClient) GCTScriptAutoLoadToggle(ctx context.Contex
 	return out, nil
 }
 
+func (c *goCryptoTraderServiceClient) StreamCandles(ctx context.Context, in *StreamCandlesRequest, opts ...grpc.CallOption) (GoCryptoTraderService_StreamCandlesClient, error) {
+	stream, err := c.cc.NewStream(ctx, &GoCryptoTraderService_ServiceDesc.Streams[5], GoCryptoTraderService_StreamCandles_FullMethodName, opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &goCryptoTraderServiceStreamCandlesClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type GoCryptoTraderService_StreamCandlesClient interface {
+	Recv() (*Candle, error)
+	grpc.ClientStream
+}
+
+type goCryptoTraderServiceStreamCandlesClient struct {
+	grpc.ClientStream
+}
+
+func (x *goCryptoTraderServiceStreamCandlesClient) Recv() (*Candle, error) {
+	m := new(Candle)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 func (c *goCryptoTraderServiceClient) GetHistoricCandles(ctx context.Context, in *GetHistoricCandlesRequest, opts ...grpc.CallOption) (*GetHistoricCandlesResponse, error) {
 	out := new(GetHistoricCandlesResponse)
 	err := c.cc.Invoke(ctx, GoCryptoTraderService_GetHistoricCandles_FullMethodName, in, out, opts...)
@@ -1047,7 +1081,7 @@ func (c *goCryptoTraderServiceClient) GetRecentTrades(ctx context.Context, in *G
 }
 
 func (c *goCryptoTraderServiceClient) GetHistoricTrades(ctx context.Context, in *GetSavedTradesRequest, opts ...grpc.CallOption) (GoCryptoTraderService_GetHistoricTradesClient, error) {
-	stream, err := c.cc.NewStream(ctx, &GoCryptoTraderService_ServiceDesc.Streams[5], GoCryptoTraderService_GetHistoricTrades_FullMethodName, opts...)
+	stream, err := c.cc.NewStream(ctx, &GoCryptoTraderService_ServiceDesc.Streams[6], GoCryptoTraderService_GetHistoricTrades_FullMethodName, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1505,6 +1539,7 @@ type GoCryptoTraderServiceServer interface {
 	GCTScriptStopAll(context.Context, *GCTScriptStopAllRequest) (*GenericResponse, error)
 	GCTScriptListAll(context.Context, *GCTScriptListAllRequest) (*GCTScriptStatusResponse, error)
 	GCTScriptAutoLoadToggle(context.Context, *GCTScriptAutoLoadRequest) (*GenericResponse, error)
+	StreamCandles(*StreamCandlesRequest, GoCryptoTraderService_StreamCandlesServer) error
 	GetHistoricCandles(context.Context, *GetHistoricCandlesRequest) (*GetHistoricCandlesResponse, error)
 	SetExchangeAsset(context.Context, *SetExchangeAssetRequest) (*GenericResponse, error)
 	SetAllExchangePairs(context.Context, *SetExchangeAllPairsRequest) (*GenericResponse, error)
@@ -1752,6 +1787,9 @@ func (UnimplementedGoCryptoTraderServiceServer) GCTScriptListAll(context.Context
 }
 func (UnimplementedGoCryptoTraderServiceServer) GCTScriptAutoLoadToggle(context.Context, *GCTScriptAutoLoadRequest) (*GenericResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GCTScriptAutoLoadToggle not implemented")
+}
+func (UnimplementedGoCryptoTraderServiceServer) StreamCandles(*StreamCandlesRequest, GoCryptoTraderService_StreamCandlesServer) error {
+	return status.Errorf(codes.Unimplemented, "method StreamCandles not implemented")
 }
 func (UnimplementedGoCryptoTraderServiceServer) GetHistoricCandles(context.Context, *GetHistoricCandlesRequest) (*GetHistoricCandlesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetHistoricCandles not implemented")
@@ -3069,6 +3107,27 @@ func _GoCryptoTraderService_GCTScriptAutoLoadToggle_Handler(srv interface{}, ctx
 		return srv.(GoCryptoTraderServiceServer).GCTScriptAutoLoadToggle(ctx, req.(*GCTScriptAutoLoadRequest))
 	}
 	return interceptor(ctx, in, info, handler)
+}
+
+func _GoCryptoTraderService_StreamCandles_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(StreamCandlesRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(GoCryptoTraderServiceServer).StreamCandles(m, &goCryptoTraderServiceStreamCandlesServer{stream})
+}
+
+type GoCryptoTraderService_StreamCandlesServer interface {
+	Send(*Candle) error
+	grpc.ServerStream
+}
+
+type goCryptoTraderServiceStreamCandlesServer struct {
+	grpc.ServerStream
+}
+
+func (x *goCryptoTraderServiceStreamCandlesServer) Send(m *Candle) error {
+	return x.ServerStream.SendMsg(m)
 }
 
 func _GoCryptoTraderService_GetHistoricCandles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -4478,6 +4537,11 @@ var GoCryptoTraderService_ServiceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "GetExchangeTickerStream",
 			Handler:       _GoCryptoTraderService_GetExchangeTickerStream_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "StreamCandles",
+			Handler:       _GoCryptoTraderService_StreamCandles_Handler,
 			ServerStreams: true,
 		},
 		{
