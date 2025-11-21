@@ -689,6 +689,13 @@ message ConvertTradesToCandlesRequest {
   bool force = 8;
 }
 
+message StreamCandlesRequest {
+  string exchange = 1;
+  CurrencyPair pair = 2;
+  string asset_type = 3;
+  int64 interval = 4;
+}
+
 message GetHistoricCandlesRequest {
   string exchange = 1;
   CurrencyPair pair = 2;
@@ -1875,11 +1882,16 @@ service GoCryptoTraderService {
       body: "*"
     };
   }
+
   rpc GCTScriptAutoLoadToggle(GCTScriptAutoLoadRequest) returns (GenericResponse) {
     option (google.api.http) = {
       post: "/v1/gctscript/autoload"
       body: "*"
     };
+  }
+
+  rpc StreamCandles(StreamCandlesRequest) returns (stream Candle) {
+    option (google.api.http) = {get: "/v1/streamcandles"};
   }
 
   rpc GetHistoricCandles(GetHistoricCandlesRequest) returns (GetHistoricCandlesResponse) {

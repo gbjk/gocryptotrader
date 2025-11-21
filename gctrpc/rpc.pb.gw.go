@@ -1942,6 +1942,34 @@ func local_request_GoCryptoTraderService_GCTScriptAutoLoadToggle_0(ctx context.C
 }
 
 var (
+	filter_GoCryptoTraderService_StreamCandles_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
+)
+
+func request_GoCryptoTraderService_StreamCandles_0(ctx context.Context, marshaler runtime.Marshaler, client GoCryptoTraderServiceClient, req *http.Request, pathParams map[string]string) (GoCryptoTraderService_StreamCandlesClient, runtime.ServerMetadata, error) {
+	var protoReq StreamCandlesRequest
+	var metadata runtime.ServerMetadata
+
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_GoCryptoTraderService_StreamCandles_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	stream, err := client.StreamCandles(ctx, &protoReq)
+	if err != nil {
+		return nil, metadata, err
+	}
+	header, err := stream.Header()
+	if err != nil {
+		return nil, metadata, err
+	}
+	metadata.HeaderMD = header
+	return stream, metadata, nil
+
+}
+
+var (
 	filter_GoCryptoTraderService_GetHistoricCandles_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
 )
 
@@ -5244,6 +5272,13 @@ func RegisterGoCryptoTraderServiceHandlerServer(ctx context.Context, mux *runtim
 
 	})
 
+	mux.Handle("GET", pattern_GoCryptoTraderService_StreamCandles_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		err := status.Error(codes.Unimplemented, "streaming calls are not yet supported in the in-process transport")
+		_, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+		return
+	})
+
 	mux.Handle("GET", pattern_GoCryptoTraderService_GetHistoricCandles_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -7953,6 +7988,28 @@ func RegisterGoCryptoTraderServiceHandlerClient(ctx context.Context, mux *runtim
 
 	})
 
+	mux.Handle("GET", pattern_GoCryptoTraderService_StreamCandles_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		var err error
+		var annotatedContext context.Context
+		annotatedContext, err = runtime.AnnotateContext(ctx, mux, req, "/gctrpc.GoCryptoTraderService/StreamCandles", runtime.WithHTTPPathPattern("/v1/streamcandles"))
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_GoCryptoTraderService_StreamCandles_0(annotatedContext, inboundMarshaler, client, req, pathParams)
+		annotatedContext = runtime.NewServerMetadataContext(annotatedContext, md)
+		if err != nil {
+			runtime.HTTPError(annotatedContext, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_GoCryptoTraderService_StreamCandles_0(annotatedContext, mux, outboundMarshaler, w, req, func() (proto.Message, error) { return resp.Recv() }, mux.GetForwardResponseOptions()...)
+
+	})
+
 	mux.Handle("GET", pattern_GoCryptoTraderService_GetHistoricCandles_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -9227,6 +9284,8 @@ var (
 
 	pattern_GoCryptoTraderService_GCTScriptAutoLoadToggle_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2}, []string{"v1", "gctscript", "autoload"}, ""))
 
+	pattern_GoCryptoTraderService_StreamCandles_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "streamcandles"}, ""))
+
 	pattern_GoCryptoTraderService_GetHistoricCandles_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "gethistoriccandles"}, ""))
 
 	pattern_GoCryptoTraderService_SetExchangeAsset_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"v1", "setexchangeasset"}, ""))
@@ -9458,6 +9517,8 @@ var (
 	forward_GoCryptoTraderService_GCTScriptListAll_0 = runtime.ForwardResponseMessage
 
 	forward_GoCryptoTraderService_GCTScriptAutoLoadToggle_0 = runtime.ForwardResponseMessage
+
+	forward_GoCryptoTraderService_StreamCandles_0 = runtime.ForwardResponseStream
 
 	forward_GoCryptoTraderService_GetHistoricCandles_0 = runtime.ForwardResponseMessage
 

@@ -159,35 +159,37 @@ func TestNewExchangeByName(t *testing.T) {
 	require.ErrorIs(t, err, ErrExchangeAlreadyLoaded)
 }
 
-type ExchangeBuilder struct{}
+type mockExchangeBuilderFunc func() exchange.IBotExchange
 
-func (n ExchangeBuilder) NewExchangeByName(name string) (exchange.IBotExchange, error) {
-	var exch exchange.IBotExchange
+type mockExchangeBuilder struct {
+	builders map[string]mockExchangeBuilderFunc
+}
 
-	switch name {
-	case "customex":
-		exch = new(sharedtestvalues.CustomEx)
-	default:
-		return nil, fmt.Errorf("%s, %w", name, ErrExchangeNotFound)
+func newMockExchangeBuilder() *mockExchangeBuilder {
+	return &mockExchangeBuilder{
+		builders: map[string]mockExchangeBuilderFunc{
+			"customex": func() exchange.IBotExchange {
+				return &sharedtestvalues.CustomEx{}
+			},
+		},
+	}
+}
+
+func (b mockExchangeBuilder) NewExchangeByName(name string) (exchange.IBotExchange, error) {
+	if f, ok := b.builders[name]; ok {
+		return f(), nil
 	}
 
-	return exch, nil
+	return nil, fmt.Errorf("%s, %w", name, ErrExchangeNotFound)
 }
 
 func TestNewCustomExchangeByName(t *testing.T) {
 	m := NewExchangeManager()
-	m.Builder = ExchangeBuilder{}
-	name := "customex"
-	exch, err := m.NewExchangeByName(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err == nil {
-		exch.SetDefaults()
-		if !strings.EqualFold(exch.GetName(), name) {
-			t.Error("did not load expected exchange")
-		}
-	}
+	m.Builder = newMockExchangeBuilder()
+	exch, err := m.NewExchangeByName("customex")
+	require.NoError(t, err, "NewExchangeByName must not error")
+	exch.SetDefaults()
+	require.Equal(t, "customex", exch.GetName(), "exch.GetName must return the correct value")
 }
 
 func TestExchangeManagerShutdown(t *testing.T) {
