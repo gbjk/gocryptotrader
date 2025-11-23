@@ -118,9 +118,9 @@ func TestSetSubsystem(t *testing.T) { //nolint // TO-DO: Fix race t.Parallel() u
 		EnableError  error
 		DisableError error
 	}{
-		{Subsystem: "sillyBilly", EnableError: errNilBot, DisableError: errNilBot},
-		{Subsystem: "sillyBilly", Engine: &Engine{}, EnableError: errNilConfig, DisableError: errNilConfig},
-		{Subsystem: "sillyBilly", Engine: &Engine{Config: &config.Config{}}, EnableError: errSubsystemNotFound, DisableError: errSubsystemNotFound},
+		{Subsystem: "ErrNilBot", EnableError: errNilBot, DisableError: errNilBot},
+		{Subsystem: "ErrNilConfig", Engine: &Engine{}, EnableError: errNilConfig, DisableError: errNilConfig},
+		{Subsystem: "ErrSubSystem", Engine: &Engine{Config: &config.Config{}}, EnableError: errSubsystemNotFound, DisableError: errSubsystemNotFound},
 		{
 			Subsystem:    CommunicationsManagerName,
 			Engine:       &Engine{Config: &config.Config{}},
