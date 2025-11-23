@@ -79,11 +79,11 @@ func TestHooks(t *testing.T) {
 
 func TestInsert(t *testing.T) {
 	t.Run("AuditEvents", testAuditEventsInsert)
-	t.Run("AuditEvents", testAuditEventsInsertWhitelist)
+	t.Run("AuditEventsWhitelist", testAuditEventsInsertWhitelist)
 	t.Run("Exchanges", testExchangesInsert)
-	t.Run("Exchanges", testExchangesInsertWhitelist)
+	t.Run("ExchangesWhitelist", testExchangesInsertWhitelist)
 	t.Run("Scripts", testScriptsInsert)
-	t.Run("Scripts", testScriptsInsertWhitelist)
+	t.Run("ScriptsWhitelist", testScriptsInsertWhitelist)
 }
 
 // TestToOne tests cannot be run in parallel
