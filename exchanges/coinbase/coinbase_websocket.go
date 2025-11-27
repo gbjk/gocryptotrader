@@ -135,6 +135,8 @@ func (e *Exchange) wsProcessTicker(resp *StandardWebsocketResponse) error {
 }
 
 // wsProcessCandle handles candle data from the websocket
+// Note: Coinbase websocket candles don't include interval information in the response,
+// so the Interval field in kline.Item will be unset (zero value).
 func (e *Exchange) wsProcessCandle(resp *StandardWebsocketResponse) error {
 	var wsCandles []WebsocketCandleHolder
 	if err := json.Unmarshal(resp.Events, &wsCandles); err != nil {
