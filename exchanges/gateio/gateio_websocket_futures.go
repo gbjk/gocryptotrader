@@ -3,6 +3,7 @@ package gateio
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -363,7 +364,7 @@ func (e *Exchange) processFuturesCandlesticks(data []byte, assetType asset.Item)
 	if err != nil {
 		return err
 	}
-	klineDatas := make([]websocket.KlineData, len(resp.Result))
+	klineDatas := make([]*kline.Item, len(resp.Result))
 	for x := range resp.Result {
 		icp := strings.Split(resp.Result[x].Name, currency.UnderscoreDelimiter)
 		if len(icp) < 3 {
@@ -373,17 +374,25 @@ func (e *Exchange) processFuturesCandlesticks(data []byte, assetType asset.Item)
 		if err != nil {
 			return err
 		}
-		klineDatas[x] = websocket.KlineData{
-			Pair:       currencyPair,
-			AssetType:  assetType,
-			Exchange:   e.Name,
-			StartTime:  resp.Result[x].Timestamp.Time(),
-			Interval:   icp[0],
-			OpenPrice:  resp.Result[x].OpenPrice.Float64(),
-			ClosePrice: resp.Result[x].ClosePrice.Float64(),
-			HighPrice:  resp.Result[x].HighestPrice.Float64(),
-			LowPrice:   resp.Result[x].LowestPrice.Float64(),
-			Volume:     resp.Result[x].Volume,
+		var interval kline.Interval
+		if err := interval.UnmarshalText([]byte(icp[0])); err != nil {
+			return fmt.Errorf("unable to parse kline interval %q: %w", icp[0], err)
+		}
+		klineDatas[x] = &kline.Item{
+			Exchange: e.Name,
+			Pair:     currencyPair,
+			Asset:    assetType,
+			Interval: interval,
+			Candles: []kline.Candle{
+				{
+					Time:   resp.Result[x].Timestamp.Time(),
+					Open:   resp.Result[x].OpenPrice.Float64(),
+					High:   resp.Result[x].HighestPrice.Float64(),
+					Low:    resp.Result[x].LowestPrice.Float64(),
+					Close:  resp.Result[x].ClosePrice.Float64(),
+					Volume: resp.Result[x].Volume,
+				},
+			},
 		}
 	}
 	e.Websocket.DataHandler <- klineDatas

@@ -1158,3 +1158,62 @@ func TestUnmarshalJSON(t *testing.T) {
 	err := i.UnmarshalJSON([]byte(`"6hedgehogs"`))
 	assert.ErrorContains(t, err, "unknown unit", "UnmarshalJSON should error")
 }
+
+func TestUnmarshalText(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name     string
+		input    string
+		expected Interval
+		wantErr  bool
+	}{
+		// Standard duration formats (handled by time.ParseDuration)
+		{name: "seconds", input: "15s", expected: FifteenSecond},
+		{name: "minutes", input: "3m", expected: ThreeMin},
+		{name: "hour", input: "1h", expected: OneHour},
+		{name: "two hours", input: "2h", expected: TwoHour},
+		{name: "raw", input: "raw", expected: Raw},
+
+		// Exchange-specific day formats
+		{name: "1d lowercase", input: "1d", expected: OneDay},
+		{name: "3d lowercase", input: "3d", expected: ThreeDay},
+		{name: "1day", input: "1day", expected: OneDay},
+		{name: "1D uppercase", input: "1D", expected: OneDay},
+
+		// Exchange-specific week formats
+		{name: "1w lowercase", input: "1w", expected: OneWeek},
+		{name: "1W uppercase", input: "1W", expected: OneWeek},
+		{name: "1week", input: "1week", expected: OneWeek},
+		{name: "2w", input: "2w", expected: TwoWeek},
+
+		// Exchange-specific month formats (uppercase M = month)
+		{name: "1M uppercase month", input: "1M", expected: OneMonth},
+		{name: "3M uppercase month", input: "3M", expected: ThreeMonth},
+		{name: "1month", input: "1month", expected: OneMonth},
+
+		// Kucoin-style formats
+		{name: "1min", input: "1min", expected: OneMin},
+		{name: "5min", input: "5min", expected: FiveMin},
+		{name: "15min", input: "15min", expected: FifteenMin},
+		{name: "1hour", input: "1hour", expected: OneHour},
+		{name: "4hour", input: "4hour", expected: FourHour},
+
+		// Error cases
+		{name: "invalid unit", input: "5x", wantErr: true},
+		{name: "empty string", input: "", wantErr: true},
+		{name: "no number", input: "m", wantErr: true},
+		{name: "no unit", input: "5", wantErr: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			var i Interval
+			err := i.UnmarshalText([]byte(tt.input))
+			if tt.wantErr {
+				assert.Error(t, err, "UnmarshalText should error on %q", tt.input)
+				return
+			}
+			require.NoError(t, err, "UnmarshalText should not error on %q", tt.input)
+			assert.Equal(t, tt.expected, i, "UnmarshalText result should match for %q", tt.input)
+		})
+	}
+}

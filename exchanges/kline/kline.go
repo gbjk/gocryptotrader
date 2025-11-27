@@ -177,6 +177,84 @@ func (i Interval) MarshalText() ([]byte, error) {
 	return []byte(i.Short()), nil
 }
 
+// UnmarshalText implements the TextUnmarshaler interface for Intervals.
+// It parses standard exchange interval formats like "1m", "1h", "1d", "1w", "1M"
+// as well as variations like "1min", "1hour", "1day", "1week".
+func (i *Interval) UnmarshalText(text []byte) error {
+	s := string(text)
+	if s == "raw" {
+		*i = Raw
+		return nil
+	}
+
+	// Try standard time.ParseDuration first (handles "1h", "30m", "1s", etc.)
+	d, err := time.ParseDuration(s)
+	if err == nil {
+		*i = Interval(d)
+		return nil
+	}
+
+	// Handle exchange-specific formats
+	parsed, err := parseExchangeInterval(s)
+	if err != nil {
+		return err
+	}
+	*i = parsed
+	return nil
+}
+
+// parseExchangeInterval parses exchange-specific interval formats
+// such as "1d", "1w", "1M", "1min", "1hour", "1day", "1week".
+// Note: Uppercase "M" means month (as used by Binance), while lowercase "m" means minute.
+func parseExchangeInterval(s string) (Interval, error) {
+	if len(s) == 0 {
+		return 0, ErrInvalidInterval
+	}
+
+	// Find the boundary between number and unit
+	var numEnd int
+	for numEnd = 0; numEnd < len(s); numEnd++ {
+		if s[numEnd] < '0' || s[numEnd] > '9' {
+			break
+		}
+	}
+
+	if numEnd == 0 || numEnd == len(s) {
+		return 0, fmt.Errorf("%w: %s", ErrInvalidInterval, s)
+	}
+
+	n, err := strconv.Atoi(s[:numEnd])
+	if err != nil {
+		return 0, fmt.Errorf("%w: %s", ErrInvalidInterval, s)
+	}
+
+	unit := s[numEnd:]
+	// Handle uppercase M specially - it means month (used by Binance and others)
+	if unit == "M" {
+		return Interval(time.Duration(n) * 30 * 24 * time.Hour), nil
+	}
+
+	// For other units, convert to lowercase for comparison
+	unitLower := strings.ToLower(unit)
+	switch unitLower {
+	case "s", "sec", "second", "seconds":
+		return Interval(time.Duration(n) * time.Second), nil
+	case "m", "min", "mins", "minute", "minutes":
+		return Interval(time.Duration(n) * time.Minute), nil
+	case "h", "hr", "hrs", "hour", "hours":
+		return Interval(time.Duration(n) * time.Hour), nil
+	case "d", "day", "days":
+		return Interval(time.Duration(n) * 24 * time.Hour), nil
+	case "w", "wk", "week", "weeks":
+		return Interval(time.Duration(n) * 7 * 24 * time.Hour), nil
+	case "mo", "month", "months":
+		// Month is approximated as 30 days
+		return Interval(time.Duration(n) * 30 * 24 * time.Hour), nil
+	default:
+		return 0, fmt.Errorf("%w: unknown unit %q in %s", ErrInvalidInterval, unit, s)
+	}
+}
+
 // addPadding inserts padding time aligned when exchanges do not supply all data
 // when there is no activity in a certain time interval.
 // Start defines the request start and due to potential no activity from this

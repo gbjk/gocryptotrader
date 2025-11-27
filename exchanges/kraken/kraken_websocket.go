@@ -707,21 +707,27 @@ func (e *Exchange) wsProcessCandle(c string, resp json.RawMessage, pair currency
 	if len(parts) != 2 {
 		return errBadChannelSuffix
 	}
-	interval := parts[1]
+	intervalStr := parts[1]
+	var interval kline.Interval
+	if err := interval.UnmarshalText([]byte(intervalStr)); err != nil {
+		return fmt.Errorf("unable to parse kline interval %q: %w", intervalStr, err)
+	}
 
-	e.Websocket.DataHandler <- websocket.KlineData{
-		AssetType:  asset.Spot,
-		Pair:       pair,
-		Timestamp:  time.Now(),
-		Exchange:   e.Name,
-		StartTime:  data.LastUpdateTime.Time(),
-		CloseTime:  data.LastUpdateTime.Time(),
-		OpenPrice:  data.Open.Float64(),
-		HighPrice:  data.High.Float64(),
-		LowPrice:   data.Low.Float64(),
-		ClosePrice: data.Close.Float64(),
-		Volume:     data.Volume.Float64(),
-		Interval:   interval,
+	e.Websocket.DataHandler <- &kline.Item{
+		Exchange: e.Name,
+		Pair:     pair,
+		Asset:    asset.Spot,
+		Interval: interval,
+		Candles: []kline.Candle{
+			{
+				Time:   data.LastUpdateTime.Time(),
+				Open:   data.Open.Float64(),
+				High:   data.High.Float64(),
+				Low:    data.Low.Float64(),
+				Close:  data.Close.Float64(),
+				Volume: data.Volume.Float64(),
+			},
+		},
 	}
 	return nil
 }
