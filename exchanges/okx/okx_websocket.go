@@ -749,21 +749,29 @@ func (e *Exchange) wsProcessIndexCandles(respRaw []byte) error {
 		}
 	}
 	candleInterval := strings.TrimPrefix(response.Argument.Channel, candle)
+	candleInterval = strings.TrimSuffix(candleInterval, "utc")
+	interval, err := kline.ParseInterval(candleInterval)
+	if err != nil {
+		return err
+	}
 	for i := range response.Data {
 		candlesData := response.Data[i]
-		myCandle := websocket.KlineData{
-			Pair:       response.Argument.InstrumentID,
-			Exchange:   e.Name,
-			Timestamp:  time.UnixMilli(candlesData[0].Int64()),
-			Interval:   candleInterval,
-			OpenPrice:  candlesData[1].Float64(),
-			HighPrice:  candlesData[2].Float64(),
-			LowPrice:   candlesData[3].Float64(),
-			ClosePrice: candlesData[4].Float64(),
-		}
-		for i := range assets {
-			myCandle.AssetType = assets[i]
-			e.Websocket.DataHandler <- myCandle
+		for j := range assets {
+			e.Websocket.DataHandler <- &kline.Item{
+				Exchange: e.Name,
+				Pair:     response.Argument.InstrumentID,
+				Asset:    assets[j],
+				Interval: interval,
+				Candles: []kline.Candle{
+					{
+						Time:  time.UnixMilli(candlesData[0].Int64()),
+						Open:  candlesData[1].Float64(),
+						High:  candlesData[2].Float64(),
+						Low:   candlesData[3].Float64(),
+						Close: candlesData[4].Float64(),
+					},
+				},
+			}
 		}
 	}
 	return nil
@@ -1335,19 +1343,27 @@ func (e *Exchange) wsProcessCandles(respRaw []byte) error {
 		}
 	}
 	candleInterval := strings.TrimPrefix(response.Argument.Channel, candle)
+	interval, err := kline.ParseInterval(candleInterval)
+	if err != nil {
+		return err
+	}
 	for i := range response.Data {
 		for j := range assets {
-			e.Websocket.DataHandler <- websocket.KlineData{
-				Timestamp:  time.UnixMilli(response.Data[i][0].Int64()),
-				Pair:       response.Argument.InstrumentID,
-				AssetType:  assets[j],
-				Exchange:   e.Name,
-				Interval:   candleInterval,
-				OpenPrice:  response.Data[i][1].Float64(),
-				ClosePrice: response.Data[i][4].Float64(),
-				HighPrice:  response.Data[i][2].Float64(),
-				LowPrice:   response.Data[i][3].Float64(),
-				Volume:     response.Data[i][5].Float64(),
+			e.Websocket.DataHandler <- &kline.Item{
+				Exchange: e.Name,
+				Pair:     response.Argument.InstrumentID,
+				Asset:    assets[j],
+				Interval: interval,
+				Candles: []kline.Candle{
+					{
+						Time:   time.UnixMilli(response.Data[i][0].Int64()),
+						Open:   response.Data[i][1].Float64(),
+						High:   response.Data[i][2].Float64(),
+						Low:    response.Data[i][3].Float64(),
+						Close:  response.Data[i][4].Float64(),
+						Volume: response.Data[i][5].Float64(),
+					},
+				},
 			}
 		}
 	}

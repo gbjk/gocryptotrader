@@ -20,7 +20,6 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/order/limits"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/collateral"
@@ -6123,7 +6122,7 @@ func TestBusinessWSCandleSubscriptions(t *testing.T) {
 		select {
 		case a := <-e.Websocket.DataHandler:
 			switch v := a.(type) {
-			case websocket.KlineData:
+			case *kline.Item:
 				got = got.Add(v.Pair)
 			case []CandlestickMarkPrice:
 				if len(v) > 0 {

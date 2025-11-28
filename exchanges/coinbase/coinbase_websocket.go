@@ -15,6 +15,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/margin"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
@@ -134,25 +135,29 @@ func (e *Exchange) wsProcessTicker(resp *StandardWebsocketResponse) error {
 }
 
 // wsProcessCandle handles candle data from the websocket
+// TODO:: Resp doesn't contain Interval; Get interval from subscription
 func (e *Exchange) wsProcessCandle(resp *StandardWebsocketResponse) error {
 	var wsCandles []WebsocketCandleHolder
 	if err := json.Unmarshal(resp.Events, &wsCandles); err != nil {
 		return err
 	}
-	var allCandles []websocket.KlineData
+	var allCandles []*kline.Item
 	for i := range wsCandles {
 		for j := range wsCandles[i].Candles {
-			allCandles = append(allCandles, websocket.KlineData{
-				Timestamp:  resp.Timestamp,
-				Pair:       wsCandles[i].Candles[j].ProductID,
-				AssetType:  asset.Spot,
-				Exchange:   e.Name,
-				StartTime:  wsCandles[i].Candles[j].Start.Time(),
-				OpenPrice:  wsCandles[i].Candles[j].Open.Float64(),
-				ClosePrice: wsCandles[i].Candles[j].Close.Float64(),
-				HighPrice:  wsCandles[i].Candles[j].High.Float64(),
-				LowPrice:   wsCandles[i].Candles[j].Low.Float64(),
-				Volume:     wsCandles[i].Candles[j].Volume.Float64(),
+			allCandles = append(allCandles, &kline.Item{
+				Exchange: e.Name,
+				Pair:     wsCandles[i].Candles[j].ProductID,
+				Asset:    asset.Spot,
+				Candles: []kline.Candle{
+					{
+						Time:   wsCandles[i].Candles[j].Start.Time(),
+						Open:   wsCandles[i].Candles[j].Open.Float64(),
+						High:   wsCandles[i].Candles[j].High.Float64(),
+						Low:    wsCandles[i].Candles[j].Low.Float64(),
+						Close:  wsCandles[i].Candles[j].Close.Float64(),
+						Volume: wsCandles[i].Candles[j].Volume.Float64(),
+					},
+				},
 			})
 		}
 	}

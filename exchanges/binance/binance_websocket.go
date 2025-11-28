@@ -17,6 +17,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -380,26 +381,32 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 		return nil
 	case "kline_1m", "kline_3m", "kline_5m", "kline_15m", "kline_30m", "kline_1h", "kline_2h", "kline_4h",
 		"kline_6h", "kline_8h", "kline_12h", "kline_1d", "kline_3d", "kline_1w", "kline_1M":
-		var kline KlineStream
-		err = json.Unmarshal(jsonData, &kline)
+		var klineData KlineStream
+		err = json.Unmarshal(jsonData, &klineData)
 		if err != nil {
 			return fmt.Errorf("%v - Could not convert to a KlineStream structure %s",
 				e.Name,
 				err)
 		}
-		e.Websocket.DataHandler <- websocket.KlineData{
-			Timestamp:  kline.EventTime.Time(),
-			Pair:       pair,
-			AssetType:  asset.Spot,
-			Exchange:   e.Name,
-			StartTime:  kline.Kline.StartTime.Time(),
-			CloseTime:  kline.Kline.CloseTime.Time(),
-			Interval:   kline.Kline.Interval,
-			OpenPrice:  kline.Kline.OpenPrice.Float64(),
-			ClosePrice: kline.Kline.ClosePrice.Float64(),
-			HighPrice:  kline.Kline.HighPrice.Float64(),
-			LowPrice:   kline.Kline.LowPrice.Float64(),
-			Volume:     kline.Kline.Volume.Float64(),
+		interval, err := kline.ParseInterval(klineData.Kline.Interval)
+		if err != nil {
+			return err
+		}
+		e.Websocket.DataHandler <- &kline.Item{
+			Exchange: e.Name,
+			Pair:     pair,
+			Asset:    asset.Spot,
+			Interval: interval,
+			Candles: []kline.Candle{
+				{
+					Time:   klineData.Kline.StartTime.Time(),
+					Open:   klineData.Kline.OpenPrice.Float64(),
+					High:   klineData.Kline.HighPrice.Float64(),
+					Low:    klineData.Kline.LowPrice.Float64(),
+					Close:  klineData.Kline.ClosePrice.Float64(),
+					Volume: klineData.Kline.Volume.Float64(),
+				},
+			},
 		}
 		return nil
 	case "depth":
