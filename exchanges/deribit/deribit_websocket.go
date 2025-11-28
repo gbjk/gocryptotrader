@@ -638,16 +638,25 @@ func (e *Exchange) processCandleChart(respRaw []byte, channels []string) error {
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- websocket.KlineData{
-		Timestamp:  candleData.Tick.Time(),
-		Pair:       cp,
-		AssetType:  a,
-		Exchange:   e.Name,
-		OpenPrice:  candleData.Open,
-		HighPrice:  candleData.High,
-		LowPrice:   candleData.Low,
-		ClosePrice: candleData.Close,
-		Volume:     candleData.Volume,
+	interval, err := kline.ParseInterval(channels[3])
+	if err != nil {
+		return err
+	}
+	e.Websocket.DataHandler <- &kline.Item{
+		Exchange: e.Name,
+		Pair:     cp,
+		Asset:    a,
+		Interval: interval,
+		Candles: []kline.Candle{
+			{
+				Time:   candleData.Tick.Time(),
+				Open:   candleData.Open,
+				High:   candleData.High,
+				Low:    candleData.Low,
+				Close:  candleData.Close,
+				Volume: candleData.Volume,
+			},
+		},
 	}
 	return nil
 }

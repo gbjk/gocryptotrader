@@ -331,20 +331,29 @@ func (e *Exchange) processCandlestick(incoming []byte) error {
 		return err
 	}
 
-	out := make([]websocket.KlineData, 0, len(standardMarginAssetTypes))
+	interval, err := kline.ParseInterval(icp[0])
+	if err != nil {
+		return err
+	}
+
+	out := make([]*kline.Item, 0, len(standardMarginAssetTypes))
 	for _, a := range standardMarginAssetTypes {
 		if enabled, _ := e.CurrencyPairs.IsPairEnabled(currencyPair, a); enabled {
-			out = append(out, websocket.KlineData{
-				Pair:       currencyPair,
-				AssetType:  a,
-				Exchange:   e.Name,
-				StartTime:  data.Timestamp.Time(),
-				Interval:   icp[0],
-				OpenPrice:  data.OpenPrice.Float64(),
-				ClosePrice: data.ClosePrice.Float64(),
-				HighPrice:  data.HighestPrice.Float64(),
-				LowPrice:   data.LowestPrice.Float64(),
-				Volume:     data.TotalVolume.Float64(),
+			out = append(out, &kline.Item{
+				Exchange: e.Name,
+				Pair:     currencyPair,
+				Asset:    a,
+				Interval: interval,
+				Candles: []kline.Candle{
+					{
+						Time:   data.Timestamp.Time(),
+						Open:   data.OpenPrice.Float64(),
+						High:   data.HighestPrice.Float64(),
+						Low:    data.LowestPrice.Float64(),
+						Close:  data.ClosePrice.Float64(),
+						Volume: data.TotalVolume.Float64(),
+					},
+				},
 			})
 		}
 	}

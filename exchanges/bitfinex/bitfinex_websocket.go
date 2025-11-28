@@ -804,18 +804,23 @@ func (e *Exchange) handleWSAllCandleUpdates(c *subscription.Subscription, respRa
 		wsCandles = []Candle{wsCandle}
 	}
 
-	klines := make([]websocket.KlineData, len(wsCandles))
+	klines := make([]*kline.Item, len(wsCandles))
 	for i := range wsCandles {
-		klines[i] = websocket.KlineData{
-			Exchange:   e.Name,
-			AssetType:  c.Asset,
-			Pair:       c.Pairs[0],
-			Timestamp:  wsCandles[i].Timestamp.Time(),
-			OpenPrice:  wsCandles[i].Open.Float64(),
-			ClosePrice: wsCandles[i].Close.Float64(),
-			HighPrice:  wsCandles[i].High.Float64(),
-			LowPrice:   wsCandles[i].Low.Float64(),
-			Volume:     wsCandles[i].Volume.Float64(),
+		klines[i] = &kline.Item{
+			Exchange: e.Name,
+			Pair:     c.Pairs[0],
+			Asset:    c.Asset,
+			Interval: c.Interval,
+			Candles: []kline.Candle{
+				{
+					Time:   wsCandles[i].Timestamp.Time(),
+					Open:   wsCandles[i].Open.Float64(),
+					High:   wsCandles[i].High.Float64(),
+					Low:    wsCandles[i].Low.Float64(),
+					Close:  wsCandles[i].Close.Float64(),
+					Volume: wsCandles[i].Volume.Float64(),
+				},
+			},
 		}
 	}
 	e.Websocket.DataHandler <- klines

@@ -14,6 +14,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/order"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
@@ -374,32 +375,38 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 					return nil
 				case "kline_1m", "kline_3m", "kline_5m", "kline_15m", "kline_30m", "kline_1h", "kline_2h", "kline_4h",
 					"kline_6h", "kline_8h", "kline_12h", "kline_1d", "kline_3d", "kline_1w", "kline_1M":
-					var kline KlineStream
-					err := json.Unmarshal(rawData, &kline)
+					var klineData KlineStream
+					err := json.Unmarshal(rawData, &klineData)
 					if err != nil {
 						return fmt.Errorf("%v - Could not convert to a KlineStream structure %s",
 							e.Name,
 							err)
 					}
 
-					pair, err := currency.NewPairFromFormattedPairs(kline.Symbol, pairs, format)
+					pair, err := currency.NewPairFromFormattedPairs(klineData.Symbol, pairs, format)
 					if err != nil {
 						return err
 					}
 
-					e.Websocket.DataHandler <- websocket.KlineData{
-						Timestamp:  kline.EventTime.Time(),
-						Pair:       pair,
-						AssetType:  asset.Spot,
-						Exchange:   e.Name,
-						StartTime:  kline.Kline.StartTime.Time(),
-						CloseTime:  kline.Kline.CloseTime.Time(),
-						Interval:   kline.Kline.Interval,
-						OpenPrice:  kline.Kline.OpenPrice,
-						ClosePrice: kline.Kline.ClosePrice,
-						HighPrice:  kline.Kline.HighPrice,
-						LowPrice:   kline.Kline.LowPrice,
-						Volume:     kline.Kline.Volume,
+					interval, err := kline.ParseInterval(klineData.Kline.Interval)
+					if err != nil {
+						return err
+					}
+					e.Websocket.DataHandler <- &kline.Item{
+						Exchange: e.Name,
+						Pair:     pair,
+						Asset:    asset.Spot,
+						Interval: interval,
+						Candles: []kline.Candle{
+							{
+								Time:   klineData.Kline.StartTime.Time(),
+								Open:   klineData.Kline.OpenPrice,
+								High:   klineData.Kline.HighPrice,
+								Low:    klineData.Kline.LowPrice,
+								Close:  klineData.Kline.ClosePrice,
+								Volume: klineData.Kline.Volume,
+							},
+						},
 					}
 					return nil
 				case "depth":

@@ -1316,3 +1316,31 @@ func TestGenerateSubscriptions(t *testing.T) {
 		"should panic on invalid channel",
 	)
 }
+
+func TestParseCandleInterval(t *testing.T) {
+	t.Parallel()
+	for _, tt := range []struct {
+		name     string
+		channel  string
+		expected kline.Interval
+		wantErr  bool
+	}{
+		{name: "1m candles", channel: "candles_1m_updates", expected: kline.OneMin},
+		{name: "15m candles", channel: "candles_15m_updates", expected: kline.FifteenMin},
+		{name: "30m candles", channel: "candles_30m_updates", expected: kline.ThirtyMin},
+		{name: "1h candles", channel: "candles_1h_updates", expected: kline.OneHour},
+		{name: "1d candles", channel: "candles_1d_updates", expected: kline.OneDay},
+		{name: "invalid format", channel: "invalid", wantErr: true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			interval, err := parseCandleInterval(tt.channel)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, interval)
+		})
+	}
+}

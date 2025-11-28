@@ -614,18 +614,25 @@ func (e *Exchange) processFuturesKline(respData []byte, intervalStr string) erro
 	if err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- &websocket.KlineData{
-		Timestamp:  resp.Time.Time(),
-		AssetType:  asset.Futures,
-		Exchange:   e.Name,
-		StartTime:  time.Unix(resp.Candles[0].Int64(), 0),
-		Interval:   intervalStr,
-		OpenPrice:  resp.Candles[1].Float64(),
-		ClosePrice: resp.Candles[2].Float64(),
-		HighPrice:  resp.Candles[3].Float64(),
-		LowPrice:   resp.Candles[4].Float64(),
-		Volume:     resp.Candles[6].Float64(),
-		Pair:       pair,
+	interval, err := kline.ParseInterval(intervalStr)
+	if err != nil {
+		return err
+	}
+	e.Websocket.DataHandler <- &kline.Item{
+		Exchange: e.Name,
+		Pair:     pair,
+		Asset:    asset.Futures,
+		Interval: interval,
+		Candles: []kline.Candle{
+			{
+				Time:   time.Unix(resp.Candles[0].Int64(), 0),
+				Open:   resp.Candles[1].Float64(),
+				High:   resp.Candles[3].Float64(),
+				Low:    resp.Candles[4].Float64(),
+				Close:  resp.Candles[2].Float64(),
+				Volume: resp.Candles[6].Float64(),
+			},
+		},
 	}
 	return nil
 }
@@ -836,22 +843,29 @@ func (e *Exchange) processCandlesticks(respData []byte, instrument, intervalStri
 	if err != nil {
 		return err
 	}
+	interval, err := kline.ParseInterval(intervalString)
+	if err != nil {
+		return err
+	}
 	for x := range assets {
 		if !e.AssetWebsocketSupport.IsAssetWebsocketSupported(assets[x]) {
 			continue
 		}
-		e.Websocket.DataHandler <- &websocket.KlineData{
-			Timestamp:  resp.Time.Time(),
-			Pair:       pair,
-			AssetType:  assets[x],
-			Exchange:   e.Name,
-			StartTime:  resp.Candles.StartTime.Time(),
-			Interval:   intervalString,
-			OpenPrice:  resp.Candles.OpenPrice.Float64(),
-			ClosePrice: resp.Candles.ClosePrice.Float64(),
-			HighPrice:  resp.Candles.HighPrice.Float64(),
-			LowPrice:   resp.Candles.LowPrice.Float64(),
-			Volume:     resp.Candles.TransactionVolume.Float64(),
+		e.Websocket.DataHandler <- &kline.Item{
+			Exchange: e.Name,
+			Pair:     pair,
+			Asset:    assets[x],
+			Interval: interval,
+			Candles: []kline.Candle{
+				{
+					Time:   resp.Candles.StartTime.Time(),
+					Open:   resp.Candles.OpenPrice.Float64(),
+					High:   resp.Candles.HighPrice.Float64(),
+					Low:    resp.Candles.LowPrice.Float64(),
+					Close:  resp.Candles.ClosePrice.Float64(),
+					Volume: resp.Candles.TransactionVolume.Float64(),
+				},
+			},
 		}
 	}
 	return nil

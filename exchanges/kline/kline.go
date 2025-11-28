@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
@@ -148,22 +149,22 @@ func (i Interval) Short() string {
 	return s
 }
 
-// UnmarshalJSON implements the json.Unmarshaler interface for Intervals
+// UnmarshalText implements the json.Unmarshaler interface for Intervals
 // It does not validate the duration is aligned, only that it is a parsable duration
-func (i *Interval) UnmarshalJSON(text []byte) error {
-	text = bytes.Trim(text, `"`)
-	if string(text) == "raw" {
+// Uppercase "M" means month, while lowercase "m" means minute.
+func (i *Interval) UnmarshalText(d []byte) error {
+	s := string(bytes.Trim(d, `"`))
+	if s == "" {
+		return fmt.Errorf("%w: %q", ErrInvalidInterval, s)
+	}
+	if s == "raw" {
 		*i = Raw
 		return nil
 	}
-	if len(bytes.TrimLeft(text, `0123456789`)) > 0 { // contains non-numerics, ParseDuration can handle errors
-		d, err := time.ParseDuration(string(text))
-		if err != nil {
-			return err
-		}
-		*i = Interval(d)
+	if len(strings.TrimLeft(s, `0123456789`)) > 0 { // contains non-numerics
+		return i.parseDuration(s)
 	} else {
-		n, err := strconv.ParseInt(string(text), 10, 64)
+		n, err := strconv.ParseInt(s, 10, 64)
 		if err != nil {
 			return err
 		}
@@ -172,9 +173,72 @@ func (i *Interval) UnmarshalJSON(text []byte) error {
 	return nil
 }
 
+// parseDuration parses a interval containing a suffix
+// Uppercase "M" means month, while lowercase "m" means minute.
+func (i *Interval) parseDuration(s string) error {
+	// Try standard time.ParseDuration first (handles "1h", "30m", "1s", etc.)
+	d, err := time.ParseDuration(s)
+	if err == nil {
+		*i = Interval(d)
+		return err
+	}
+
+	suffixIdx := 1 + strings.LastIndexFunc(s, unicode.IsNumber)
+
+	switch suffixIdx {
+	case 0, len(s): // 0=No leading numbers, len(s)=No suffix at all
+		return fmt.Errorf("%w: %q", ErrInvalidInterval, s)
+	}
+
+	n, err := strconv.Atoi(s[:suffixIdx])
+	if err != nil {
+		return fmt.Errorf("%w: %q", ErrInvalidInterval, s)
+	}
+
+	unit := s[suffixIdx:]
+
+	if unit == "M" { // Handle M(onth)
+		unit = "month"
+	}
+
+	switch strings.ToLower(unit) {
+	case "s", "sec", "second", "seconds":
+		d = time.Duration(n) * time.Second
+	case "m", "min", "mins", "minute", "minutes":
+		d = time.Duration(n) * time.Minute
+	case "h", "hr", "hrs", "hour", "hours":
+		d = time.Duration(n) * time.Hour
+	case "d", "day", "days":
+		d = time.Duration(n) * 24 * time.Hour
+	case "w", "wk", "week", "weeks":
+		d = time.Duration(n) * 7 * 24 * time.Hour
+	case "mo", "month", "months":
+		// Month is approximated as 30 days
+		d = time.Duration(n) * 30 * 24 * time.Hour
+	default:
+		return fmt.Errorf("%w: %q", ErrInvalidInterval, s)
+	}
+
+	*i = Interval(d)
+
+	return nil
+}
+
 // MarshalText implements the TextMarshaler interface for Intervals
 func (i Interval) MarshalText() ([]byte, error) {
 	return []byte(i.Short()), nil
+}
+
+// ParseInterval converts an exchange interval string into an Interval value.
+func ParseInterval(text string) (Interval, error) {
+	var interval Interval
+	if err := interval.UnmarshalText([]byte(text)); err != nil {
+		return 0, err
+	}
+	if interval <= 0 {
+		return 0, fmt.Errorf("%w: %q", ErrInvalidInterval, text)
+	}
+	return interval, nil
 }
 
 // addPadding inserts padding time aligned when exchanges do not supply all data

@@ -397,21 +397,30 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 				if len(candle.Changes[i]) != 6 {
 					continue
 				}
-				interval, ok := result["type"].(string)
+				intervalStr, ok := result["type"].(string)
 				if !ok {
 					return errors.New("unable to type assert interval")
 				}
-				e.Websocket.DataHandler <- websocket.KlineData{
-					Timestamp:  time.UnixMilli(int64(candle.Changes[i][0])),
-					Pair:       pair,
-					AssetType:  asset.Spot,
-					Exchange:   e.Name,
-					Interval:   interval,
-					OpenPrice:  candle.Changes[i][1],
-					HighPrice:  candle.Changes[i][2],
-					LowPrice:   candle.Changes[i][3],
-					ClosePrice: candle.Changes[i][4],
-					Volume:     candle.Changes[i][5],
+				// Parse interval from "candles_1m_updates" format
+				interval, err := parseCandleInterval(intervalStr)
+				if err != nil {
+					return fmt.Errorf("unable to parse interval %q: %w", intervalStr, err)
+				}
+				e.Websocket.DataHandler <- &kline.Item{
+					Exchange: e.Name,
+					Pair:     pair,
+					Asset:    asset.Spot,
+					Interval: interval,
+					Candles: []kline.Candle{
+						{
+							Time:   time.UnixMilli(int64(candle.Changes[i][0])),
+							Open:   candle.Changes[i][1],
+							High:   candle.Changes[i][2],
+							Low:    candle.Changes[i][3],
+							Close:  candle.Changes[i][4],
+							Volume: candle.Changes[i][5],
+						},
+					},
 				}
 			}
 		default:
@@ -584,6 +593,21 @@ func channelInterval(i kline.Interval) string {
 		return "1d"
 	}
 	panic(fmt.Errorf("%w: %s", kline.ErrUnsupportedInterval, i.Short()))
+}
+
+// parseCandleInterval parses interval from channel type like "candles_1m_updates"
+func parseCandleInterval(channelType string) (kline.Interval, error) {
+	// Expected format: "candles_1m_updates", "candles_15m_updates", etc.
+	parts := strings.Split(channelType, "_")
+	if len(parts) < 2 {
+		return 0, fmt.Errorf("invalid candle channel type: %s", channelType)
+	}
+	intervalStr := parts[1]
+	interval, err := kline.ParseInterval(intervalStr)
+	if err != nil {
+		return 0, err
+	}
+	return interval, nil
 }
 
 const subTplText = `

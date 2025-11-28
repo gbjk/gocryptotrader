@@ -209,17 +209,21 @@ func (e *Exchange) wsHandleCandleMsg(s *subscription.Subscription, respRaw []byt
 	if err := json.Unmarshal(respRaw, &c); err != nil {
 		return err
 	}
-	e.Websocket.DataHandler <- websocket.KlineData{
-		Timestamp:  c.Timestamp.Time(),
-		Exchange:   e.Name,
-		AssetType:  s.Asset,
-		Pair:       s.Pairs[0],
-		OpenPrice:  c.Tick.Open,
-		ClosePrice: c.Tick.Close,
-		HighPrice:  c.Tick.High,
-		LowPrice:   c.Tick.Low,
-		Volume:     c.Tick.Volume,
-		Interval:   s.Interval.String(),
+	e.Websocket.DataHandler <- &kline.Item{
+		Exchange: e.Name,
+		Pair:     s.Pairs[0],
+		Asset:    s.Asset,
+		Interval: s.Interval,
+		Candles: []kline.Candle{
+			{
+				Time:   c.Timestamp.Time(),
+				Open:   c.Tick.Open,
+				High:   c.Tick.High,
+				Low:    c.Tick.Low,
+				Close:  c.Tick.Close,
+				Volume: c.Tick.Volume,
+			},
+		},
 	}
 	return nil
 }
