@@ -35,7 +35,6 @@ import (
 	sqltrade "github.com/thrasher-corp/gocryptotrader/database/repository/trade"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
-	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
@@ -272,27 +271,26 @@ func (f fExchange) SubscribeToWebsocketChannels(subs subscription.List) error {
 			//nolint:gosec // G404 weak rand generator okay for candles in a test
 			go func() {
 				eName := f.GetName()
-				if _, ok := s.Params["switch-exchange"]; ok {
-					eName = "canary-exchange"
+				if s.QualifiedChannel == "canary-exchange" {
+					eName = s.QualifiedChannel
 				}
 				c, o := 10.0, 10.0
-				if s.QualifiedChannel == "canary" {
-					c, o = 100000, 10000
-				}
 				for {
 					o, c = c, o+(rand.Float64()*2-1)
-					w.DataHandler <- websocket.KlineData{
-						Exchange:   eName,
-						Pair:       s.Pairs[0],
-						AssetType:  s.Asset,
-						StartTime:  time.Now(),
-						CloseTime:  time.Now().Add(s.Interval.Duration()),
-						Interval:   s.Interval.Short(),
-						OpenPrice:  o,
-						HighPrice:  c + rand.Float64(),
-						LowPrice:   c - rand.Float64(),
-						ClosePrice: c,
-						Volume:     rand.Float64() * 5,
+					w.DataHandler <- kline.Item{
+						Exchange: eName,
+						Pair:     s.Pairs[0],
+						Asset:    s.Asset,
+						Interval: s.Interval,
+						Candles: []kline.Candle{{
+							Time:             time.Now(),
+							Open:             o,
+							High:             c + rand.Float64(),
+							Low:              c - rand.Float64(),
+							Close:            c,
+							Volume:           rand.Float64() * 5,
+							ValidationIssues: s.QualifiedChannel,
+						}},
 					}
 					time.Sleep(time.Millisecond)
 				}
@@ -824,7 +822,7 @@ func TestStreamCandles(t *testing.T) {
 	// Canary Subscriptions to ensure we only forward the subs we want
 	for _, f := range []func(*subscription.Subscription){
 		func(s *subscription.Subscription) { s.Channel = subscription.TickerChannel },
-		func(s *subscription.Subscription) { s.Params = map[string]any{"switch-exchange": true} },
+		func(s *subscription.Subscription) { s.QualifiedChannel = "canary-exchange" },
 		func(s *subscription.Subscription) { s.Asset = asset.Futures },
 		func(s *subscription.Subscription) { s.Interval = kline.OneMin },
 		func(s *subscription.Subscription) { s.Pairs[0] = currency.NewBTCUSDT() },
