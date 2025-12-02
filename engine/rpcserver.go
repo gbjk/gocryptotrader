@@ -2378,14 +2378,19 @@ func (s *RPCServer) StreamCandles(r *gctrpc.StreamCandlesRequest, stream gctrpc.
 		return err
 	}
 
-	if err := e.SubscribeToWebsocketChannels(subscription.List{sub}); err != nil {
+	subs, err := subscription.List{sub}.ExpandTemplates(e)
+	if err != nil {
+		return err
+	}
+
+	if err := e.SubscribeToWebsocketChannels(subs); err != nil {
 		return err
 	}
 	ctx := stream.Context()
 
 	<-ctx.Done()
 
-	if err := e.UnsubscribeToWebsocketChannels(subscription.List{sub}); err != nil {
+	if err := e.UnsubscribeToWebsocketChannels(subs); err != nil {
 		return err
 	}
 
