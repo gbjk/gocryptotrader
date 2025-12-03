@@ -2354,8 +2354,8 @@ func (s *RPCServer) StreamCandles(r *gctrpc.StreamCandlesRequest, stream gctrpc.
 
 	if err := s.Engine.RegisterWebsocketDataHandler(
 		func(_ string, msg any) error {
-			i, ok := msg.(kline.Item)
-			if !ok || i.Exchange != r.Exchange || i.Pair != p || i.Asset != a || i.Interval != sub.Interval {
+			i, ok := msg.(*kline.Item)
+			if !ok || i.Exchange != r.Exchange || !p.Equal(i.Pair) || i.Asset != a || i.Interval != sub.Interval {
 				return nil
 			}
 			for _, c := range i.Candles {
