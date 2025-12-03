@@ -55,8 +55,10 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/portfolio/withdraw"
 	"github.com/thrasher-corp/gocryptotrader/utils"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -2368,6 +2370,10 @@ func (s *RPCServer) StreamCandles(r *gctrpc.StreamCandlesRequest, stream gctrpc.
 					Volume:    c.Volume,
 					IsPartial: c.ValidationIssues != "",
 				}); err != nil {
+					st, ok := status.FromError(err)
+					if ok && st.Code() == codes.Unavailable && st.Message() == "transport is closing" {
+						return nil // client is disconnecting
+					}
 					return err
 				}
 			}
