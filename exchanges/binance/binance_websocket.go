@@ -394,7 +394,7 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 		}
 		validationIssues := ""
 		if !klineData.Kline.KlineClosed {
-			validationIssues = "partial candle"
+			validationIssues = kline.PartialCandle
 		}
 		e.Websocket.DataHandler <- &kline.Item{
 			Exchange: e.Name,
