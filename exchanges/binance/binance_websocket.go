@@ -392,6 +392,10 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 		if err != nil {
 			return err
 		}
+		validationIssues := ""
+		if !klineData.Kline.KlineClosed {
+			validationIssues = "partial candle"
+		}
 		e.Websocket.DataHandler <- &kline.Item{
 			Exchange: e.Name,
 			Pair:     pair,
@@ -399,12 +403,13 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 			Interval: interval,
 			Candles: []kline.Candle{
 				{
-					Time:   klineData.Kline.StartTime.Time(),
-					Open:   klineData.Kline.OpenPrice.Float64(),
-					High:   klineData.Kline.HighPrice.Float64(),
-					Low:    klineData.Kline.LowPrice.Float64(),
-					Close:  klineData.Kline.ClosePrice.Float64(),
-					Volume: klineData.Kline.Volume.Float64(),
+					Time:             klineData.Kline.StartTime.Time(),
+					Open:             klineData.Kline.OpenPrice.Float64(),
+					High:             klineData.Kline.HighPrice.Float64(),
+					Low:              klineData.Kline.LowPrice.Float64(),
+					Close:            klineData.Kline.ClosePrice.Float64(),
+					Volume:           klineData.Kline.Volume.Float64(),
+					ValidationIssues: validationIssues,
 				},
 			},
 		}
