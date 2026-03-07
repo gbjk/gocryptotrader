@@ -1002,8 +1002,12 @@ func (e *Exchange) FetchUSDTMarginExchangeLimits(ctx context.Context) ([]limits.
 			continue
 		}
 
+		a := asset.USDTMarginedFutures
+		if usdtFutures.Symbols[x].QuoteAsset == "USDC" {
+			a = asset.USDCMarginedFutures
+		}
 		l = append(l, limits.MinMaxLevel{
-			Key:                     key.NewExchangeAssetPair(e.Name, asset.USDTMarginedFutures, cp),
+			Key:                     key.NewExchangeAssetPair(e.Name, a, cp),
 			MinPrice:                usdtFutures.Symbols[x].Filters[0].MinPrice,
 			MaxPrice:                usdtFutures.Symbols[x].Filters[0].MaxPrice,
 			PriceStepIncrementSize:  usdtFutures.Symbols[x].Filters[0].TickSize,

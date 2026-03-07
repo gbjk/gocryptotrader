@@ -2738,7 +2738,7 @@ func TestUpdateOrderExecutionLimits(t *testing.T) {
 			switch a {
 			case asset.Spot, asset.Margin:
 				assert.Positive(t, l.MaxIcebergParts, "MaxIcebergParts should be positive")
-			case asset.USDTMarginedFutures:
+			case asset.USDTMarginedFutures, asset.USDCMarginedFutures:
 				assert.Positive(t, l.MinNotional, "MinNotional should be positive")
 				fallthrough
 			case asset.CoinMarginedFutures:
