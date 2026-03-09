@@ -1241,8 +1241,8 @@ func (e *Endpoints) SetDefaultEndpoints(m map[URL]string) error {
 func (e *Endpoints) SetRunningURL(endpoint, val string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	if err := validateKey(endpoint); err != nil {
-		return err
+	if endpoint = lookupKey(endpoint); endpoint == "" {
+		return errInvalidEndpointKey
 	}
 	if _, err := url.ParseRequestURI(val); err != nil {
 		return fmt.Errorf("parse request URI for %s=%q (exchange %s): %w", endpoint, val, e.Exchange, err)
@@ -1251,13 +1251,15 @@ func (e *Endpoints) SetRunningURL(endpoint, val string) error {
 	return nil
 }
 
-func validateKey(keyVal string) error {
-	for x := range keyURLs {
-		if keyURLs[x].String() == keyVal {
-			return nil
+func lookupKey(k string) string {
+	k = strings.ToLower(k)
+	for _, v := range keyURLs {
+		cand := v.String()
+		if strings.EqualFold(cand, k) {
+			return cand
 		}
 	}
-	return errInvalidEndpointKey
+	return ""
 }
 
 // GetURL gets default url from URLs map
