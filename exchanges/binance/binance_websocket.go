@@ -29,6 +29,7 @@ import (
 
 const (
 	binanceDefaultWebsocketURL = "wss://stream.binance.com:9443/stream"
+	binanceFuturesWebsocketURL = "wss://fstream.binance.com/stream"
 	pingDelay                  = time.Minute * 9
 
 	wsSubscribeMethod         = "SUBSCRIBE"
@@ -36,7 +37,10 @@ const (
 	wsListSubscriptionsMethod = "LIST_SUBSCRIPTIONS"
 )
 
-var listenKey string
+var (
+	listenKey        string
+	futuresListenKey string
+)
 
 var (
 	// maxWSUpdateBuffer defines max websocket updates to apply when an
@@ -50,57 +54,55 @@ var (
 	maxWSOrderbookWorkers = 10
 )
 
-// WsConnect initiates a websocket connection
-func (e *Exchange) WsConnect() error {
-	ctx := context.TODO()
-	if !e.Websocket.IsEnabled() || !e.IsEnabled() {
-		return websocket.ErrWebsocketNotEnabled
-	}
-
-	var dialer gws.Dialer
-	dialer.HandshakeTimeout = e.Config.HTTPTimeout
-	dialer.Proxy = http.ProxyFromEnvironment
-	var err error
+// WsConnectSpot connects the spot websocket with optional auth listenKey
+func (e *Exchange) WsConnectSpot(ctx context.Context, conn websocket.Connection) error {
 	if e.Websocket.CanUseAuthenticatedEndpoints() {
+		var err error
 		listenKey, err = e.GetWsAuthStreamKey(ctx)
 		if err != nil {
 			e.Websocket.SetCanUseAuthenticatedEndpoints(false)
-			log.Errorf(log.ExchangeSys,
-				"%v unable to connect to authenticated Websocket. Error: %s",
-				e.Name,
-				err)
+			log.Errorf(log.ExchangeSys, "%s unable to connect to authenticated spot Websocket: %s", e.Name, err)
 		} else {
-			// cleans on failed connection
-			clean := strings.Split(e.Websocket.GetWebsocketURL(), "?streams=")
-			authPayload := clean[0] + "?streams=" + listenKey
-			err = e.Websocket.SetWebsocketURL(authPayload, false, false)
-			if err != nil {
-				return err
-			}
+			clean := strings.Split(conn.GetURL(), "?streams=")
+			conn.SetURL(clean[0] + "?streams=" + listenKey)
 		}
 	}
-
-	err = e.Websocket.Conn.Dial(ctx, &dialer, http.Header{})
-	if err != nil {
-		return fmt.Errorf("%v - Unable to connect to Websocket. Error: %s",
-			e.Name,
-			err)
+	if err := conn.Dial(ctx, &gws.Dialer{HandshakeTimeout: e.Config.HTTPTimeout, Proxy: http.ProxyFromEnvironment}, http.Header{}); err != nil {
+		return fmt.Errorf("%s spot websocket dial error: %w", e.Name, err)
 	}
-
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
-		go e.KeepAuthKeyAlive(ctx)
-	}
-
-	e.Websocket.Conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
 		UseGorillaHandler: true,
 		MessageType:       gws.PongMessage,
 		Delay:             pingDelay,
 	})
-
-	e.Websocket.Wg.Add(1)
-	go e.wsReadData()
-
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
+		e.Websocket.Wg.Go(func() { e.keepAuthKeyAlive(ctx, e.MaintainWsAuthStreamKey, "spot") })
+	}
 	e.setupOrderbookManager(ctx)
+	return nil
+}
+
+// WsConnectFutures connects the USD-M futures websocket with auth listenKey
+func (e *Exchange) WsConnectFutures(ctx context.Context, conn websocket.Connection) error {
+	if e.Websocket.CanUseAuthenticatedEndpoints() {
+		var err error
+		futuresListenKey, err = e.GetFuturesWsAuthStreamKey(ctx)
+		if err != nil {
+			log.Errorf(log.ExchangeSys, "%s unable to get futures listen key: %s", e.Name, err)
+			return nil
+		}
+		clean := strings.Split(conn.GetURL(), "/ws/")
+		conn.SetURL(clean[0] + "/ws/" + futuresListenKey)
+	}
+	if err := conn.Dial(ctx, &gws.Dialer{HandshakeTimeout: e.Config.HTTPTimeout, Proxy: http.ProxyFromEnvironment}, http.Header{}); err != nil {
+		return fmt.Errorf("%s futures websocket dial error: %w", e.Name, err)
+	}
+	conn.SetupPingHandler(request.Unset, websocket.PingHandler{
+		UseGorillaHandler: true,
+		MessageType:       gws.PongMessage,
+		Delay:             pingDelay,
+	})
+	e.Websocket.Wg.Go(func() { e.keepAuthKeyAlive(ctx, e.MaintainFuturesWsAuthStreamKey, "futures") })
 	return nil
 }
 
@@ -111,7 +113,6 @@ func (e *Exchange) setupOrderbookManager(ctx context.Context) {
 			jobs:  make(chan job, maxWSOrderbookJobs),
 		}
 	} else {
-		// Change state on reconnect for initial sync.
 		for _, m1 := range e.obm.state {
 			for _, m2 := range m1 {
 				for _, update := range m2 {
@@ -122,48 +123,31 @@ func (e *Exchange) setupOrderbookManager(ctx context.Context) {
 			}
 		}
 	}
-
 	for range maxWSOrderbookWorkers {
-		// 10 workers for synchronising book
 		e.SynchroniseWebsocketOrderbook(ctx)
 	}
 }
 
-// KeepAuthKeyAlive will continuously send messages to
-// keep the WS auth key active
-func (e *Exchange) KeepAuthKeyAlive(ctx context.Context) {
-	e.Websocket.Wg.Add(1)
-	defer e.Websocket.Wg.Done()
+// keepAuthKeyAlive sends keepalive requests for websocket auth keys
+func (e *Exchange) keepAuthKeyAlive(ctx context.Context, maintain func(context.Context) error, name string) {
 	ticks := time.NewTicker(time.Minute * 30)
+	defer ticks.Stop()
 	for {
 		select {
 		case <-e.Websocket.ShutdownC:
-			ticks.Stop()
 			return
 		case <-ticks.C:
-			err := e.MaintainWsAuthStreamKey(ctx)
-			if err != nil {
+			if err := maintain(ctx); err != nil {
 				e.Websocket.DataHandler <- err
-				log.Warnf(log.ExchangeSys, "%s - Unable to renew auth websocket token, may experience shutdown", e.Name)
+				log.Warnf(log.ExchangeSys, "%s - Unable to renew %s auth websocket token, may experience shutdown", e.Name, name)
 			}
 		}
 	}
 }
 
-// wsReadData receives and passes on websocket messages for processing
-func (e *Exchange) wsReadData() {
-	defer e.Websocket.Wg.Done()
-
-	for {
-		resp := e.Websocket.Conn.ReadMessage()
-		if resp.Raw == nil {
-			return
-		}
-		err := e.wsHandleData(resp.Raw)
-		if err != nil {
-			e.Websocket.DataHandler <- err
-		}
-	}
+// wsHandleSpotData is the multi-connection handler for spot websocket data
+func (e *Exchange) wsHandleSpotData(_ context.Context, _ websocket.Connection, respRaw []byte) error {
+	return e.wsHandleData(respRaw)
 }
 
 func (e *Exchange) wsHandleData(respRaw []byte) error {
@@ -438,6 +422,94 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 	}
 }
 
+// wsHandleFuturesData is the multi-connection handler for futures websocket data
+func (e *Exchange) wsHandleFuturesData(ctx context.Context, _ websocket.Connection, respRaw []byte) error {
+	event, err := jsonparser.GetUnsafeString(respRaw, "e")
+	if err != nil {
+		return fmt.Errorf("%s %w `e`: %w from %s", e.Name, common.ErrParsingWSField, err, respRaw)
+	}
+	switch event {
+	case "ORDER_TRADE_UPDATE":
+		return e.wsHandleFuturesOrderUpdate(ctx, respRaw)
+
+	default:
+		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
+			Message: fmt.Sprintf("%s unhandled futures event %q: %s", e.Name, event, respRaw),
+		}
+	}
+	return nil
+}
+
+// wsHandleFuturesOrderUpdate handles updates for futures orders
+func (e *Exchange) wsHandleFuturesOrderUpdate(_ context.Context, msg []byte) error {
+	var u WsFuturesOrderUpdate
+	if err := json.Unmarshal(msg, &u); err != nil {
+		return fmt.Errorf("%s could not unmarshal futures order update: %w from %s", e.Name, err, msg)
+	}
+	o := u.Order
+	a := asset.USDTMarginedFutures
+	pair, err := e.MatchSymbolWithAvailablePairs(o.Symbol, a, false)
+	if err != nil {
+		a = asset.USDCMarginedFutures
+		pair, err = e.MatchSymbolWithAvailablePairs(o.Symbol, a, false)
+	}
+	if err != nil {
+		return err
+	}
+	orderID := strconv.FormatInt(o.OrderID, 10)
+	orderStatus, err := stringToOrderStatus(o.OrderStatus)
+	if err != nil {
+		e.Websocket.DataHandler <- order.ClassificationError{Exchange: e.Name, OrderID: orderID, Err: err}
+	}
+	orderType, err := order.StringToOrderType(o.OrderType)
+	if err != nil {
+		e.Websocket.DataHandler <- order.ClassificationError{Exchange: e.Name, OrderID: orderID, Err: err}
+	}
+	orderSide, err := order.StringToOrderSide(o.Side)
+	if err != nil {
+		e.Websocket.DataHandler <- order.ClassificationError{Exchange: e.Name, OrderID: orderID, Err: err}
+	}
+	var feeAsset currency.Code
+	if o.CommissionAsset != "" {
+		feeAsset = currency.NewCode(o.CommissionAsset)
+	}
+	e.Websocket.DataHandler <- &order.Detail{
+		Price:                o.Price,
+		Amount:               o.Quantity,
+		AverageExecutedPrice: o.AveragePrice,
+		ExecutedAmount:       o.FilledQty,
+		RemainingAmount:      o.Quantity - o.FilledQty,
+		Fee:                  o.Commission,
+		FeeAsset:             feeAsset,
+		Exchange:             e.Name,
+		OrderID:              orderID,
+		ClientOrderID:        o.ClientOrderID,
+		Type:                 orderType,
+		Side:                 orderSide,
+		Status:               orderStatus,
+		AssetType:            a,
+		LastUpdated:          u.TransactionTime.Time(),
+		Pair:                 pair,
+	}
+	return nil
+}
+
+// generateFuturesSubscriptions returns an empty subscription list since the
+// futures user data stream is implicit via the listenKey URL parameter.
+func (e *Exchange) generateFuturesSubscriptions() (subscription.List, error) {
+	return nil, nil
+}
+
+// SubscribeFutures is a no-op; futures user data is received via listenKey.
+func (e *Exchange) SubscribeFutures(_ context.Context, _ websocket.Connection, _ subscription.List) error {
+	return nil
+}
+
+// UnsubscribeFutures is a no-op; futures user data is received via listenKey.
+func (e *Exchange) UnsubscribeFutures(_ context.Context, _ websocket.Connection, _ subscription.List) error {
+	return nil
+}
+
 func stringToOrderStatus(status string) (order.Status, error) {
 	switch status {
 	case "NEW":
@@ -557,22 +629,24 @@ func formatChannelInterval(s *subscription.Subscription) string {
 	return ""
 }
 
-// Subscribe subscribes to a set of channels
-func (e *Exchange) Subscribe(channels subscription.List) error {
-	ctx := context.TODO()
-	return e.ParallelChanOp(ctx, channels, func(ctx context.Context, l subscription.List) error { return e.manageSubs(ctx, wsSubscribeMethod, l) }, 50)
+// SubscribeSpot subscribes to spot websocket channels
+func (e *Exchange) SubscribeSpot(ctx context.Context, conn websocket.Connection, channels subscription.List) error {
+	return e.ParallelChanOp(ctx, channels, func(ctx context.Context, l subscription.List) error {
+		return e.manageSubs(ctx, conn, wsSubscribeMethod, l)
+	}, 50)
 }
 
-// Unsubscribe unsubscribes from a set of channels
-func (e *Exchange) Unsubscribe(channels subscription.List) error {
-	ctx := context.TODO()
-	return e.ParallelChanOp(ctx, channels, func(ctx context.Context, l subscription.List) error { return e.manageSubs(ctx, wsUnsubscribeMethod, l) }, 50)
+// UnsubscribeSpot unsubscribes from spot websocket channels
+func (e *Exchange) UnsubscribeSpot(ctx context.Context, conn websocket.Connection, channels subscription.List) error {
+	return e.ParallelChanOp(ctx, channels, func(ctx context.Context, l subscription.List) error {
+		return e.manageSubs(ctx, conn, wsUnsubscribeMethod, l)
+	}, 50)
 }
 
 // manageSubs subscribes or unsubscribes from a list of subscriptions
-func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.List) error {
+func (e *Exchange) manageSubs(ctx context.Context, conn websocket.Connection, op string, subs subscription.List) error {
 	if op == wsSubscribeMethod {
-		if err := e.Websocket.AddSubscriptions(e.Websocket.Conn, subs...); err != nil { // Note: AddSubscription will set state to subscribing
+		if err := e.Websocket.AddSubscriptions(conn, subs...); err != nil {
 			return err
 		}
 	} else {
@@ -587,11 +661,11 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 		Params: subs.QualifiedChannels(),
 	}
 
-	respRaw, err := e.Websocket.Conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
+	respRaw, err := conn.SendMessageReturnResponse(ctx, request.Unset, req.ID, req)
 	if err == nil {
 		if v, d, _, rErr := jsonparser.Get(respRaw, "result"); rErr != nil {
 			err = rErr
-		} else if d != jsonparser.Null { // null is the only expected and acceptable response
+		} else if d != jsonparser.Null {
 			err = fmt.Errorf("%w: %s", common.ErrUnknownError, v)
 		}
 	}
@@ -599,9 +673,8 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 	if err != nil {
 		err = fmt.Errorf("%w; Channels: %s", err, strings.Join(subs.QualifiedChannels(), ", "))
 		e.Websocket.DataHandler <- err
-
 		if op == wsSubscribeMethod {
-			if err2 := e.Websocket.RemoveSubscriptions(e.Websocket.Conn, subs...); err2 != nil {
+			if err2 := e.Websocket.RemoveSubscriptions(conn, subs...); err2 != nil {
 				err = common.AppendError(err, err2)
 			}
 		}
@@ -609,7 +682,7 @@ func (e *Exchange) manageSubs(ctx context.Context, op string, subs subscription.
 		if op == wsSubscribeMethod {
 			err = common.AppendError(err, subs.SetStates(subscription.SubscribedState))
 		} else {
-			err = e.Websocket.RemoveSubscriptions(e.Websocket.Conn, subs...)
+			err = e.Websocket.RemoveSubscriptions(conn, subs...)
 		}
 	}
 

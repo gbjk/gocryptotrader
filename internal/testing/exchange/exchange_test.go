@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/thrasher-corp/gocryptotrader/config"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/binance"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/bitfinex"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/sharedtestvalues"
 	mockws "github.com/thrasher-corp/gocryptotrader/internal/testing/websocket"
 )
@@ -31,7 +32,8 @@ func TestMockHTTPInstance(t *testing.T) {
 }
 
 // TestMockWsInstance exercises MockWsInstance
+// Note: MockWsInstance is incompatible with multi-connection exchanges (binance, bybit, gateio).
 func TestMockWsInstance(t *testing.T) {
-	b := MockWsInstance[binance.Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }))
+	b := MockWsInstance[bitfinex.Exchange](t, mockws.CurryWsMockUpgrader(t, func(_ testing.TB, _ []byte, _ *gws.Conn) error { return nil }))
 	require.NotNil(t, b, "MockWsInstance must not be nil")
 }

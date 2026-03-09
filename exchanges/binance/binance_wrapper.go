@@ -79,7 +79,7 @@ func (e *Exchange) SetDefaults() {
 		}
 	}
 
-	for _, a := range []asset.Item{asset.Margin, asset.CoinMarginedFutures, asset.USDTMarginedFutures, asset.USDCMarginedFutures} {
+	for _, a := range []asset.Item{asset.Margin, asset.CoinMarginedFutures} {
 		if err := e.DisableAssetWebsocketSupport(a); err != nil {
 			log.Errorf(log.ExchangeSys, "%s error disabling %q asset type websocket support: %s", e.Name, a, err)
 		}
@@ -199,6 +199,7 @@ func (e *Exchange) SetDefaults() {
 		exchange.RestCoinMargined:      cfuturesAPIURL,
 		exchange.EdgeCase1:             "https://www.binance.com",
 		exchange.WebsocketSpot:         binanceDefaultWebsocketURL,
+		exchange.WebsocketUSDTMargined: binanceFuturesWebsocketURL,
 	})
 	if err != nil {
 		log.Errorln(log.ExchangeSys, err)
@@ -221,19 +222,20 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err := e.SetupDefaults(exch); err != nil {
 		return err
 	}
-	ePoint, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	spotURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
+	if err != nil {
+		return err
+	}
+	futuresURL, err := e.API.Endpoints.GetURL(exchange.WebsocketUSDTMargined)
 	if err != nil {
 		return err
 	}
 	err = e.Websocket.Setup(&websocket.ManagerSetup{
-		ExchangeConfig:        exch,
-		DefaultURL:            binanceDefaultWebsocketURL,
-		RunningURL:            ePoint,
-		Connector:             e.WsConnect,
-		Subscriber:            e.Subscribe,
-		Unsubscriber:          e.Unsubscribe,
-		GenerateSubscriptions: e.generateSubscriptions,
-		Features:              &e.Features.Supports.WebsocketCapabilities,
+		ExchangeConfig:               exch,
+		DefaultURL:                   binanceDefaultWebsocketURL,
+		RunningURL:                   spotURL,
+		Features:                     &e.Features.Supports.WebsocketCapabilities,
+		UseMultiConnectionManagement: true,
 		OrderbookBufferConfig: buffer.Config{
 			SortBuffer:            true,
 			SortBufferByUpdateIDs: true,
@@ -244,10 +246,35 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		return err
 	}
 
+	// Spot connection
+	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+		URL:                   spotURL,
+		Connector:             e.WsConnectSpot,
+		Subscriber:            e.SubscribeSpot,
+		Unsubscriber:          e.UnsubscribeSpot,
+		GenerateSubscriptions: e.generateSubscriptions,
+		Handler:               e.wsHandleSpotData,
+		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:      exch.WebsocketResponseMaxLimit,
+		RateLimit:             request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
+		MessageFilter:         asset.Spot,
+	}); err != nil {
+		return err
+	}
+
+	// USD-M Futures connection (user data stream via listenKey)
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		ResponseCheckTimeout: exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:     exch.WebsocketResponseMaxLimit,
-		RateLimit:            request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
+		URL:                      futuresURL,
+		Connector:                e.WsConnectFutures,
+		Subscriber:               e.SubscribeFutures,
+		Unsubscriber:             e.UnsubscribeFutures,
+		GenerateSubscriptions:    e.generateFuturesSubscriptions,
+		Handler:                  e.wsHandleFuturesData,
+		SubscriptionsNotRequired: true,
+		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+		RateLimit:                request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
+		MessageFilter:            asset.USDTMarginedFutures,
 	})
 }
 
@@ -999,8 +1026,32 @@ func (e *Exchange) SubmitOrder(ctx context.Context, s *order.Submit) (*order.Sub
 }
 
 // ModifyOrder modifies an existing order
-func (e *Exchange) ModifyOrder(context.Context, *order.Modify) (*order.ModifyResponse, error) {
-	return nil, common.ErrFunctionNotSupported
+func (e *Exchange) ModifyOrder(ctx context.Context, o *order.Modify) (*order.ModifyResponse, error) {
+	switch o.AssetType {
+	case asset.USDTMarginedFutures, asset.USDCMarginedFutures:
+		orderID, err := strconv.ParseInt(o.OrderID, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		var side string
+		switch o.Side {
+		case order.Buy:
+			side = "BUY"
+		case order.Sell:
+			side = "SELL"
+		default:
+			return nil, fmt.Errorf("%w %v", order.ErrSideIsInvalid, o.Side)
+		}
+		resp, err := e.UModifyOrder(ctx, o.Pair, side, orderID, o.Amount, o.Price)
+		if err != nil {
+			return nil, err
+		}
+		return &order.ModifyResponse{
+			OrderID: strconv.FormatInt(resp.OrderID, 10),
+		}, nil
+	default:
+		return nil, fmt.Errorf("%w %v", asset.ErrNotSupported, o.AssetType)
+	}
 }
 
 // CancelOrder cancels an order by its corresponding ID number
@@ -1082,7 +1133,7 @@ func (e *Exchange) CancelAllOrders(ctx context.Context, req *order.Cancel) (orde
 		}
 	case asset.USDTMarginedFutures, asset.USDCMarginedFutures:
 		if req.Pair.IsEmpty() {
-			enabledPairs, err := e.GetEnabledPairs(asset.USDTMarginedFutures)
+			enabledPairs, err := e.GetEnabledPairs(req.AssetType)
 			if err != nil {
 				return cancelAllOrdersResponse, err
 			}

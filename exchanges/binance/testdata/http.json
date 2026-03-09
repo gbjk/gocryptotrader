@@ -108119,6 +108119,66 @@
     }
    ]
   },
+  "/fapi/v1/order": {
+   "PUT": [
+    {
+     "data": {
+      "orderId": 12345,
+      "symbol": "BTCUSDT",
+      "status": "NEW",
+      "clientOrderId": "testModify",
+      "price": "50000.00",
+      "avgPrice": "0.00",
+      "origQty": "0.001",
+      "executedQty": "0.000",
+      "cumQty": "0.000",
+      "cumQuote": "0.00",
+      "timeInForce": "GTC",
+      "type": "LIMIT",
+      "reduceOnly": false,
+      "closePosition": false,
+      "side": "BUY",
+      "positionSide": "BOTH",
+      "stopPrice": "0.00",
+      "workingType": "CONTRACT_PRICE",
+      "origType": "LIMIT",
+      "updateTime": 1620000000000,
+      "time": 1620000000000
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {}
+    }
+   ]
+  },
+  "/fapi/v1/listenKey": {
+   "POST": [
+    {
+     "data": {
+      "listenKey": "test-futures-listen-key"
+     },
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ],
+   "PUT": [
+    {
+     "data": null,
+     "queryString": "",
+     "bodyParams": "",
+     "headers": {
+      "X-Mbx-Apikey": [
+       ""
+      ]
+     }
+    }
+   ]
+  },
   "/futures/data/basis": {
    "GET": [
     {

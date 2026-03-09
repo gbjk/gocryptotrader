@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/common/key"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
@@ -17,6 +18,7 @@ import (
 	exchange "github.com/thrasher-corp/gocryptotrader/exchanges"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/kline"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/request"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
@@ -67,6 +69,7 @@ const (
 	ufuturesUsersForceOrders      = "/fapi/v1/forceOrders"
 	ufuturesADLQuantile           = "/fapi/v1/adlQuantile"
 	uFuturesMultiAssetsMargin     = "/fapi/v1/multiAssetsMargin"
+	ufuturesListenKey             = "/fapi/v1/listenKey"
 )
 
 // UServerTime gets the server time
@@ -682,6 +685,22 @@ func (e *Exchange) UAutoCancelAllOpenOrders(ctx context.Context, symbol currency
 	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPost, ufuturesCountdownCancel, params, uFuturesCountdownCancelRate, &resp)
 }
 
+// UModifyOrder modifies an existing USD-M futures order via PUT /fapi/v1/order
+func (e *Exchange) UModifyOrder(ctx context.Context, symbol currency.Pair, side string, orderID int64, quantity, price float64) (UOrderData, error) {
+	var resp UOrderData
+	symbolValue, err := e.FormatSymbol(symbol, asset.USDTMarginedFutures)
+	if err != nil {
+		return resp, err
+	}
+	params := url.Values{}
+	params.Set("symbol", symbolValue)
+	params.Set("side", side)
+	params.Set("orderId", strconv.FormatInt(orderID, 10))
+	params.Set("quantity", strconv.FormatFloat(quantity, 'f', -1, 64))
+	params.Set("price", strconv.FormatFloat(price, 'f', -1, 64))
+	return resp, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodPut, ufuturesOrder, params, uFuturesOrdersDefaultRate, &resp)
+}
+
 // UFetchOpenOrder sends a request to fetch open order data for USDTMarginedFutures
 func (e *Exchange) UFetchOpenOrder(ctx context.Context, symbol currency.Pair, orderID, origClientOrderID string) (UOrderData, error) {
 	var resp UOrderData
@@ -1042,4 +1061,70 @@ func (e *Exchange) GetAssetsMode(ctx context.Context) (bool, error) {
 		MultiAssetsMargin bool `json:"multiAssetsMargin"`
 	}
 	return result.MultiAssetsMargin, e.SendAuthHTTPRequest(ctx, exchange.RestUSDTMargined, http.MethodGet, uFuturesMultiAssetsMargin, nil, uFuturesDefaultRate, &result)
+}
+
+// GetFuturesWsAuthStreamKey retrieves a listenKey for authenticated futures websocket streaming
+func (e *Exchange) GetFuturesWsAuthStreamKey(ctx context.Context) (string, error) {
+	endpointPath, err := e.API.Endpoints.GetURL(exchange.RestUSDTMargined)
+	if err != nil {
+		return "", err
+	}
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return "", err
+	}
+	var resp UserAccountStream
+	headers := make(map[string]string)
+	headers["X-MBX-APIKEY"] = creds.Key
+	item := &request.Item{
+		Method:                 http.MethodPost,
+		Path:                   endpointPath + ufuturesListenKey,
+		Headers:                headers,
+		Result:                 &resp,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
+	}
+	err = e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+		return item, nil
+	}, request.AuthenticatedRequest)
+	if err != nil {
+		return "", err
+	}
+	return resp.ListenKey, nil
+}
+
+// MaintainFuturesWsAuthStreamKey keeps the futures websocket listenKey alive
+func (e *Exchange) MaintainFuturesWsAuthStreamKey(ctx context.Context) error {
+	endpointPath, err := e.API.Endpoints.GetURL(exchange.RestUSDTMargined)
+	if err != nil {
+		return err
+	}
+	if futuresListenKey == "" {
+		futuresListenKey, err = e.GetFuturesWsAuthStreamKey(ctx)
+		return err
+	}
+	creds, err := e.GetCredentials(ctx)
+	if err != nil {
+		return err
+	}
+	path := endpointPath + ufuturesListenKey
+	params := url.Values{}
+	params.Set("listenKey", futuresListenKey)
+	path = common.EncodeURLValues(path, params)
+	headers := make(map[string]string)
+	headers["X-MBX-APIKEY"] = creds.Key
+	item := &request.Item{
+		Method:                 http.MethodPut,
+		Path:                   path,
+		Headers:                headers,
+		Verbose:                e.Verbose,
+		HTTPDebugging:          e.HTTPDebugging,
+		HTTPRecording:          e.HTTPRecording,
+		HTTPMockDataSliceLimit: e.HTTPMockDataSliceLimit,
+	}
+	return e.SendPayload(ctx, request.Unset, func() (*request.Item, error) {
+		return item, nil
+	}, request.AuthenticatedRequest)
 }
