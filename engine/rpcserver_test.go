@@ -856,11 +856,11 @@ func TestStreamCandles(t *testing.T) {
 		errs <- s.StreamCandles(req, resp)
 	}()
 
-	require.Eventuallyf(t, func() bool { return len(ch) > 50 }, time.Second, 5*time.Millisecond, "Should receive more than 50 candles: %d", len(ch))
+	require.Eventuallyf(t, func() bool { return len(ch) > 50 }, time.Second, 5*time.Millisecond, "Must receive more than 50 candles: %d", len(ch))
 
 	cancel()
 	// We deliberately don't mock Unsubscribe, so we will get this testable error back
-	require.ErrorIs(t, <-errs, subscription.ErrNotFound, "StreamCandles should error on unsubscribe")
+	require.ErrorIs(t, <-errs, subscription.ErrNotFound, "StreamCandles must error on unsubscribe")
 
 	for range 50 {
 		c := <-ch
