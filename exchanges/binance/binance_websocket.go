@@ -29,7 +29,7 @@ import (
 
 const (
 	binanceDefaultWebsocketURL = "wss://stream.binance.com:9443/stream"
-	binanceFuturesWebsocketURL = "wss://fstream.binance.com/stream"
+	binanceFuturesWebsocketURL = "wss://fstream.binance.com/"
 	pingDelay                  = time.Minute * 9
 
 	wsSubscribeMethod         = "SUBSCRIBE"
