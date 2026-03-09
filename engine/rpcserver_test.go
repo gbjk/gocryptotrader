@@ -864,7 +864,7 @@ func TestStreamCandles(t *testing.T) {
 
 	for range 50 {
 		c := <-ch
-		require.Less(t, c.Open, 1000.0, "must not recieve any canary candles")
+		require.Less(t, c.Open, 1000.0, "must not receive any canary candles")
 	}
 }
 
