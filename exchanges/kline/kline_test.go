@@ -1199,11 +1199,11 @@ func TestUnmarshalText(t *testing.T) {
 			var i Interval
 			err := i.UnmarshalText([]byte(tt.input))
 			if tt.wantErr {
-				assert.Error(t, err, "UnmarshalText should error on %q", tt.input)
+				assert.Errorf(t, err, "UnmarshalText should error on %q", tt.input)
 				return
 			}
-			require.NoError(t, err, "UnmarshalText should not error on %q", tt.input)
-			assert.Equal(t, tt.expected, i, "UnmarshalText result should match for %q", tt.input)
+			require.NoErrorf(t, err, "UnmarshalText should not error on %q", tt.input)
+			assert.Equalf(t, tt.expected, i, "UnmarshalText result should match for %q", tt.input)
 		})
 	}
 }
