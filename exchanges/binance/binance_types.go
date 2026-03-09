@@ -833,6 +833,41 @@ type WsListStatusData struct {
 	Symbol          string     `json:"s"`
 }
 
+// WsFuturesOrderUpdate defines the wrapper for a futures order update event
+type WsFuturesOrderUpdate struct {
+	EventType       string             `json:"e"`
+	EventTime       types.Time         `json:"E"`
+	TransactionTime types.Time         `json:"T"`
+	Order           WsFuturesOrderData `json:"o"`
+}
+
+// WsFuturesOrderData defines a futures order update event payload
+type WsFuturesOrderData struct {
+	Symbol          string     `json:"s"`
+	ClientOrderID   string     `json:"c"`
+	Side            string     `json:"S"`
+	OrderType       string     `json:"o"`
+	TimeInForce     string     `json:"f"`
+	Quantity        float64    `json:"q,string"`
+	Price           float64    `json:"p,string"`
+	AveragePrice    float64    `json:"ap,string"`
+	StopPrice       float64    `json:"sp,string"`
+	ExecutionType   string     `json:"x"`
+	OrderStatus     string     `json:"X"`
+	OrderID         int64      `json:"i"`
+	LastFilledQty   float64    `json:"l,string"`
+	FilledQty       float64    `json:"z,string"`
+	LastFilledPrice float64    `json:"L,string"`
+	CommissionAsset string     `json:"N"`
+	Commission      float64    `json:"n,string"`
+	TradeTime       types.Time `json:"T"`
+	TradeID         int64      `json:"t"`
+	RealizedProfit  float64    `json:"rp,string"`
+	ReduceOnly      bool       `json:"R"`
+	PositionSide    string     `json:"ps"`
+	IsMaker         bool       `json:"m"`
+}
+
 // WsPayload defines the payload through the websocket connection
 type WsPayload struct {
 	Method string   `json:"method"`
