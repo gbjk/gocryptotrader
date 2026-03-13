@@ -1997,9 +1997,9 @@ func TestSubscribe(t *testing.T) {
 	testexch.SetupWs(t, e)
 	conn, err := e.Websocket.GetConnection(asset.Spot)
 	require.NoError(t, err, "GetConnection must not error")
-	err = e.SubscribeSpot(t.Context(), conn, channels)
+	err = e.Subscribe(t.Context(), conn, channels)
 	require.NoError(t, err, "SubscribeSpot must not error")
-	err = e.UnsubscribeSpot(t.Context(), conn, channels)
+	err = e.Unsubscribe(t.Context(), conn, channels)
 	require.NoError(t, err, "UnsubscribeSpot must not error")
 }
 

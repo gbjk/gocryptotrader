@@ -500,16 +500,6 @@ func (e *Exchange) generateFuturesSubscriptions() (subscription.List, error) {
 	return nil, nil
 }
 
-// SubscribeFutures is a no-op; futures user data is received via listenKey.
-func (e *Exchange) SubscribeFutures(_ context.Context, _ websocket.Connection, _ subscription.List) error {
-	return nil
-}
-
-// UnsubscribeFutures is a no-op; futures user data is received via listenKey.
-func (e *Exchange) UnsubscribeFutures(_ context.Context, _ websocket.Connection, _ subscription.List) error {
-	return nil
-}
-
 func stringToOrderStatus(status string) (order.Status, error) {
 	switch status {
 	case "NEW":
@@ -629,18 +619,24 @@ func formatChannelInterval(s *subscription.Subscription) string {
 	return ""
 }
 
-// SubscribeSpot subscribes to spot websocket channels
-func (e *Exchange) SubscribeSpot(ctx context.Context, conn websocket.Connection, channels subscription.List) error {
-	return e.ParallelChanOp(ctx, channels, func(ctx context.Context, l subscription.List) error {
-		return e.manageSubs(ctx, conn, wsSubscribeMethod, l)
-	}, 50)
+// Subscribe subscribes to spot websocket channels
+func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	subs, errs := subs.ExpandTemplates(e)
+	return common.AppendError(errs,
+		e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error {
+			return e.manageSubs(ctx, conn, wsSubscribeMethod, l)
+		}, 50),
+	)
 }
 
-// UnsubscribeSpot unsubscribes from spot websocket channels
-func (e *Exchange) UnsubscribeSpot(ctx context.Context, conn websocket.Connection, channels subscription.List) error {
-	return e.ParallelChanOp(ctx, channels, func(ctx context.Context, l subscription.List) error {
-		return e.manageSubs(ctx, conn, wsUnsubscribeMethod, l)
-	}, 50)
+// Unsubscribe unsubscribes from spot websocket channels
+func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
+	subs, errs := subs.ExpandTemplates(e)
+	return common.AppendError(errs,
+		e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error {
+			return e.manageSubs(ctx, conn, wsUnsubscribeMethod, l)
+		}, 50),
+	)
 }
 
 // manageSubs subscribes or unsubscribes from a list of subscriptions

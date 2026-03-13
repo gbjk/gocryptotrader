@@ -243,8 +243,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                   spotURL,
 		Connector:             e.WsConnectSpot,
-		Subscriber:            e.SubscribeSpot,
-		Unsubscriber:          e.UnsubscribeSpot,
+		Subscriber:            e.Subscribe,
+		Unsubscriber:          e.Unsubscribe,
 		GenerateSubscriptions: e.generateSubscriptions,
 		Handler:               e.wsHandleSpotData,
 		ResponseCheckTimeout:  exch.WebsocketResponseCheckTimeout,
@@ -259,8 +259,8 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 		URL:                      futuresURL,
 		Connector:                e.WsConnectFutures,
-		Subscriber:               e.SubscribeFutures,
-		Unsubscriber:             e.UnsubscribeFutures,
+		Subscriber:               e.Subscribe,
+		Unsubscriber:             e.Unsubscribe,
 		GenerateSubscriptions:    e.generateFuturesSubscriptions,
 		Handler:                  e.wsHandleFuturesData,
 		SubscriptionsNotRequired: true,
