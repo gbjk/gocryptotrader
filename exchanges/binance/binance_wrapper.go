@@ -256,19 +256,38 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	}
 
 	// USD-M Futures connection (user data stream via listenKey)
-	return e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-		URL:                      futuresURL,
-		Connector:                e.WsConnectFutures,
-		Subscriber:               e.Subscribe,
-		Unsubscriber:             e.Unsubscribe,
-		GenerateSubscriptions:    e.generateFuturesSubscriptions,
-		Handler:                  e.wsHandleData,
-		SubscriptionsNotRequired: true,
-		ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-		ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-		RateLimit:                request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
-		MessageFilter:            asset.USDTMarginedFutures,
-	})
+	err = common.AppendError(err,
+		e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+			URL:                      futuresURL,
+			Connector:                e.WsConnectFutures,
+			Subscriber:               e.Subscribe,
+			Unsubscriber:             e.Unsubscribe,
+			GenerateSubscriptions:    e.generateFuturesSubscriptions,
+			Handler:                  e.wsHandleData,
+			SubscriptionsNotRequired: true,
+			ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+			RateLimit:                request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
+			MessageFilter:            asset.USDTMarginedFutures,
+		}))
+
+	// USD-M Futures connection (user data stream via listenKey)
+	err = common.AppendError(err,
+		e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+			URL:                      futuresURL,
+			Connector:                e.WsConnectFutures,
+			Subscriber:               e.Subscribe,
+			Unsubscriber:             e.Unsubscribe,
+			GenerateSubscriptions:    e.generateFuturesSubscriptions,
+			Handler:                  e.wsHandleData,
+			SubscriptionsNotRequired: true,
+			ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+			RateLimit:                request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
+			MessageFilter:            asset.USDCMarginedFutures,
+		}))
+
+	return err
 }
 
 // FetchTradablePairs returns a list of the exchanges tradable pairs

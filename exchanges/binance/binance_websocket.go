@@ -29,7 +29,7 @@ import (
 
 const (
 	binanceDefaultWebsocketURL = "wss://stream.binance.com:9443/stream"
-	binanceFuturesWebsocketURL = "wss://fstream.binance.com/"
+	binanceFuturesWebsocketURL = "wss://fstream.binance.com/stream"
 	pingDelay                  = time.Minute * 9
 
 	wsSubscribeMethod         = "SUBSCRIBE"
@@ -161,12 +161,16 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	if err != nil {
 		return fmt.Errorf("%s %s %s", e.Name, websocket.UnhandledMessage, string(respRaw))
 	}
+	a, ok := conn.MessageFilter().(asset.Item)
+	if !ok {
+		return common.GetTypeAssertError("asset.Item", conn.MessageFilter())
+	}
 	var event string
 	event, err = jsonparser.GetUnsafeString(jsonData, "e")
 	if err == nil {
 		switch event {
 		case "ORDER_TRADE_UPDATE":
-			return e.wsHandleFuturesOrderUpdate(ctx, respRaw)
+			return e.wsHandleFuturesOrderUpdate(ctx, a, respRaw)
 		case "outboundAccountPosition":
 			var data WsAccountPositionData
 			err = json.Unmarshal(jsonData, &data)
@@ -298,7 +302,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		// there should be a symbol returned for all data types below
 		return err
 	}
-	pair, isEnabled, err = e.MatchSymbolCheckEnabled(symbol, asset.Spot, false)
+	pair, isEnabled, err = e.MatchSymbolCheckEnabled(symbol, a, false)
 	if err != nil {
 		return err
 	}
@@ -380,7 +384,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		e.Websocket.DataHandler <- &kline.Item{
 			Exchange: e.Name,
 			Pair:     pair,
-			Asset:    asset.Spot,
+			Asset:    a,
 			Interval: interval,
 			Candles: []kline.Candle{
 				{
@@ -420,18 +424,13 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 }
 
 // wsHandleFuturesOrderUpdate handles updates for futures orders
-func (e *Exchange) wsHandleFuturesOrderUpdate(_ context.Context, msg []byte) error {
+func (e *Exchange) wsHandleFuturesOrderUpdate(_ context.Context, a asset.Item, msg []byte) error {
 	var u WsFuturesOrderUpdate
 	if err := json.Unmarshal(msg, &u); err != nil {
 		return fmt.Errorf("%s could not unmarshal futures order update: %w from %s", e.Name, err, msg)
 	}
 	o := u.Order
-	a := asset.USDTMarginedFutures
 	pair, err := e.MatchSymbolWithAvailablePairs(o.Symbol, a, false)
-	if err != nil {
-		a = asset.USDCMarginedFutures
-		pair, err = e.MatchSymbolWithAvailablePairs(o.Symbol, a, false)
-	}
 	if err != nil {
 		return err
 	}

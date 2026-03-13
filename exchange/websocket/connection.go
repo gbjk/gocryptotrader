@@ -56,6 +56,7 @@ type Connection interface {
 	IncomingWithData(signature any, data []byte) bool
 	// MatchReturnResponses sets up a channel to listen for an expected number of responses.
 	MatchReturnResponses(ctx context.Context, signature any, expected int) (<-chan MatchedResponse, error)
+	MessageFilter() any
 }
 
 // ConnectionSetup defines variables for an individual stream connection
@@ -125,6 +126,7 @@ type connection struct {
 	ResponseMaxLimit     time.Duration
 	Traffic              chan struct{}
 	readMessageErrors    chan error
+	messageFilter        any
 }
 
 // Dial sets proxy urls and then connects to the websocket
@@ -472,4 +474,8 @@ func (c *connection) RequireMatchWithData(signature any, incoming []byte) error 
 // IncomingWithData routes incoming data using the connection specific match system to the correct handler
 func (c *connection) IncomingWithData(signature any, data []byte) bool {
 	return c.Match.IncomingWithData(signature, data)
+}
+
+func (c *connection) MessageFilter() any {
+	return c.messageFilter
 }

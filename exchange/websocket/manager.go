@@ -402,6 +402,7 @@ func (m *Manager) getConnectionFromSetup(c *ConnectionSetup) *connection {
 		RateLimit:            c.RateLimit,
 		Reporter:             c.ConnectionLevelReporter,
 		RateLimitDefinitions: m.rateLimitDefinitions,
+		messageFilter:        c.MessageFilter,
 	}
 }
 
