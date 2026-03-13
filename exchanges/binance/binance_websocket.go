@@ -145,14 +145,9 @@ func (e *Exchange) keepAuthKeyAlive(ctx context.Context, maintain func(context.C
 	}
 }
 
-// wsHandleSpotData is the multi-connection handler for spot websocket data
-func (e *Exchange) wsHandleSpotData(_ context.Context, _ websocket.Connection, respRaw []byte) error {
-	return e.wsHandleData(respRaw)
-}
-
-func (e *Exchange) wsHandleData(respRaw []byte) error {
+func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
 	if id, err := jsonparser.GetString(respRaw, "id"); err == nil {
-		if e.Websocket.Match.IncomingWithData(id, respRaw) {
+		if conn.IncomingWithData(id, respRaw) {
 			return nil
 		}
 	}
@@ -170,6 +165,8 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 	event, err = jsonparser.GetUnsafeString(jsonData, "e")
 	if err == nil {
 		switch event {
+		case "ORDER_TRADE_UPDATE":
+			return e.wsHandleFuturesOrderUpdate(ctx, respRaw)
 		case "outboundAccountPosition":
 			var data WsAccountPositionData
 			err = json.Unmarshal(jsonData, &data)
@@ -420,24 +417,6 @@ func (e *Exchange) wsHandleData(respRaw []byte) error {
 	default:
 		return fmt.Errorf("%s %s %s", e.Name, websocket.UnhandledMessage, string(respRaw))
 	}
-}
-
-// wsHandleFuturesData is the multi-connection handler for futures websocket data
-func (e *Exchange) wsHandleFuturesData(ctx context.Context, _ websocket.Connection, respRaw []byte) error {
-	event, err := jsonparser.GetUnsafeString(respRaw, "e")
-	if err != nil {
-		return fmt.Errorf("%s %w `e`: %w from %s", e.Name, common.ErrParsingWSField, err, respRaw)
-	}
-	switch event {
-	case "ORDER_TRADE_UPDATE":
-		return e.wsHandleFuturesOrderUpdate(ctx, respRaw)
-
-	default:
-		e.Websocket.DataHandler <- websocket.UnhandledMessageWarning{
-			Message: fmt.Sprintf("%s unhandled futures event %q: %s", e.Name, event, respRaw),
-		}
-	}
-	return nil
 }
 
 // wsHandleFuturesOrderUpdate handles updates for futures orders
