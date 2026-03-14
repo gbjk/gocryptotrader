@@ -84,15 +84,14 @@ func (e *Exchange) WsConnectSpot(ctx context.Context, conn websocket.Connection)
 
 // WsConnectFutures connects the USD-M futures websocket with auth listenKey
 func (e *Exchange) WsConnectFutures(ctx context.Context, conn websocket.Connection) error {
-	if e.Websocket.CanUseAuthenticatedEndpoints() {
+	if conn.Authenticated() {
 		var err error
 		futuresListenKey, err = e.GetFuturesWsAuthStreamKey(ctx)
 		if err != nil {
-			log.Errorf(log.ExchangeSys, "%s unable to get futures listen key: %s", e.Name, err)
-			return nil
+			return fmt.Errorf("unable to get futures listen key: %w", err)
 		}
-		clean := strings.Split(conn.GetURL(), "/ws/")
-		conn.SetURL(clean[0] + "/ws/" + futuresListenKey)
+		clean := strings.Split(conn.GetURL(), "?listenKey=")
+		conn.SetURL(clean[0] + "?listenKey=" + futuresListenKey)
 	}
 	if err := conn.Dial(ctx, &gws.Dialer{HandshakeTimeout: e.Config.HTTPTimeout, Proxy: http.ProxyFromEnvironment}, http.Header{}); err != nil {
 		return fmt.Errorf("%s futures websocket dial error: %w", e.Name, err)
@@ -102,7 +101,9 @@ func (e *Exchange) WsConnectFutures(ctx context.Context, conn websocket.Connecti
 		MessageType:       gws.PongMessage,
 		Delay:             pingDelay,
 	})
-	e.Websocket.Wg.Go(func() { e.keepAuthKeyAlive(ctx, e.MaintainFuturesWsAuthStreamKey, "futures") })
+	if conn.Authenticated() {
+		e.Websocket.Wg.Go(func() { e.keepAuthKeyAlive(ctx, e.MaintainFuturesWsAuthStreamKey, "futures") })
+	}
 	return nil
 }
 
@@ -145,29 +146,34 @@ func (e *Exchange) keepAuthKeyAlive(ctx context.Context, maintain func(context.C
 	}
 }
 
-func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, msg []byte) error {
-	if id, err := jsonparser.GetString(msg, "id"); err == nil {
-		if conn.IncomingWithData(id, msg) {
+func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, respRaw []byte) error {
+	if id, err := jsonparser.GetString(respRaw, "id"); err == nil {
+		if conn.IncomingWithData(id, respRaw) {
 			return nil
 		}
 	}
 
-	if resultString, err := jsonparser.GetUnsafeString(msg, "result"); err == nil && resultString == "null" {
+	if resultString, err := jsonparser.GetUnsafeString(respRaw, "result"); err == nil && resultString == "null" {
 		return nil
+	}
+
+	jsonData, _, _, err := jsonparser.Get(respRaw, "data")
+	if err != nil {
+		return fmt.Errorf("%w `data`: %w", common.ErrParsingWSField, err)
 	}
 
 	a, ok := conn.MessageFilter().(asset.Item)
 	if !ok {
 		return common.GetTypeAssertError("asset.Item", conn.MessageFilter())
 	}
-	event, err := jsonparser.GetUnsafeString(msg, "e")
+	event, err := jsonparser.GetUnsafeString(jsonData, "e")
 	if err == nil {
 		switch event {
 		case "ORDER_TRADE_UPDATE":
-			return e.wsHandleFuturesOrderUpdate(ctx, a, msg)
+			return e.wsHandleFuturesOrderUpdate(ctx, a, jsonData)
 		case "outboundAccountPosition":
 			var data WsAccountPositionData
-			err = json.Unmarshal(msg, &data)
+			err = json.Unmarshal(jsonData, &data)
 			if err != nil {
 				return fmt.Errorf("%v - Could not convert to outboundAccountPosition structure %s",
 					e.Name,
@@ -177,7 +183,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 			return nil
 		case "balanceUpdate":
 			var data WsBalanceUpdateData
-			err = json.Unmarshal(msg, &data)
+			err = json.Unmarshal(jsonData, &data)
 			if err != nil {
 				return fmt.Errorf("%v - Could not convert to balanceUpdate structure %s",
 					e.Name,
@@ -187,7 +193,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 			return nil
 		case "executionReport":
 			var data WsOrderUpdateData
-			err = json.Unmarshal(msg, &data)
+			err = json.Unmarshal(jsonData, &data)
 			if err != nil {
 				return fmt.Errorf("%v - Could not convert to executionReport structure %s",
 					e.Name,
@@ -264,7 +270,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 			return nil
 		case "listStatus":
 			var data WsListStatusData
-			err = json.Unmarshal(msg, &data)
+			err = json.Unmarshal(jsonData, &data)
 			if err != nil {
 				return fmt.Errorf("%v - Could not convert to listStatus structure %s",
 					e.Name,
@@ -275,23 +281,23 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		}
 	}
 
-	streamStr, err := jsonparser.GetUnsafeString(msg, "stream")
+	streamStr, err := jsonparser.GetUnsafeString(respRaw, "stream")
 	if err != nil {
 		if errors.Is(err, jsonparser.KeyPathNotFoundError) {
-			return fmt.Errorf("%s %s %s", e.Name, websocket.UnhandledMessage, string(msg))
+			return fmt.Errorf("%s %s %s", e.Name, websocket.UnhandledMessage, string(respRaw))
 		}
 		return err
 	}
 	streamType := strings.Split(streamStr, "@")
 	if len(streamType) <= 1 {
-		return fmt.Errorf("%s %s %s", e.Name, websocket.UnhandledMessage, string(msg))
+		return fmt.Errorf("%s %s %s", e.Name, websocket.UnhandledMessage, string(respRaw))
 	}
 	var (
 		pair      currency.Pair
 		isEnabled bool
 		symbol    string
 	)
-	symbol, err = jsonparser.GetUnsafeString(msg, "s")
+	symbol, err = jsonparser.GetUnsafeString(jsonData, "s")
 	if err != nil {
 		// there should be a symbol returned for all data types below
 		return err
@@ -312,7 +318,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		}
 
 		var t TradeStream
-		err := json.Unmarshal(msg, &t)
+		err := json.Unmarshal(jsonData, &t)
 		if err != nil {
 			return fmt.Errorf("%v - Could not unmarshal trade data: %s",
 				e.Name,
@@ -336,7 +342,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		return e.Websocket.Trade.Update(saveTradeData, td)
 	case "ticker":
 		var t TickerStream
-		err = json.Unmarshal(msg, &t)
+		err = json.Unmarshal(jsonData, &t)
 		if err != nil {
 			return fmt.Errorf("%v - Could not convert to a TickerStream structure %s",
 				e.Name,
@@ -361,7 +367,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	case "kline_1m", "kline_3m", "kline_5m", "kline_15m", "kline_30m", "kline_1h", "kline_2h", "kline_4h",
 		"kline_6h", "kline_8h", "kline_12h", "kline_1d", "kline_3d", "kline_1w", "kline_1M":
 		var klineData KlineStream
-		err = json.Unmarshal(msg, &klineData)
+		err = json.Unmarshal(jsonData, &klineData)
 		if err != nil {
 			return fmt.Errorf("%v - Could not convert to a KlineStream structure %s",
 				e.Name,
@@ -395,7 +401,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		return nil
 	case "depth":
 		var depth WebsocketDepthStream
-		err = json.Unmarshal(msg, &depth)
+		err = json.Unmarshal(jsonData, &depth)
 		if err != nil {
 			return fmt.Errorf("%v - Could not convert to depthStream structure %s",
 				e.Name,
@@ -413,7 +419,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 		}
 		return nil
 	default:
-		return fmt.Errorf("%s %s %s", e.Name, websocket.UnhandledMessage, string(msg))
+		return fmt.Errorf("%s %s %s", e.Name, websocket.UnhandledMessage, string(respRaw))
 	}
 }
 

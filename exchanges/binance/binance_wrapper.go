@@ -258,7 +258,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	// USD-M Futures connection (user data stream via listenKey)
 	err = common.AppendError(err,
 		e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-			URL:                      futuresURL,
+			URL:                      futuresURL + "/market/stream",
 			Connector:                e.WsConnectFutures,
 			Subscriber:               e.Subscribe,
 			Unsubscriber:             e.Unsubscribe,
@@ -269,6 +269,22 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
 			RateLimit:                request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
 			MessageFilter:            asset.USDTMarginedFutures,
+		}))
+
+	err = common.AppendError(err,
+		e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
+			URL:                      futuresURL + "/private/stream",
+			Connector:                e.WsConnectFutures,
+			Subscriber:               e.Subscribe,
+			Unsubscriber:             e.Unsubscribe,
+			GenerateSubscriptions:    e.generateFuturesSubscriptions,
+			Handler:                  e.wsHandleData,
+			SubscriptionsNotRequired: true,
+			ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
+			RateLimit:                request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
+			MessageFilter:            asset.USDTMarginedFutures,
+			Authenticated:            true,
 		}))
 
 	return err
