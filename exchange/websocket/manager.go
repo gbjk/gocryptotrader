@@ -403,6 +403,7 @@ func (m *Manager) getConnectionFromSetup(c *ConnectionSetup) *connection {
 		Reporter:             c.ConnectionLevelReporter,
 		RateLimitDefinitions: m.rateLimitDefinitions,
 		messageFilter:        c.MessageFilter,
+		authenticated:        c.Authenticated,
 	}
 }
 
