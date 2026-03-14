@@ -74,7 +74,7 @@ func (e *Exchange) SetDefaults() {
 		}
 	}
 
-	for _, a := range []asset.Item{asset.Margin, asset.CoinMarginedFutures, asset.USDTMarginedFutures} {
+	for _, a := range []asset.Item{asset.Margin, asset.CoinMarginedFutures} {
 		if err := e.DisableAssetWebsocketSupport(a); err != nil {
 			log.Errorf(log.ExchangeSys, "%s error disabling %q asset type websocket support: %s", e.Name, a, err)
 		}
@@ -269,22 +269,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 			ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
 			RateLimit:                request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
 			MessageFilter:            asset.USDTMarginedFutures,
-		}))
-
-	// USD-M Futures connection (user data stream via listenKey)
-	err = common.AppendError(err,
-		e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
-			URL:                      futuresURL,
-			Connector:                e.WsConnectFutures,
-			Subscriber:               e.Subscribe,
-			Unsubscriber:             e.Unsubscribe,
-			GenerateSubscriptions:    e.generateFuturesSubscriptions,
-			Handler:                  e.wsHandleData,
-			SubscriptionsNotRequired: true,
-			ResponseCheckTimeout:     exch.WebsocketResponseCheckTimeout,
-			ResponseMaxLimit:         exch.WebsocketResponseMaxLimit,
-			RateLimit:                request.NewWeightedRateLimitByDuration(250 * time.Millisecond),
-			MessageFilter:            asset.USDCMarginedFutures,
 		}))
 
 	return err
