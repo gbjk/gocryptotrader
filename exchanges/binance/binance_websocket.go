@@ -591,13 +591,14 @@ func formatChannelInterval(s *subscription.Subscription) string {
 	return ""
 }
 
-// Subscribe subscribes to spot websocket channels
+// Subscribe subscribes to websocket channels
+// Private subs are ignored; One listenKey is supported and started when we open the connection
 func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	subs, errs := subs.ExpandTemplates(e)
 	return common.AppendError(errs,
-		e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error {
+		e.ParallelChanOp(ctx, subs.Public(), func(ctx context.Context, l subscription.List) error {
 			return e.manageSubs(ctx, conn, wsSubscribeMethod, l)
-		}, 50),
+		}, len(subs)),
 	)
 }
 
@@ -605,9 +606,9 @@ func (e *Exchange) Subscribe(ctx context.Context, conn websocket.Connection, sub
 func (e *Exchange) Unsubscribe(ctx context.Context, conn websocket.Connection, subs subscription.List) error {
 	subs, errs := subs.ExpandTemplates(e)
 	return common.AppendError(errs,
-		e.ParallelChanOp(ctx, subs, func(ctx context.Context, l subscription.List) error {
+		e.ParallelChanOp(ctx, subs.Public(), func(ctx context.Context, l subscription.List) error {
 			return e.manageSubs(ctx, conn, wsUnsubscribeMethod, l)
-		}, 50),
+		}, len(subs)),
 	)
 }
 
