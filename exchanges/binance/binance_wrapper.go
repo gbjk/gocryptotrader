@@ -2261,7 +2261,7 @@ func (e *Exchange) IsPerpetualFutureCurrency(a asset.Item, cp currency.Pair) (bo
 		return cp.Quote.Equal(currency.PERP), nil
 	}
 	if a == asset.USDTMarginedFutures {
-		return cp.Quote.Equal(currency.USDT) || cp.Quote.Equal(currency.BUSD), nil
+		return cp.Quote.Equal(currency.USDT) || cp.Quote.Equal(currency.BUSD) || cp.Quote.Equal(currency.USDC), nil
 	}
 	return false, nil
 }
@@ -2901,7 +2901,7 @@ func (e *Exchange) GetFuturesContractDetails(ctx context.Context, item asset.Ite
 			}
 			var ct futures.ContractType
 			var ed time.Time
-			if cp.Quote.Equal(currency.USDT) || cp.Quote.Equal(currency.BUSD) {
+			if isPerp, _ := e.IsPerpetualFutureCurrency(item, cp); isPerp {
 				ct = futures.Perpetual
 			} else {
 				ct = futures.Quarterly
