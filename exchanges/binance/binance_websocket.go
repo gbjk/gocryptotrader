@@ -14,6 +14,7 @@ import (
 	gws "github.com/gorilla/websocket"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
+	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
 	"github.com/thrasher-corp/gocryptotrader/exchange/websocket"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
@@ -169,6 +170,8 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	event, err := jsonparser.GetUnsafeString(jsonData, "e")
 	if err == nil {
 		switch event {
+		case "ACCOUNT_UPDATE":
+			return e.wsHandleFuturesAccountUpdate(ctx, a, jsonData)
 		case "ORDER_TRADE_UPDATE", "TRADE_LITE":
 			return e.wsHandleFuturesOrderUpdate(ctx, a, jsonData)
 		case "outboundAccountPosition":
@@ -421,6 +424,29 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	default:
 		return fmt.Errorf("%s %s %s", e.Name, websocket.UnhandledMessage, string(respRaw))
 	}
+}
+
+// wsHandleFuturesAccountUpdate handles ACCOUNT_UPDATE events for futures,
+// updating cached account balances.
+func (e *Exchange) wsHandleFuturesAccountUpdate(ctx context.Context, a asset.Item, msg []byte) error {
+	var u WsFuturesAccountUpdate
+	if err := json.Unmarshal(msg, &u); err != nil {
+		return fmt.Errorf("%s could not unmarshal futures account update: %w", e.Name, err)
+	}
+	subAccts := accounts.SubAccounts{accounts.NewSubAccount(a, "")}
+	for _, b := range u.Update.Balances {
+		subAccts[0].Balances.Set(currency.NewCode(b.Asset), accounts.Balance{
+			Total:     b.WalletBalance,
+			Free:      b.CrossWalletBalance,
+			Hold:      b.WalletBalance - b.CrossWalletBalance,
+			UpdatedAt: u.TransactionTime.Time(),
+		})
+	}
+	if err := e.Accounts.Save(ctx, subAccts, false); err != nil {
+		return err
+	}
+	e.Websocket.DataHandler <- subAccts
+	return nil
 }
 
 // wsHandleFuturesOrderUpdate handles updates for futures orders

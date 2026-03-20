@@ -833,6 +833,42 @@ type WsListStatusData struct {
 	Symbol          string     `json:"s"`
 }
 
+// WsFuturesAccountUpdate defines a futures ACCOUNT_UPDATE event
+type WsFuturesAccountUpdate struct {
+	EventType       string                      `json:"e"`
+	EventTime       types.Time                  `json:"E"`
+	TransactionTime types.Time                  `json:"T"`
+	Update          WsFuturesAccountUpdateData  `json:"a"`
+}
+
+// WsFuturesAccountUpdateData holds the balance and position arrays within an ACCOUNT_UPDATE event
+type WsFuturesAccountUpdateData struct {
+	Reason    string                          `json:"m"`
+	Balances  []WsFuturesAccountUpdateBalance `json:"B"`
+	Positions []WsFuturesAccountUpdatePosition `json:"P"`
+}
+
+// WsFuturesAccountUpdateBalance defines a single balance entry in a futures ACCOUNT_UPDATE event
+type WsFuturesAccountUpdateBalance struct {
+	Asset              string  `json:"a"`
+	WalletBalance      float64 `json:"wb,string"`
+	CrossWalletBalance float64 `json:"cw,string"`
+	BalanceChange      float64 `json:"bc,string"`
+}
+
+// WsFuturesAccountUpdatePosition defines a single position entry in a futures ACCOUNT_UPDATE event
+type WsFuturesAccountUpdatePosition struct {
+	Symbol           string  `json:"s"`
+	PositionAmount   float64 `json:"pa,string"`
+	EntryPrice       float64 `json:"ep,string"`
+	BreakevenPrice   float64 `json:"bep,string"`
+	AccumulatedPnL   float64 `json:"cr,string"`
+	UnrealizedPnL    float64 `json:"up,string"`
+	MarginType       string  `json:"mt"`
+	IsolatedWallet   float64 `json:"iw,string"`
+	PositionSide     string  `json:"ps"`
+}
+
 // WsFuturesOrderUpdate defines the wrapper for a futures order update event
 type WsFuturesOrderUpdate struct {
 	EventType       string             `json:"e"`
