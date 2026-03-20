@@ -169,7 +169,7 @@ func (e *Exchange) wsHandleData(ctx context.Context, conn websocket.Connection, 
 	event, err := jsonparser.GetUnsafeString(jsonData, "e")
 	if err == nil {
 		switch event {
-		case "ORDER_TRADE_UPDATE":
+		case "ORDER_TRADE_UPDATE", "TRADE_LITE":
 			return e.wsHandleFuturesOrderUpdate(ctx, a, jsonData)
 		case "outboundAccountPosition":
 			var data WsAccountPositionData
