@@ -644,7 +644,9 @@ func (e *Exchange) UpdateAccountBalances(ctx context.Context, assetType asset.It
 		}
 		subAccts = make(accounts.SubAccounts, 0, len(resp))
 		for i := range resp {
-			a := accounts.NewSubAccount(assetType, resp[i].AccountAlias)
+			// We ignore the accountAlias because we won't receive it in websocket api updates over ACCOUNT_UPDATE
+			// So we'd end up with 2 separate balances diverging
+			a := accounts.NewSubAccount(assetType, "")
 			a.Balances.Set(resp[i].Asset, accounts.Balance{
 				Total: resp[i].Balance,
 				Hold:  resp[i].Balance - resp[i].AvailableBalance,
