@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
 	"text/template"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/buger/jsonparser"
 	gws "github.com/gorilla/websocket"
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/thrasher-corp/gocryptotrader/common"
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/exchange/accounts"
@@ -26,6 +28,7 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/exchanges/ticker"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/trade"
 	"github.com/thrasher-corp/gocryptotrader/log"
+	"github.com/thrasher-corp/gocryptotrader/types"
 )
 
 const (
@@ -449,12 +452,29 @@ func (e *Exchange) wsHandleFuturesAccountUpdate(ctx context.Context, a asset.Ite
 	return nil
 }
 
-// wsHandleFuturesOrderUpdate handles updates for futures orders
+// wsHandleFuturesOrderUpdate handles updates for futures orders.
+// Uses map[string]any + mapstructure to avoid encoding/json case-insensitive
+// key matching which confuses fields like "T" (TradeTime) and "t" (TradeID).
 func (e *Exchange) wsHandleFuturesOrderUpdate(_ context.Context, a asset.Item, msg []byte) error {
-	var u WsFuturesOrderUpdate
-	if err := json.Unmarshal(msg, &u); err != nil {
+	var raw map[string]any
+	if err := json.Unmarshal(msg, &raw); err != nil {
 		return fmt.Errorf("%s could not unmarshal futures order update: %w from %s", e.Name, err, msg)
 	}
+
+	var u WsFuturesOrderUpdate
+	if err := caseSensitiveDecode(raw, &u); err != nil {
+		return fmt.Errorf("%s could not decode futures order update: %w from %s", e.Name, err, msg)
+	}
+
+	// ORDER_TRADE_UPDATE nests order data under "o"; TRADE_LITE is flat.
+	orderRaw, hasNested := raw["o"].(map[string]any)
+	if !hasNested {
+		orderRaw = raw
+	}
+	if err := caseSensitiveDecode(orderRaw, &u.Order); err != nil {
+		return fmt.Errorf("%s could not decode futures order data: %w from %s", e.Name, err, msg)
+	}
+
 	o := u.Order
 	pair, err := e.MatchSymbolWithAvailablePairs(o.Symbol, a, false)
 	if err != nil {
@@ -496,6 +516,42 @@ func (e *Exchange) wsHandleFuturesOrderUpdate(_ context.Context, a asset.Item, m
 		Pair:                 pair,
 	}
 	return nil
+}
+
+// caseSensitiveDecode decodes a map into a struct using json tags with exact
+// case matching. This avoids encoding/json's case-insensitive key matching
+// which confuses single-letter fields that differ only by case (e.g. "T"/"t").
+func caseSensitiveDecode(input map[string]any, output any) error {
+	dec, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		TagName:          "json",
+		WeaklyTypedInput: true,
+		Result:           output,
+		MatchName:        func(mapKey, fieldName string) bool { return mapKey == fieldName },
+		DecodeHook:       mapstructure.DecodeHookFuncType(decodeTypesTime),
+	})
+	if err != nil {
+		return err
+	}
+	return dec.Decode(input)
+}
+
+// decodeTypesTime converts float64 millisecond timestamps to types.Time for mapstructure.
+func decodeTypesTime(from, to reflect.Type, data any) (any, error) {
+	if to != reflect.TypeOf(types.Time{}) {
+		return data, nil
+	}
+	switch v := data.(type) {
+	case float64:
+		return types.Time(time.UnixMilli(int64(v))), nil
+	case string:
+		ms, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid timestamp: %w", err)
+		}
+		return types.Time(time.UnixMilli(ms)), nil
+	default:
+		return data, nil
+	}
 }
 
 // generateFuturesSubscriptions returns an empty subscription list since the

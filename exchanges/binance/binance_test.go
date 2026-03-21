@@ -2563,6 +2563,30 @@ func TestWsOutboundAccountPosition(t *testing.T) {
 	}
 }
 
+func TestWsTradeLiteCaseSensitivity(t *testing.T) {
+	t.Parallel()
+	// This payload has "T" (transaction time) and "t" (trade ID) at the same level.
+	// encoding/json case-insensitive matching previously confused them.
+	futuresConn := &testConn{filter: asset.USDTMarginedFutures}
+	payload := []byte(`{"stream":"private","data":{"e":"TRADE_LITE","E":1774065636225,"T":1774065636195,"s":"BTCUSDT","q":"0.101","p":"72240.7","m":false,"c":"019d0e8ca9937007a0ac4a05639d955e","S":"BUY","L":"70604.6","l":"0.101","t":46825220,"i":312024783}}`)
+	// Drain DataHandler before test to avoid stale messages
+	for len(e.Websocket.DataHandler) > 0 {
+		<-e.Websocket.DataHandler
+	}
+	if err := e.wsHandleData(context.Background(), futuresConn, payload); err != nil {
+		t.Fatal(err)
+	}
+	// May receive ClassificationErrors before the Detail; drain until we get it
+	var d *order.Detail
+	for d == nil {
+		res := <-e.Websocket.DataHandler
+		if det, ok := res.(*order.Detail); ok {
+			d = det
+		}
+	}
+	assert.Equal(t, time.UnixMilli(1774065636195), d.LastUpdated, "LastUpdated should use T (transaction time), not t (trade ID)")
+}
+
 func TestFormatExchangeCurrency(t *testing.T) {
 	t.Parallel()
 	type testos struct {
