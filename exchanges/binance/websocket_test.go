@@ -1561,23 +1561,23 @@ func TestSetup(t *testing.T) {
 		// Each derivatives connection takes its product's configured stream host and adds its route; without a configured
 		// endpoint it keeps the production host
 		const (
-			testnetUSDTMarginedStreamsHost    = "wss://fstream.binancefuture.com"
-			testnetCoinMarginedStreamsHost    = "wss://dstream.binancefuture.com"
-			productionUSDTMarginedStreamsHost = "wss://fstream.binance.com"
-			productionCoinMarginedStreamsHost = "wss://dstream.binance.com"
+			testnetFstreamHost    = "wss://fstream.binancefuture.com"
+			testnetDstreamHost    = "wss://dstream.binancefuture.com"
+			productionFstreamHost = "wss://fstream.binance.com"
+			productionDstreamHost = "wss://dstream.binance.com"
 		)
 		for _, tc := range []struct {
 			name, filter, route, configuredHost, productionHost string
 			endpoint                                            exchange.URL
 		}{
-			{"USD-M public", usdtmPublicFilter, "/public/stream", testnetUSDTMarginedStreamsHost, productionUSDTMarginedStreamsHost, exchange.WebsocketUSDTMargined},
-			{"USD-M market", usdtmMarketFilter, "/market/stream", testnetUSDTMarginedStreamsHost, productionUSDTMarginedStreamsHost, exchange.WebsocketUSDTMargined},
-			{"USD-M private", usdtmPrivateFilter, "/private/stream", testnetUSDTMarginedStreamsHost, productionUSDTMarginedStreamsHost, exchange.WebsocketUSDTMargined},
-			{"COIN-M market", coinmFilter, "/stream", testnetCoinMarginedStreamsHost, productionCoinMarginedStreamsHost, exchange.WebsocketCoinMargined},
-			{"COIN-M private", coinmPrivateFilter, "/stream", testnetCoinMarginedStreamsHost, productionCoinMarginedStreamsHost, exchange.WebsocketCoinMargined},
-			{"options public", optionsPublicFilter, "/public/stream", testnetUSDTMarginedStreamsHost, productionUSDTMarginedStreamsHost, exchange.WebsocketOptions},
-			{"options market", optionsMarketFilter, "/market/stream", testnetUSDTMarginedStreamsHost, productionUSDTMarginedStreamsHost, exchange.WebsocketOptions},
-			{"options private", optionsPrivateFilter, "/private/stream", testnetUSDTMarginedStreamsHost, productionUSDTMarginedStreamsHost, exchange.WebsocketOptions},
+			{"USD-M public", usdtmPublicFilter, "/public/stream", testnetFstreamHost, productionFstreamHost, exchange.WebsocketUSDTMargined},
+			{"USD-M market", usdtmMarketFilter, "/market/stream", testnetFstreamHost, productionFstreamHost, exchange.WebsocketUSDTMargined},
+			{"USD-M private", usdtmPrivateFilter, "/private/stream", testnetFstreamHost, productionFstreamHost, exchange.WebsocketUSDTMargined},
+			{"COIN-M market", coinmFilter, "/stream", testnetDstreamHost, productionDstreamHost, exchange.WebsocketCoinMargined},
+			{"COIN-M private", coinmPrivateFilter, "/stream", testnetDstreamHost, productionDstreamHost, exchange.WebsocketCoinMargined},
+			{"options public", optionsPublicFilter, "/public/stream", testnetFstreamHost, productionFstreamHost, exchange.WebsocketOptions},
+			{"options market", optionsMarketFilter, "/market/stream", testnetFstreamHost, productionFstreamHost, exchange.WebsocketOptions},
+			{"options private", optionsPrivateFilter, "/private/stream", testnetFstreamHost, productionFstreamHost, exchange.WebsocketOptions},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
