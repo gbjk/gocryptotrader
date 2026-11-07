@@ -1558,8 +1558,6 @@ func TestSetup(t *testing.T) {
 		require.NotEmpty(t, urls, "GetConfiguredWebsocketURLs must return the configured URLs")
 		assert.Equal(t, binanceWebsocketAPIURL, urls[len(urls)-1], "Setup should set the WebSocket API up after the market data connections")
 
-		// Each derivatives connection takes its product's configured stream host and adds its route; without a configured
-		// endpoint it keeps the production host
 		const (
 			testnetFstreamHost    = "wss://fstream.binancefuture.com"
 			testnetDstreamHost    = "wss://dstream.binancefuture.com"
