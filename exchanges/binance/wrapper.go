@@ -278,10 +278,6 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err := e.Websocket.SetupNewConnection(spotStreams); err != nil {
 		return err
 	}
-	// Derivatives stream connections: USDⓈ-M /public, /market and /private, COIN-M market and user data, and options
-	// /public, /market and /private, each at its product's configured stream host plus its route. A generator returns
-	// nothing for a disabled asset, or for a private connection when authenticated websocket use is unavailable, so the
-	// manager skips that connection instead of failing all
 	wsUSDTMarginedURL, err := e.API.Endpoints.GetURL(exchange.WebsocketUSDTMargined)
 	if err != nil {
 		return err
@@ -294,6 +290,12 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err != nil {
 		return err
 	}
+	// Derivatives stream connections:
+	// - Options public, private and market
+	// - USDⓈ-M public, private and market
+	// - COIN-M private and market
+	// A generator returns nothing for a disabled asset, or for a private connection when not authenticated
+	// so the manager skips that connection instead of failing all
 	for _, c := range []struct {
 		filter                 string
 		url                    string
