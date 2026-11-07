@@ -36,9 +36,9 @@ import (
 	"github.com/thrasher-corp/gocryptotrader/types/decimal"
 )
 
-// USDⓈ-M and options share the fstream host, taken from the WebsocketUSDTMargined or WebsocketOptions endpoint, and
-// each connection adds its route; each product gets its own connections so their handlers never see the other's
-// payloads
+// USDⓈ-M and options default to the same fstream host, and each takes its own endpoint, WebsocketUSDTMargined or
+// WebsocketOptions; each connection adds its route. Each product gets its own connections so their handlers never see
+// the other's payloads
 const (
 	fstreamHost = "wss://fstream.binance.com"
 
