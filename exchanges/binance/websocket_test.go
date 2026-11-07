@@ -1558,6 +1558,53 @@ func TestSetup(t *testing.T) {
 		require.NotEmpty(t, urls, "GetConfiguredWebsocketURLs must return the configured URLs")
 		assert.Equal(t, binanceWebsocketAPIURL, urls[len(urls)-1], "Setup should set the WebSocket API up after the market data connections")
 
+		// Each derivatives connection takes its product's configured stream host and adds its route; without a configured
+		// endpoint it keeps the production host
+		const (
+			testnetUSDTMarginedStreamsHost    = "wss://fstream.binancefuture.com"
+			testnetCoinMarginedStreamsHost    = "wss://dstream.binancefuture.com"
+			productionUSDTMarginedStreamsHost = "wss://fstream.binance.com"
+			productionCoinMarginedStreamsHost = "wss://dstream.binance.com"
+		)
+		for _, tc := range []struct {
+			name, filter, route, configuredHost, productionHost string
+			endpoint                                            exchange.URL
+		}{
+			{"USD-M public", usdtmPublicFilter, "/public/stream", testnetUSDTMarginedStreamsHost, productionUSDTMarginedStreamsHost, exchange.WebsocketUSDTMargined},
+			{"USD-M market", usdtmMarketFilter, "/market/stream", testnetUSDTMarginedStreamsHost, productionUSDTMarginedStreamsHost, exchange.WebsocketUSDTMargined},
+			{"USD-M private", usdtmPrivateFilter, "/private/stream", testnetUSDTMarginedStreamsHost, productionUSDTMarginedStreamsHost, exchange.WebsocketUSDTMargined},
+			{"COIN-M market", coinmFilter, "/stream", testnetCoinMarginedStreamsHost, productionCoinMarginedStreamsHost, exchange.WebsocketCoinMargined},
+			{"COIN-M private", coinmPrivateFilter, "/stream", testnetCoinMarginedStreamsHost, productionCoinMarginedStreamsHost, exchange.WebsocketCoinMargined},
+			{"options public", optionsPublicFilter, "/public/stream", testnetUSDTMarginedStreamsHost, productionUSDTMarginedStreamsHost, exchange.WebsocketOptions},
+			{"options market", optionsMarketFilter, "/market/stream", testnetUSDTMarginedStreamsHost, productionUSDTMarginedStreamsHost, exchange.WebsocketOptions},
+			{"options private", optionsPrivateFilter, "/private/stream", testnetUSDTMarginedStreamsHost, productionUSDTMarginedStreamsHost, exchange.WebsocketOptions},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				t.Parallel()
+				for _, cfg := range []struct {
+					name       string
+					host       string
+					configured bool
+				}{
+					{"configured endpoint", tc.configuredHost, true},
+					{"no configured endpoint", tc.productionHost, false},
+				} {
+					t.Run(cfg.name, func(t *testing.T) {
+						t.Parallel()
+						ex := setup(t, func(_ *testing.T, c *config.Exchange) {
+							delete(c.API.Endpoints, tc.endpoint.String())
+							if cfg.configured {
+								c.API.Endpoints[tc.endpoint.String()] = cfg.host
+							}
+						})
+						conn, err := ex.Websocket.CreateTestConnection(tc.filter)
+						require.NoError(t, err, "the derivatives stream connection must be registered")
+						assert.Equal(t, cfg.host+tc.route, conn.GetURL(), "the derivatives stream connection should take its product's configured host plus its route")
+					})
+				}
+			})
+		}
+
 		// The WebSocket API carries spot orders, so it goes to a configured WebsocketTradeURL, such as a testnet's, and a
 		// configuration saved before the endpoint existed keeps the production one
 		const testnetAPIURL = "wss://ws-api.testnet.binance.vision/ws-api/v3"
