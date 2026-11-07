@@ -205,6 +205,9 @@ func (e *Exchange) SetDefaults() {
 		exchange.RestFuturesSupplementary: pMarginAPIURL,
 		exchange.EdgeCase1:                "https://www.binance.com",
 		exchange.WebsocketSpot:            binanceDefaultWebsocketURL,
+		exchange.WebsocketCoinMargined:    dstreamHost,
+		exchange.WebsocketUSDTMargined:    fstreamHost,
+		exchange.WebsocketOptions:         fstreamHost,
 		exchange.WebsocketTrade:           binanceWebsocketAPIURL,
 	})
 	if err != nil {
@@ -275,9 +278,24 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	if err := e.Websocket.SetupNewConnection(spotStreams); err != nil {
 		return err
 	}
-	// Derivatives stream connections: USDⓈ-M /public, /market and /private, COIN-M market and user data, and options
-	// /public, /market and /private. A generator returns nothing for a disabled asset, or for a private connection
-	// when authenticated websocket use is unavailable, so the manager skips that connection instead of failing all
+	usdtmHost, err := e.API.Endpoints.GetURL(exchange.WebsocketUSDTMargined)
+	if err != nil {
+		return err
+	}
+	coinmHost, err := e.API.Endpoints.GetURL(exchange.WebsocketCoinMargined)
+	if err != nil {
+		return err
+	}
+	optionsHost, err := e.API.Endpoints.GetURL(exchange.WebsocketOptions)
+	if err != nil {
+		return err
+	}
+	// Derivatives stream connections:
+	// - Options public, private and market
+	// - USDⓈ-M public, private and market
+	// - COIN-M private and market
+	// A generator returns nothing for a disabled asset, or for a private connection when not authenticated
+	// so the manager skips that connection instead of failing all
 	for _, c := range []struct {
 		filter                 string
 		url                    string
@@ -285,14 +303,14 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		subscribe, unsubscribe func(context.Context, websocket.Connection, subscription.List) error
 		handle                 func(context.Context, websocket.Connection, []byte) error
 	}{
-		{usdtmPublicFilter, fstreamPublicURL, e.generateUSDTMarginedFuturesPublicSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleUSDTMarginedFuturesData},
-		{usdtmMarketFilter, fstreamMarketURL, e.generateUSDTMarginedFuturesMarketSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleUSDTMarginedFuturesData},
-		{usdtmPrivateFilter, fstreamPrivateURL, e.generateUSDTMarginedFuturesUserDataSubscriptions, e.SubscribeUserData, e.UnsubscribeUserData, e.wsHandleUSDTMarginedFuturesUserData},
-		{coinmFilter, binanceCoinMarginedFuturesWebsocketURL, e.generateCoinMarginedFuturesSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleCoinMarginedFuturesData},
-		{coinmPrivateFilter, binanceCoinMarginedFuturesWebsocketURL, e.generateCoinMarginedFuturesUserDataSubscriptions, e.SubscribeUserData, e.UnsubscribeUserData, e.wsHandleCoinMarginedFuturesUserData},
-		{optionsPublicFilter, fstreamPublicURL, e.generateOptionsPublicSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleOptionsData},
-		{optionsMarketFilter, fstreamMarketURL, e.generateOptionsMarketSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleOptionsData},
-		{optionsPrivateFilter, fstreamPrivateURL, e.generateOptionsUserDataSubscriptions, e.SubscribeUserData, e.UnsubscribeUserData, e.wsHandleOptionsUserData},
+		{usdtmPublicFilter, usdtmHost + fstreamPublicRoute, e.generateUSDTMarginedFuturesPublicSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleUSDTMarginedFuturesData},
+		{usdtmMarketFilter, usdtmHost + fstreamMarketRoute, e.generateUSDTMarginedFuturesMarketSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleUSDTMarginedFuturesData},
+		{usdtmPrivateFilter, usdtmHost + fstreamPrivateRoute, e.generateUSDTMarginedFuturesUserDataSubscriptions, e.SubscribeUserData, e.UnsubscribeUserData, e.wsHandleUSDTMarginedFuturesUserData},
+		{coinmFilter, coinmHost + dstreamRoute, e.generateCoinMarginedFuturesSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleCoinMarginedFuturesData},
+		{coinmPrivateFilter, coinmHost + dstreamRoute, e.generateCoinMarginedFuturesUserDataSubscriptions, e.SubscribeUserData, e.UnsubscribeUserData, e.wsHandleCoinMarginedFuturesUserData},
+		{optionsPublicFilter, optionsHost + fstreamPublicRoute, e.generateOptionsPublicSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleOptionsData},
+		{optionsMarketFilter, optionsHost + fstreamMarketRoute, e.generateOptionsMarketSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleOptionsData},
+		{optionsPrivateFilter, optionsHost + fstreamPrivateRoute, e.generateOptionsUserDataSubscriptions, e.SubscribeUserData, e.UnsubscribeUserData, e.wsHandleOptionsUserData},
 	} {
 		if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 			MessageFilter:         c.filter,
