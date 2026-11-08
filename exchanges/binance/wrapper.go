@@ -268,26 +268,21 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 	// stream or how often connections are opened
 	e.orderbookSync = e.newOrderbookSync(e.fetchOrderbookSnapshot, orderbookmanager.DefaultWSOrderbookUpdateTimeDelay, orderbookmanager.DefaultWSOrderbookUpdateDeadline)
 
-	wsSpotURL, err := e.API.Endpoints.GetURL(exchange.WebsocketSpot)
-	if err != nil {
-		return err
+	urlConf := make(map[exchange.URL]string)
+	for _, urlType := range []exchange.URL{
+		exchange.WebsocketSpot, exchange.WebsocketUSDTMargined, exchange.WebsocketCoinMargined, exchange.WebsocketOptions,
+		exchange.WebsocketTrade,
+	} {
+		var err error
+		if urlConf[urlType], err = e.API.Endpoints.GetURL(urlType); err != nil {
+			return err
+		}
 	}
+
 	// A configured WebsocketSpot endpoint, such as the market data only host or a testnet, carries the spot streams
 	spotStreams := e.spotStreamConnectionSetup(exch)
-	spotStreams.URL = wsSpotURL
+	spotStreams.URL = urlConf[exchange.WebsocketSpot]
 	if err := e.Websocket.SetupNewConnection(spotStreams); err != nil {
-		return err
-	}
-	usdtmHost, err := e.API.Endpoints.GetURL(exchange.WebsocketUSDTMargined)
-	if err != nil {
-		return err
-	}
-	coinmHost, err := e.API.Endpoints.GetURL(exchange.WebsocketCoinMargined)
-	if err != nil {
-		return err
-	}
-	optionsHost, err := e.API.Endpoints.GetURL(exchange.WebsocketOptions)
-	if err != nil {
 		return err
 	}
 	// Derivatives stream connections:
@@ -303,14 +298,14 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		subscribe, unsubscribe func(context.Context, websocket.Connection, subscription.List) error
 		handle                 func(context.Context, websocket.Connection, []byte) error
 	}{
-		{usdtmPublicFilter, usdtmHost + fstreamPublicRoute, e.generateUSDTMarginedFuturesPublicSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleUSDTMarginedFuturesData},
-		{usdtmMarketFilter, usdtmHost + fstreamMarketRoute, e.generateUSDTMarginedFuturesMarketSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleUSDTMarginedFuturesData},
-		{usdtmPrivateFilter, usdtmHost + fstreamPrivateRoute, e.generateUSDTMarginedFuturesUserDataSubscriptions, e.SubscribeUserData, e.UnsubscribeUserData, e.wsHandleUSDTMarginedFuturesUserData},
-		{coinmFilter, coinmHost + dstreamRoute, e.generateCoinMarginedFuturesSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleCoinMarginedFuturesData},
-		{coinmPrivateFilter, coinmHost + dstreamRoute, e.generateCoinMarginedFuturesUserDataSubscriptions, e.SubscribeUserData, e.UnsubscribeUserData, e.wsHandleCoinMarginedFuturesUserData},
-		{optionsPublicFilter, optionsHost + fstreamPublicRoute, e.generateOptionsPublicSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleOptionsData},
-		{optionsMarketFilter, optionsHost + fstreamMarketRoute, e.generateOptionsMarketSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleOptionsData},
-		{optionsPrivateFilter, optionsHost + fstreamPrivateRoute, e.generateOptionsUserDataSubscriptions, e.SubscribeUserData, e.UnsubscribeUserData, e.wsHandleOptionsUserData},
+		{usdtmPublicFilter, urlConf[exchange.WebsocketUSDTMargined] + fstreamPublicRoute, e.generateUSDTMarginedFuturesPublicSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleUSDTMarginedFuturesData},
+		{usdtmMarketFilter, urlConf[exchange.WebsocketUSDTMargined] + fstreamMarketRoute, e.generateUSDTMarginedFuturesMarketSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleUSDTMarginedFuturesData},
+		{usdtmPrivateFilter, urlConf[exchange.WebsocketUSDTMargined] + fstreamPrivateRoute, e.generateUSDTMarginedFuturesUserDataSubscriptions, e.SubscribeUserData, e.UnsubscribeUserData, e.wsHandleUSDTMarginedFuturesUserData},
+		{coinmFilter, urlConf[exchange.WebsocketCoinMargined] + dstreamRoute, e.generateCoinMarginedFuturesSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleCoinMarginedFuturesData},
+		{coinmPrivateFilter, urlConf[exchange.WebsocketCoinMargined] + dstreamRoute, e.generateCoinMarginedFuturesUserDataSubscriptions, e.SubscribeUserData, e.UnsubscribeUserData, e.wsHandleCoinMarginedFuturesUserData},
+		{optionsPublicFilter, urlConf[exchange.WebsocketOptions] + fstreamPublicRoute, e.generateOptionsPublicSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleOptionsData},
+		{optionsMarketFilter, urlConf[exchange.WebsocketOptions] + fstreamMarketRoute, e.generateOptionsMarketSubscriptions, e.SubscribeDerivatives, e.UnsubscribeDerivatives, e.wsHandleOptionsData},
+		{optionsPrivateFilter, urlConf[exchange.WebsocketOptions] + fstreamPrivateRoute, e.generateOptionsUserDataSubscriptions, e.SubscribeUserData, e.UnsubscribeUserData, e.wsHandleOptionsUserData},
 	} {
 		if err := e.Websocket.SetupNewConnection(&websocket.ConnectionSetup{
 			MessageFilter:         c.filter,
@@ -341,9 +336,7 @@ func (e *Exchange) Setup(exch *config.Exchange) error {
 		apiSetup := e.spotWebsocketAPIConnectionSetup(exch)
 		// Spot orders go to a configured WebsocketTrade endpoint, such as a testnet's, as REST requests go to the
 		// configured REST endpoints
-		if apiSetup.URL, err = e.API.Endpoints.GetURL(exchange.WebsocketTrade); err != nil {
-			return err
-		}
+		apiSetup.URL = urlConf[exchange.WebsocketTrade]
 		if err := e.Websocket.SetupNewConnection(apiSetup); err != nil {
 			return err
 		}
