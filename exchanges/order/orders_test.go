@@ -1330,7 +1330,7 @@ func TestMatchFilter(t *testing.T) {
 	}
 }
 
-func TestIsActive(t *testing.T) {
+func TestDetail_IsActive(t *testing.T) {
 	orders := map[int]Detail{
 		0: {Amount: 0.0, Status: Active},
 		1: {Amount: 1.0, ExecutedAmount: 0.9, Status: Active},
@@ -1374,14 +1374,8 @@ func BenchmarkIsActive(b *testing.B) {
 	}
 }
 
-func TestIsInactive(t *testing.T) {
+func TestDetail_IsInactive(t *testing.T) {
 	t.Parallel()
-
-	t.Run("unknown status is not inactive", func(t *testing.T) {
-		t.Parallel()
-		assert.False(t, UnknownStatus.IsInactive(), "unknown status should not be inactive")
-	})
-
 	orders := map[int]Detail{
 		0: {Amount: 0.0, Status: Active},
 		1: {Amount: 1.0, ExecutedAmount: 0.9, Status: Active},
@@ -1402,16 +1396,21 @@ func TestIsInactive(t *testing.T) {
 		assert.Equalf(t, tt.expectedResult, tt.o.IsInactive(), "amountTests[%v] failed", num)
 	}
 
+	assert.True(t, (&Detail{Amount: 1.0, Status: Cancelled}).IsInactive(), "an order with an inactive status should be inactive")
+}
+
+func TestStatus_IsInactive(t *testing.T) {
+	t.Parallel()
 	for _, s := range []Status{
 		New, Open, Pending, Active, PartiallyFilled, PendingCancel, AutoDeleverage, Hidden, UnknownStatus,
 	} {
-		assert.False(t, (&Detail{Amount: 1.0, Status: s}).IsInactive(), s)
+		assert.Falsef(t, s.IsInactive(), "%s should not be inactive", s)
 	}
 
 	for _, s := range []Status{
-		PartiallyCancelled, Filled, Cancelled, InsufficientBalance, MarketUnavailable, Rejected, Expired, AnyStatus, Closed,
+		PartiallyCancelled, Filled, Cancelled, InsufficientBalance, MarketUnavailable, Rejected, Expired, AnyStatus, Closed, Cancelling, Liquidated,
 	} {
-		assert.True(t, (&Detail{Amount: 1.0, Status: s}).IsInactive(), s)
+		assert.Truef(t, s.IsInactive(), "%s should be inactive", s)
 	}
 }
 
