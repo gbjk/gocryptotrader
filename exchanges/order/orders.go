@@ -417,10 +417,14 @@ func (d *Detail) MatchFilter(f *Filter) bool {
 // IsActive returns true if an order has a status that indicates it is currently
 // available on the exchange
 func (d *Detail) IsActive() bool {
-	return d.Status != UnknownStatus &&
-		d.Amount > 0 &&
+	return d.Amount > 0 &&
 		d.Amount > d.ExecutedAmount &&
-		activeStatuses&d.Status == d.Status
+		d.Status.IsActive()
+}
+
+// IsActive returns true if the status indicates it is currently available on the exchange
+func (s Status) IsActive() bool {
+	return s != UnknownStatus && activeStatuses&s == s
 }
 
 // IsInactive returns true if an order has a status that indicates it is
