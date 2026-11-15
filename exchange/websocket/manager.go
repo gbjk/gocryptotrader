@@ -1006,11 +1006,7 @@ func (m *Manager) ReportDown(ctx context.Context, conn Connection, reason error)
 		Err:           reason,
 	}
 	m.connectionManagerMu.Unlock()
-	if err := m.DataHandler.Send(ctx, report); err != nil {
-		log.Errorf(log.WebsocketMgr, "%v websocket: reporting connection down: %s", m.exchangeName, err)
-		return err
-	}
-	return nil
+	return m.DataHandler.Send(ctx, report)
 }
 
 // ReportUp marks a managed connection up and relays ConnectionUp with how long it was down. It relays nothing for an
@@ -1034,11 +1030,7 @@ func (m *Manager) ReportUp(ctx context.Context, conn Connection) error {
 	}
 	ws.downSince = time.Time{}
 	m.connectionManagerMu.Unlock()
-	if err := m.DataHandler.Send(ctx, report); err != nil {
-		log.Errorf(log.WebsocketMgr, "%v websocket: reporting connection up: %s", m.exchangeName, err)
-		return err
-	}
-	return nil
+	return m.DataHandler.Send(ctx, report)
 }
 
 func (m *Manager) sendConnectionUps(ctx context.Context, reports []ConnectionUp) {
