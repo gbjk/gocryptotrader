@@ -712,6 +712,7 @@ func TestSubscribeUserDataRetried(t *testing.T) { //nolint:tparallel // the case
 	ex.Websocket.SetCanUseAuthenticatedEndpoints(true)
 	conn, err := ex.Websocket.GetConnection(usdtmPrivateFilter)
 	require.NoError(t, err, "GetConnection must not error")
+	require.NoError(t, ex.Websocket.ReportDown(t.Context(), conn, errListenKeyExpired), "ReportDown must not error")
 	sub := &subscription.Subscription{Channel: userDataStreamChannel, Asset: asset.USDTMarginedFutures, Authenticated: true}
 	err = ex.SubscribeUserData(t.Context(), conn, subscription.List{sub})
 	require.ErrorIs(t, err, websocket.ErrSubscriptionFailure, "SubscribeUserData must report the failed subscription")
@@ -722,6 +723,19 @@ func TestSubscribeUserDataRetried(t *testing.T) { //nolint:tparallel // the case
 	assert.Eventually(t, func() bool { return conn.Subscriptions().Get(sub) != nil }, 30*time.Second, time.Millisecond, "the subscription made again should be recorded against its connection")
 	assert.Eventually(t, func() bool { return keepalives.Load() > 0 }, 30*time.Second, time.Millisecond, "the listen key of the subscription made again should be kept alive")
 	assert.Equal(t, int32(2), listenKeys.Load(), "the listen key should be requested again once")
+	reports := relayedPayloads(ex)
+	var down, up bool
+	for _, report := range reports {
+		switch report := report.(type) {
+		case websocket.ConnectionDown:
+			down = true
+			assert.ErrorIs(t, report.Err, errListenKeyExpired, "the down should carry the expiry")
+		case websocket.ConnectionUp:
+			up = true
+		}
+	}
+	assert.True(t, down, "the connection must be reported down")
+	assert.True(t, up, "the retried subscription must report its connection up")
 	requests := recorder.recorded()
 	require.Len(t, requests, 1, "the stream must be subscribed once")
 	assert.Equal(t, DerivativesStreamRequest{Method: "SUBSCRIBE", Params: []any{testListenKey}, ID: requests[0].ID}, requests[0], "the retry should subscribe the listen key")
@@ -895,6 +909,12 @@ func TestKeepaliveUserDataSubscription(t *testing.T) { //nolint:tparallel // the
 	relayedErr, ok := payloads[0].(error)
 	require.True(t, ok, "the relayed payload must be an error")
 	assert.ErrorIs(t, relayedErr, asset.ErrNotSupported, "the renewal error should carry its cause")
+	for _, payload := range payloads {
+		switch payload.(type) {
+		case websocket.ConnectionDown, websocket.ConnectionUp:
+			t.Fatalf("a failed keepalive must not relay a connection report: %#v", payload)
+		}
+	}
 }
 
 func TestProcessListenKeyExpired(t *testing.T) { //nolint:tparallel // the cases share ex and the recorder, so they run in order while the test runs in parallel
@@ -919,14 +939,35 @@ func TestProcessListenKeyExpired(t *testing.T) { //nolint:tparallel // the cases
 			conn, err := ex.Websocket.GetConnection(tc.filter)
 			require.NoErrorf(t, err, "GetConnection must not error for %s", tc.filter)
 			require.NoErrorf(t, tc.handle(ctx, conn, fixtureFrame(t, tc.fixture, "listenKeyExpired")), "handling listenKeyExpired must not error for %s", tc.filter)
-			assert.Equalf(t, []any{tc.exp}, relayedPayloads(ex), "listenKeyExpired should be relayed for %s", tc.filter)
+			payloads := relayedPayloads(ex)
+			require.Lenf(t, payloads, 2, "listenKeyExpired should be relayed beside its connection's down for %s", tc.filter)
+			assert.Equalf(t, tc.exp, payloads[0], "listenKeyExpired should be relayed first for %s", tc.filter)
+			down, ok := payloads[1].(websocket.ConnectionDown)
+			require.Truef(t, ok, "the expiry should report its connection down for %s", tc.filter)
+			assert.Equalf(t, tc.filter, down.MessageFilter, "the down should name the private connection for %s", tc.filter)
+			assert.ErrorIsf(t, down.Err, errListenKeyExpired, "the down should carry the expiry for %s", tc.filter)
 		})
 	}
 	require.Eventually(t, func() bool { return len(recorder.recorded()) == 3 }, time.Second*30, time.Millisecond*10, "each expiry must renew its stream")
 	for _, req := range recorder.recorded() {
 		assert.Equal(t, DerivativesStreamRequest{Method: "SUBSCRIBE", Params: []any{testListenKey}, ID: req.ID}, req, "the renewal should subscribe the new listen key")
 	}
-	assert.Empty(t, relayedPayloads(ex), "a successful renewal should relay nothing")
+	renewed := make(map[string]websocket.ConnectionUp, len(expiries))
+	require.Eventually(t, func() bool {
+		for _, payload := range relayedPayloads(ex) {
+			if up, ok := payload.(websocket.ConnectionUp); ok {
+				filter, ok := up.MessageFilter.(string)
+				require.True(t, ok, "the up must carry the setup's message filter")
+				renewed[filter] = up
+			}
+		}
+		return len(renewed) == len(expiries)
+	}, time.Second*30, time.Millisecond*10, "each successful renewal must report its connection up")
+	for _, tc := range expiries {
+		up, ok := renewed[tc.filter]
+		require.Truef(t, ok, "the successful renewal must report the %s connection up", tc.filter)
+		assert.GreaterOrEqual(t, up.Downtime, time.Duration(0), "the up should carry its downtime")
+	}
 
 	// A renewal whose listen key request fails relays the failure as the expiry's, beside the expiry itself, in either
 	// order, as the renewal runs in the background
@@ -947,20 +988,27 @@ func TestProcessListenKeyExpired(t *testing.T) { //nolint:tparallel // the cases
 	var relayed []any
 	require.Eventually(t, func() bool {
 		relayed = append(relayed, relayedPayloads(ex)...)
-		return len(relayed) >= 2*len(expiries)
-	}, time.Second*30, time.Millisecond*10, "each expiry and its failed renewal must be relayed")
-	var expired, failed int
+		return len(relayed) >= 3*len(expiries)
+	}, time.Second*30, time.Millisecond*10, "each expiry, its down and its failed renewal must be relayed")
+	var expired, downs, failed, unexpectedUps int
 	for _, p := range relayed {
-		if err, ok := p.(error); ok {
+		switch payload := p.(type) {
+		case error:
 			failed++
-			assert.ErrorIs(t, err, errListenKeyExpired, "a failed renewal should relay its error as the listen key expiry's")
-			continue
+			assert.ErrorIs(t, payload, errListenKeyExpired, "a failed renewal should relay its error as the listen key expiry's")
+		case *ListenKeyExpired:
+			expired++
+		case websocket.ConnectionDown:
+			downs++
+			assert.ErrorIs(t, payload.Err, errListenKeyExpired, "the down should carry the expiry")
+		case websocket.ConnectionUp:
+			unexpectedUps++
 		}
-		expired++
-		assert.IsType(t, &ListenKeyExpired{}, p, "the expiry should be relayed beside its failed renewal")
 	}
 	assert.Equal(t, len(expiries), failed, "each failed renewal should relay its error")
 	assert.Equal(t, len(expiries), expired, "each expiry should be relayed")
+	assert.Equal(t, len(expiries), downs, "each expiry should report its connection down")
+	assert.Zero(t, unexpectedUps, "a failed renewal should relay no up")
 	assert.Len(t, recorder.recorded(), 3, "a failed renewal should subscribe nothing")
 }
 
@@ -1050,6 +1098,13 @@ func TestRenewUserDataStreamRetry(t *testing.T) {
 			expire(t, ex, conn)
 			if tc.end == nil {
 				require.Eventually(t, func() bool { return len(recorder.recorded()) == 2 }, 30*time.Second, time.Millisecond, "the renewed listen key must be subscribed")
+				renewalUps := 0
+				for _, payload := range relayedPayloads(ex) {
+					if _, ok := payload.(websocket.ConnectionUp); ok {
+						renewalUps++
+					}
+				}
+				assert.Equal(t, 1, renewalUps, "a renewal that succeeds on a retry should relay one up")
 			} else {
 				require.Eventually(t, func() bool { return requests.Load() >= 4 }, 30*time.Second, time.Millisecond, "the failed renewal must be tried again")
 				tc.end(t, ex, conn, s)
