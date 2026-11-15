@@ -52,6 +52,15 @@ func closeChanNoPanic(ch chan struct{}) {
 	close(ch)
 }
 
+func requireNoConnectionReport(t *testing.T, ws *Manager) {
+	t.Helper()
+	select {
+	case payload := <-ws.DataHandler.C:
+		t.Fatalf("unexpected websocket report: %#v", payload.Data)
+	default:
+	}
+}
+
 func restoreShutdownChannel(ws *Manager) {
 	if ws == nil {
 		return
@@ -2468,14 +2477,16 @@ func TestMonitorConnection(t *testing.T) {
 	require.False(t, ws.observeConnection(t.Context(), timer)) // Connect is intentionally erroring
 	// Handle error from a connection which will then trigger a reconnect
 	ws.setState(connectedState)
+	ws.defaultURL = "testDefaultURL"
 	ws.DataHandler = stream.NewRelay(1)
 	ws.ReadMessageErrors <- errConnectionFault
 	timer = time.NewTimer(time.Second)
 	require.False(t, ws.observeConnection(t.Context(), timer))
 	payload := <-ws.DataHandler.C
-	err, ok := payload.Data.(error)
-	require.True(t, ok)
-	require.ErrorIs(t, err, errConnectionFault)
+	down, ok := payload.Data.(ConnectionDown)
+	require.True(t, ok, "a fault must relay a ConnectionDown")
+	require.ErrorIs(t, down.Err, errConnectionFault, "the down must carry the fault")
+	assert.Equal(t, "testDefaultURL", down.URL, "the down must name the default URL")
 
 	// Handle error while still in connecting state; state should be reset so reconnect can proceed.
 	ws.setState(connectingState)
@@ -2489,6 +2500,323 @@ func TestMonitorConnection(t *testing.T) {
 	ws.setState(connectedState)
 	ws.ReadMessageErrors <- errConnectionFault
 	require.False(t, innerShell())
+}
+
+func TestFaultReportsConnectionsDownAndUp(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+		}))
+		wsURL := "ws" + mock.URL[len("http"):] + "/ws"
+		ws := NewManager()
+		t.Cleanup(func() { cleanupManagerMonitors(t, ws) })
+		setup := newDefaultSetup()
+		setup.UseMultiConnectionManagement = true
+		setup.ExchangeConfig.ConnectionMonitorDelay = time.Second
+		require.NoError(t, ws.Setup(setup), "Setup must not error")
+		ws.trafficTimeout = time.Hour
+
+		filters := []string{"report-one", "report-two"}
+		for _, filter := range filters {
+			require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{
+				URL:           wsURL,
+				MessageFilter: filter,
+				Connector: func(ctx context.Context, conn Connection) error {
+					return conn.Dial(ctx, dialer, nil, nil)
+				},
+				GenerateSubscriptions: func() (subscription.List, error) {
+					return subscription.List{{Channel: filter}}, nil
+				},
+				Subscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
+					return ws.AddSuccessfulSubscriptions(conn, subs...)
+				},
+				Unsubscriber: func(context.Context, Connection, subscription.List) error { return nil },
+				Handler:      func(context.Context, Connection, []byte) error { return nil },
+			}), "SetupNewConnection must not error")
+		}
+
+		require.NoError(t, ws.Connect(t.Context()), "Connect must not error")
+		requireNoConnectionReport(t, ws)
+
+		fault := fmt.Errorf("%w: test fault", errConnectionFault)
+		ws.ReadMessageErrors <- fault
+
+		downs := make(map[string]ConnectionDown, len(filters))
+		for range filters {
+			payload := <-ws.DataHandler.C
+			down, ok := payload.Data.(ConnectionDown)
+			require.True(t, ok, "a fault must relay ConnectionDown reports")
+			filter, ok := down.MessageFilter.(string)
+			require.True(t, ok, "the down must carry the setup's message filter")
+			downs[filter] = down
+		}
+		require.Len(t, downs, len(filters), "every delivering setup must be reported down")
+		for _, filter := range filters {
+			down, ok := downs[filter]
+			require.True(t, ok, "each setup must be reported down")
+			assert.Equal(t, wsURL, down.URL, "the down must name the setup URL")
+			assert.ErrorIs(t, down.Err, errConnectionFault, "the down must carry the fault")
+			require.Len(t, down.Subscriptions, 1, "the down must carry the setup's subscriptions")
+			assert.Equal(t, filter, down.Subscriptions[0].Channel, "the down must carry the setup's channel")
+		}
+
+		ups := make(map[string]ConnectionUp, len(filters))
+		for range filters {
+			payload := <-ws.DataHandler.C
+			up, ok := payload.Data.(ConnectionUp)
+			require.True(t, ok, "a reconnect must relay ConnectionUp reports")
+			filter, ok := up.MessageFilter.(string)
+			require.True(t, ok, "the up must carry the setup's message filter")
+			ups[filter] = up
+		}
+		require.Len(t, ups, len(filters), "every reconnected setup must be reported up")
+		for _, filter := range filters {
+			up, ok := ups[filter]
+			require.True(t, ok, "each setup must be reported up")
+			assert.Equal(t, wsURL, up.URL, "the up must name the same URL as the down")
+			require.Len(t, up.Subscriptions, 1, "the up must carry the setup's subscriptions")
+			assert.Equal(t, filter, up.Subscriptions[0].Channel, "the up must carry the setup's channel")
+			assert.GreaterOrEqual(t, up.Downtime, time.Duration(0), "the up must carry its downtime")
+		}
+		synctest.Wait()
+		requireNoConnectionReport(t, ws)
+	})
+}
+
+func TestTrafficTimeoutReportsConnectionsDownAndUp(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+		}))
+		wsURL := "ws" + mock.URL[len("http"):] + "/ws"
+		ws := NewManager()
+		t.Cleanup(func() { cleanupManagerMonitors(t, ws) })
+		setup := newDefaultSetup()
+		setup.UseMultiConnectionManagement = true
+		setup.ExchangeConfig.ConnectionMonitorDelay = time.Second
+		require.NoError(t, ws.Setup(setup), "Setup must not error")
+		ws.trafficTimeout = time.Hour
+
+		filters := []string{"timeout-one", "timeout-two"}
+		for _, filter := range filters {
+			require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{
+				URL:           wsURL,
+				MessageFilter: filter,
+				Connector: func(ctx context.Context, conn Connection) error {
+					return conn.Dial(ctx, dialer, nil, nil)
+				},
+				GenerateSubscriptions: func() (subscription.List, error) {
+					return subscription.List{{Channel: filter}}, nil
+				},
+				Subscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
+					return ws.AddSuccessfulSubscriptions(conn, subs...)
+				},
+				Unsubscriber: func(context.Context, Connection, subscription.List) error { return nil },
+				Handler:      func(context.Context, Connection, []byte) error { return nil },
+			}), "SetupNewConnection must not error")
+		}
+
+		require.NoError(t, ws.Connect(t.Context()), "Connect must not error")
+		requireNoConnectionReport(t, ws)
+
+		ws.reportConnectionsDown(t.Context(), errTrafficTimeout)
+
+		for range filters {
+			payload := <-ws.DataHandler.C
+			down, ok := payload.Data.(ConnectionDown)
+			require.True(t, ok, "a traffic timeout must relay ConnectionDown reports")
+			assert.ErrorIs(t, down.Err, errTrafficTimeout, "the down must carry the traffic timeout")
+			assert.Equal(t, wsURL, down.URL, "the down must name the setup URL")
+		}
+
+		require.NoError(t, ws.Connect(t.Context()), "Connect must not error")
+		for range filters {
+			payload := <-ws.DataHandler.C
+			up, ok := payload.Data.(ConnectionUp)
+			require.True(t, ok, "a reconnect must relay ConnectionUp reports")
+			assert.Equal(t, wsURL, up.URL, "the up must name the same URL as the down")
+		}
+		synctest.Wait()
+		requireNoConnectionReport(t, ws)
+	})
+}
+
+func TestReconnectReportsOnlySubscribedSetupsUp(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+		}))
+		wsURL := "ws" + mock.URL[len("http"):] + "/ws"
+		ws := NewManager()
+		t.Cleanup(func() { cleanupManagerMonitors(t, ws) })
+		setup := newDefaultSetup()
+		setup.UseMultiConnectionManagement = true
+		setup.ExchangeConfig.ConnectionMonitorDelay = time.Second
+		require.NoError(t, ws.Setup(setup), "Setup must not error")
+		ws.trafficTimeout = time.Hour
+
+		failSubscriptions := &atomic.Bool{}
+		filter := "failing"
+		require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{
+			URL:           wsURL,
+			MessageFilter: filter,
+			Connector: func(ctx context.Context, conn Connection) error {
+				return conn.Dial(ctx, dialer, nil, nil)
+			},
+			GenerateSubscriptions: func() (subscription.List, error) {
+				return subscription.List{{Channel: filter}}, nil
+			},
+			Subscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
+				if failSubscriptions.Load() {
+					return errDastardlyReason
+				}
+				return ws.AddSuccessfulSubscriptions(conn, subs...)
+			},
+			Unsubscriber: func(context.Context, Connection, subscription.List) error { return nil },
+			Handler:      func(context.Context, Connection, []byte) error { return nil },
+		}), "SetupNewConnection must not error")
+		require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{
+			URL:           wsURL,
+			MessageFilter: "working",
+			Connector: func(ctx context.Context, conn Connection) error {
+				return conn.Dial(ctx, dialer, nil, nil)
+			},
+			GenerateSubscriptions: func() (subscription.List, error) {
+				return subscription.List{{Channel: "working"}}, nil
+			},
+			Subscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
+				return ws.AddSuccessfulSubscriptions(conn, subs...)
+			},
+			Unsubscriber: func(context.Context, Connection, subscription.List) error { return nil },
+			Handler:      func(context.Context, Connection, []byte) error { return nil },
+		}), "SetupNewConnection must not error")
+
+		require.NoError(t, ws.Connect(t.Context()), "Connect must not error")
+		requireNoConnectionReport(t, ws)
+		failSubscriptions.Store(true)
+		ws.ReadMessageErrors <- fmt.Errorf("%w: test fault", errConnectionFault)
+
+		for range 2 {
+			payload := <-ws.DataHandler.C
+			_, ok := payload.Data.(ConnectionDown)
+			require.True(t, ok, "both setups must be reported down")
+		}
+
+		payload := <-ws.DataHandler.C
+		up, ok := payload.Data.(ConnectionUp)
+		require.True(t, ok, "only the subscribed setup must be reported up")
+		assert.Equal(t, "working", up.MessageFilter, "the setup that failed its subscription must stay down")
+		synctest.Wait()
+		requireNoConnectionReport(t, ws)
+	})
+}
+
+func TestDeliberateConnectAndShutdownReportNothing(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+		}))
+		wsURL := "ws" + mock.URL[len("http"):] + "/ws"
+		ws := NewManager()
+		t.Cleanup(func() { cleanupManagerMonitors(t, ws) })
+		setup := newDefaultSetup()
+		setup.UseMultiConnectionManagement = true
+		setup.ExchangeConfig.ConnectionMonitorDelay = time.Second
+		require.NoError(t, ws.Setup(setup), "Setup must not error")
+		ws.trafficTimeout = time.Hour
+		require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{
+			URL:           wsURL,
+			MessageFilter: "deliberate",
+			Connector: func(ctx context.Context, conn Connection) error {
+				return conn.Dial(ctx, dialer, nil, nil)
+			},
+			GenerateSubscriptions: func() (subscription.List, error) {
+				return subscription.List{{Channel: "deliberate"}}, nil
+			},
+			Subscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
+				return ws.AddSuccessfulSubscriptions(conn, subs...)
+			},
+			Unsubscriber: func(context.Context, Connection, subscription.List) error { return nil },
+			Handler:      func(context.Context, Connection, []byte) error { return nil },
+		}), "SetupNewConnection must not error")
+
+		require.NoError(t, ws.Connect(t.Context()), "Connect must not error")
+		requireNoConnectionReport(t, ws)
+		require.NoError(t, ws.Shutdown(), "Shutdown must not error")
+		requireNoConnectionReport(t, ws)
+		require.NoError(t, ws.Connect(t.Context()), "Connect must not error after a deliberate shutdown")
+		requireNoConnectionReport(t, ws)
+	})
+}
+
+func TestSingleConnectionReportsDownAndUp(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+		}))
+		wsURL := "ws" + mock.URL[len("http"):] + "/ws"
+		const defaultURL = "wss://default.example/ws"
+		ws := NewManager()
+		t.Cleanup(func() { cleanupManagerMonitors(t, ws) })
+		setup := newDefaultSetup()
+		setup.DefaultURL = defaultURL
+		setup.RunningURL = wsURL
+		setup.ExchangeConfig.ConnectionMonitorDelay = time.Second
+		setup.Subscriber = func(subs subscription.List) error {
+			for _, sub := range subs {
+				if err := ws.subscriptions.Add(sub); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+		require.NoError(t, ws.Setup(setup), "Setup must not error")
+		ws.trafficTimeout = time.Hour
+		require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{URL: wsURL}), "SetupNewConnection must not error")
+
+		var dials atomic.Int64
+		ws.connector = func() error {
+			if dials.Add(1) > 1 {
+				if err := ws.SetWebsocketURL(wsURL+"?reconnect=1", false, false); err != nil {
+					return err
+				}
+			}
+			if err := ws.Conn.Dial(t.Context(), dialer, http.Header{}, nil); err != nil {
+				return err
+			}
+			ws.Wg.Add(1)
+			go ws.Reader(t.Context(), ws.Conn, func(context.Context, Connection, []byte) error { return nil })
+			return nil
+		}
+
+		require.NoError(t, ws.Connect(t.Context()), "Connect must not error")
+		requireNoConnectionReport(t, ws)
+		ws.ReadMessageErrors <- fmt.Errorf("%w: test fault", errConnectionFault)
+
+		payload := <-ws.DataHandler.C
+		down, ok := payload.Data.(ConnectionDown)
+		require.True(t, ok, "a fault must relay a ConnectionDown")
+		assert.Equal(t, defaultURL, down.URL, "the down must name the default URL, not the running URL")
+		assert.Nil(t, down.MessageFilter, "single-connection mode has no message filter")
+
+		payload = <-ws.DataHandler.C
+		up, ok := payload.Data.(ConnectionUp)
+		require.True(t, ok, "a reconnect must relay a ConnectionUp")
+		assert.Equal(t, down.URL, up.URL, "the up must name the same connection as the down")
+		assert.NotEqual(t, ws.GetWebsocketURL(), up.URL, "the running URL changed between the reports")
+		synctest.Wait()
+		requireNoConnectionReport(t, ws)
+	})
 }
 
 func TestMonitorTraffic(t *testing.T) { //nolint:tparallel // top-level parallel is safe; serial subtests limit websocket CI contention
