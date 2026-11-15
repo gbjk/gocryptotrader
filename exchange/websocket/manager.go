@@ -866,16 +866,12 @@ func (m *Manager) connectOptional(ctx context.Context) {
 	}
 }
 
-// reportConnectionsDown tears down the websocket and reports every delivering setup down. The caller must not be
-// tracked by m.Wg, because teardown waits for it. Reports are sent while m.m is held, after the old connections have
-// been forgotten and before a reconnect can acquire m.m, so a setup's down always precedes its up.
-func (m *Manager) reportConnectionsDown(ctx context.Context, reason error) {
+// dropConnections tears down the websocket and reports every delivering setup down. The caller must not be tracked by
+// m.Wg, because teardown waits for it. Reports are sent while m.m is held, after the old connections have been forgotten
+// and before a reconnect can acquire m.m, so a setup's down always precedes its up.
+func (m *Manager) dropConnections(ctx context.Context, reason error) {
 	m.m.Lock()
 	defer m.m.Unlock()
-	m.reportConnectionsDownLocked(ctx, reason)
-}
-
-func (m *Manager) reportConnectionsDownLocked(ctx context.Context, reason error) {
 	if !m.IsConnected() {
 		return
 	}
@@ -1477,7 +1473,7 @@ func (m *Manager) observeConnection(ctx context.Context, t *time.Timer) (exit bo
 		if isFault {
 			log.Warnf(log.WebsocketMgr, "%v websocket has been disconnected. Reason: %v", m.exchangeName, err)
 			if m.IsConnected() {
-				m.reportConnectionsDown(ctx, err)
+				m.dropConnections(ctx, err)
 			} else {
 				m.state.CompareAndSwap(connectingState, disconnectedState)
 			}
@@ -1532,7 +1528,7 @@ func (m *Manager) monitorTraffic(ctx context.Context) func() bool {
 	return func() bool {
 		return m.observeTraffic(time.After(m.trafficTimeout), func() {
 			// The traffic monitor is tracked by m.Wg and the shared path waits on m.Wg in teardown.
-			go m.reportConnectionsDown(ctx, errTrafficTimeout)
+			go m.dropConnections(ctx, errTrafficTimeout)
 		})
 	}
 }

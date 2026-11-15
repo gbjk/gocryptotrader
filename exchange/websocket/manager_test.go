@@ -3014,7 +3014,6 @@ func TestTrafficTimeoutReportsConnectionsDownAndUp(t *testing.T) {
 		setup.UseMultiConnectionManagement = true
 		setup.ExchangeConfig.ConnectionMonitorDelay = time.Second
 		require.NoError(t, ws.Setup(setup), "Setup must not error")
-		ws.trafficTimeout = time.Hour
 
 		filters := []string{"timeout-one", "timeout-two"}
 		for _, filter := range filters {
@@ -3038,8 +3037,8 @@ func TestTrafficTimeoutReportsConnectionsDownAndUp(t *testing.T) {
 		require.NoError(t, ws.Connect(t.Context()), "Connect must not error")
 		requireNoConnectionReport(t, ws)
 
-		ws.reportConnectionsDown(t.Context(), errTrafficTimeout)
-
+		// No traffic arrives, so the traffic monitor must report every setup down, and the connection monitor must
+		// reconnect and report them up once subscribed again.
 		for range filters {
 			payload := <-ws.DataHandler.C
 			down, ok := payload.Data.(ConnectionDown)
@@ -3047,16 +3046,12 @@ func TestTrafficTimeoutReportsConnectionsDownAndUp(t *testing.T) {
 			assert.ErrorIs(t, down.Err, errTrafficTimeout, "the down must carry the traffic timeout")
 			assert.Equal(t, wsURL, down.URL, "the down must name the setup URL")
 		}
-
-		require.NoError(t, ws.Connect(t.Context()), "Connect must not error")
 		for range filters {
 			payload := <-ws.DataHandler.C
 			up, ok := payload.Data.(ConnectionUp)
 			require.True(t, ok, "a reconnect must relay ConnectionUp reports")
 			assert.Equal(t, wsURL, up.URL, "the up must name the same URL as the down")
 		}
-		synctest.Wait()
-		requireNoConnectionReport(t, ws)
 	})
 }
 
