@@ -723,19 +723,19 @@ func TestSubscribeUserDataRetried(t *testing.T) { //nolint:tparallel // the case
 	assert.Eventually(t, func() bool { return conn.Subscriptions().Get(sub) != nil }, 30*time.Second, time.Millisecond, "the subscription made again should be recorded against its connection")
 	assert.Eventually(t, func() bool { return keepalives.Load() > 0 }, 30*time.Second, time.Millisecond, "the listen key of the subscription made again should be kept alive")
 	assert.Equal(t, int32(2), listenKeys.Load(), "the listen key should be requested again once")
-	reports := relayedPayloads(ex)
 	var down, up bool
-	for _, report := range reports {
-		switch report := report.(type) {
-		case websocket.ConnectionDown:
-			down = true
-			assert.ErrorIs(t, report.Err, errListenKeyExpired, "the down should carry the expiry")
-		case websocket.ConnectionUp:
-			up = true
+	require.Eventually(t, func() bool {
+		for _, report := range relayedPayloads(ex) {
+			switch report := report.(type) {
+			case websocket.ConnectionDown:
+				down = true
+				assert.ErrorIs(t, report.Err, errListenKeyExpired, "the down should carry the expiry")
+			case websocket.ConnectionUp:
+				up = true
+			}
 		}
-	}
-	assert.True(t, down, "the connection must be reported down")
-	assert.True(t, up, "the retried subscription must report its connection up")
+		return down && up
+	}, 30*time.Second, time.Millisecond, "the connection must be reported down and its retried subscription up")
 	requests := recorder.recorded()
 	require.Len(t, requests, 1, "the stream must be subscribed once")
 	assert.Equal(t, DerivativesStreamRequest{Method: "SUBSCRIBE", Params: []any{testListenKey}, ID: requests[0].ID}, requests[0], "the retry should subscribe the listen key")
@@ -1099,12 +1099,14 @@ func TestRenewUserDataStreamRetry(t *testing.T) {
 			if tc.end == nil {
 				require.Eventually(t, func() bool { return len(recorder.recorded()) == 2 }, 30*time.Second, time.Millisecond, "the renewed listen key must be subscribed")
 				renewalUps := 0
-				for _, payload := range relayedPayloads(ex) {
-					if _, ok := payload.(websocket.ConnectionUp); ok {
-						renewalUps++
+				require.Eventually(t, func() bool {
+					for _, payload := range relayedPayloads(ex) {
+						if _, ok := payload.(websocket.ConnectionUp); ok {
+							renewalUps++
+						}
 					}
-				}
-				assert.Equal(t, 1, renewalUps, "a renewal that succeeds on a retry should relay one up")
+					return renewalUps == 1
+				}, 30*time.Second, time.Millisecond, "a renewal that succeeds on a retry should relay one up")
 			} else {
 				require.Eventually(t, func() bool { return requests.Load() >= 4 }, 30*time.Second, time.Millisecond, "the failed renewal must be tried again")
 				tc.end(t, ex, conn, s)
