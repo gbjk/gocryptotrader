@@ -885,7 +885,7 @@ func (m *Manager) dropConnections(ctx context.Context, reason error) {
 	if m.useMultiConnectionManagement {
 		m.connectionManagerMu.RLock()
 		for _, ws := range m.connectionManager {
-			if ws == nil || ws.setup == nil || ws.setup.Optional || len(ws.connections) == 0 || !ws.downSince.IsZero() {
+			if ws == nil || ws.setup == nil || ws.setup.Optional || len(ws.connections) == 0 {
 				continue
 			}
 			reports = append(reports, setupReport{

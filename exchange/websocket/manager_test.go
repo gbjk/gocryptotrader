@@ -3327,7 +3327,7 @@ func TestOptionalConnectionNotReported(t *testing.T) {
 		require.NoError(t, ws.ReportDown(t.Context(), optionalConn, errors.New("optional stream ended")), "ReportDown must not error for an optional connection")
 		requireNoConnectionReport(t, ws)
 
-		ws.reportConnectionsDown(t.Context(), errConnectionFault)
+		ws.dropConnections(t.Context(), errConnectionFault)
 		payload := <-ws.DataHandler.C
 		down, ok := payload.Data.(ConnectionDown)
 		require.True(t, ok, "the fault must relay the normal connection's down")
