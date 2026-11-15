@@ -924,17 +924,24 @@ func (m *Manager) reportConnectionsDownLocked(ctx context.Context, reason error)
 	}
 
 	now := time.Now()
+	send := reports[:0]
 	m.connectionManagerMu.Lock()
 	if m.useMultiConnectionManagement {
 		for _, report := range reports {
+			if !report.ws.downSince.IsZero() {
+				// An exchange reported this setup down while it was being torn down.
+				continue
+			}
 			report.ws.downSince = now
+			send = append(send, report)
 		}
 	} else if singleDown {
 		m.downSince = now
+		send = reports
 	}
 	m.connectionManagerMu.Unlock()
 
-	for _, report := range reports {
+	for _, report := range send {
 		if err := m.DataHandler.Send(ctx, report.down); err != nil {
 			log.Errorf(log.WebsocketMgr, "%v websocket: reporting connection down: %s", m.exchangeName, err)
 		}
@@ -950,7 +957,7 @@ func (m *Manager) reportConnectionsUp(ctx context.Context, setups []*websocket) 
 	reports := make([]ConnectionUp, 0, len(setups))
 	m.connectionManagerMu.Lock()
 	for _, ws := range setups {
-		if ws == nil || ws.setup == nil || ws.downSince.IsZero() {
+		if ws == nil || ws.setup == nil || ws.setup.Optional || ws.downSince.IsZero() {
 			continue
 		}
 		reports = append(reports, ConnectionUp{
@@ -980,6 +987,62 @@ func (m *Manager) reportConnectionUp(ctx context.Context) {
 		Subscriptions: m.subscriptions.List(),
 		Downtime:      time.Since(downSince),
 	}})
+}
+
+// ReportDown marks a managed connection down and relays ConnectionDown with reason. It relays nothing for an unknown,
+// optional or already-down connection. It does not take m.m, because readers and retry routines call it while a
+// shutdown holds m.m and waits for them.
+func (m *Manager) ReportDown(ctx context.Context, conn Connection, reason error) error {
+	if m == nil || conn == nil {
+		return nil
+	}
+	m.connectionManagerMu.Lock()
+	ws := m.connections[conn]
+	if ws == nil || ws.setup == nil || ws.setup.Optional || !ws.downSince.IsZero() {
+		m.connectionManagerMu.Unlock()
+		return nil
+	}
+	ws.downSince = time.Now()
+	report := ConnectionDown{
+		URL:           ws.setup.URL,
+		MessageFilter: ws.setup.MessageFilter,
+		Subscriptions: ws.subscriptions.List(),
+		Err:           reason,
+	}
+	m.connectionManagerMu.Unlock()
+	if err := m.DataHandler.Send(ctx, report); err != nil {
+		log.Errorf(log.WebsocketMgr, "%v websocket: reporting connection down: %s", m.exchangeName, err)
+		return err
+	}
+	return nil
+}
+
+// ReportUp marks a managed connection up and relays ConnectionUp with how long it was down. It relays nothing for an
+// unknown, optional or connection that is not down. It does not take m.m, because readers and retry routines call it
+// while a shutdown holds m.m and waits for them.
+func (m *Manager) ReportUp(ctx context.Context, conn Connection) error {
+	if m == nil || conn == nil {
+		return nil
+	}
+	m.connectionManagerMu.Lock()
+	ws := m.connections[conn]
+	if ws == nil || ws.setup == nil || ws.setup.Optional || ws.downSince.IsZero() {
+		m.connectionManagerMu.Unlock()
+		return nil
+	}
+	report := ConnectionUp{
+		URL:           ws.setup.URL,
+		MessageFilter: ws.setup.MessageFilter,
+		Subscriptions: ws.subscriptions.List(),
+		Downtime:      time.Since(ws.downSince),
+	}
+	ws.downSince = time.Time{}
+	m.connectionManagerMu.Unlock()
+	if err := m.DataHandler.Send(ctx, report); err != nil {
+		log.Errorf(log.WebsocketMgr, "%v websocket: reporting connection up: %s", m.exchangeName, err)
+		return err
+	}
+	return nil
 }
 
 func (m *Manager) sendConnectionUps(ctx context.Context, reports []ConnectionUp) {
