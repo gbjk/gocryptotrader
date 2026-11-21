@@ -866,79 +866,38 @@ func (m *Manager) connectOptional(ctx context.Context) {
 	}
 }
 
-// dropConnections tears down the websocket and reports every delivering setup down. The caller must not be tracked by
-// m.Wg, because teardown waits for it. Reports are sent while m.m is held, after the old connections have been forgotten
-// and before a reconnect can acquire m.m, so a setup's down always precedes its up.
-func (m *Manager) dropConnections(ctx context.Context, reason error) {
-	m.m.Lock()
-	defer m.m.Unlock()
-	if !m.IsConnected() {
-		return
-	}
-
-	type setupReport struct {
-		ws   *websocket
-		down ConnectionDown
-	}
-	var reports []setupReport
-	singleDown := false
-	if m.useMultiConnectionManagement {
-		m.connectionManagerMu.RLock()
-		for _, ws := range m.connectionManager {
-			if ws == nil || ws.setup == nil || ws.setup.Optional || len(ws.connections) == 0 {
-				continue
-			}
-			reports = append(reports, setupReport{
-				ws: ws,
-				down: ConnectionDown{
-					URL:           ws.setup.URL,
-					MessageFilter: ws.setup.MessageFilter,
-					Subscriptions: ws.subscriptions.List(),
-					Err:           reason,
-				},
-			})
-		}
-		m.connectionManagerMu.RUnlock()
-	} else {
-		m.connectionManagerMu.RLock()
-		singleDown = m.downSince.IsZero()
-		m.connectionManagerMu.RUnlock()
-		if singleDown {
-			reports = append(reports, setupReport{down: ConnectionDown{
-				URL:           m.defaultURL,
-				Subscriptions: m.subscriptions.List(),
-				Err:           reason,
-			}})
-		}
-	}
-
-	nonFatalCloseConnectionErrors, err := m.teardown()
-	if err != nil {
-		log.Errorf(log.WebsocketMgr, "%v websocket: reporting connections down shutdown err: %s", m.exchangeName, err)
-	} else if nonFatalCloseConnectionErrors != nil {
-		log.Warnf(log.WebsocketMgr, "%v websocket: reporting connections down shutdown error: %v", m.exchangeName, nonFatalCloseConnectionErrors)
-	}
-
+// reportConnectionsDown marks every setup that has connections down, unless it already is, and relays its
+// ConnectionDown with its subscriptions and the reason. It takes no m.m and tears nothing down: the caller shuts the
+// websocket down after it, so a reconnect cannot report the setup up before its down.
+func (m *Manager) reportConnectionsDown(ctx context.Context, reason error) {
+	var reports []ConnectionDown
 	now := time.Now()
-	send := reports[:0]
 	m.connectionManagerMu.Lock()
 	if m.useMultiConnectionManagement {
-		for _, report := range reports {
-			if !report.ws.downSince.IsZero() {
-				// An exchange reported this setup down while it was being torn down.
+		for _, ws := range m.connectionManager {
+			if ws == nil || ws.setup == nil || len(ws.connections) == 0 || !ws.downSince.IsZero() {
 				continue
 			}
-			report.ws.downSince = now
-			send = append(send, report)
+			ws.downSince = now
+			reports = append(reports, ConnectionDown{
+				URL:           ws.setup.URL,
+				MessageFilter: ws.setup.MessageFilter,
+				Subscriptions: ws.subscriptions.List(),
+				Err:           reason,
+			})
 		}
-	} else if singleDown {
+	} else if m.downSince.IsZero() {
 		m.downSince = now
-		send = reports
+		reports = append(reports, ConnectionDown{
+			URL:           m.defaultURL,
+			Subscriptions: m.subscriptions.List(),
+			Err:           reason,
+		})
 	}
 	m.connectionManagerMu.Unlock()
 
-	for _, report := range send {
-		if err := m.DataHandler.Send(ctx, report.down); err != nil {
+	for _, report := range reports {
+		if err := m.DataHandler.Send(ctx, report); err != nil {
 			log.Errorf(log.WebsocketMgr, "%v websocket: reporting connection down: %s", m.exchangeName, err)
 		}
 	}
@@ -1461,11 +1420,13 @@ func (m *Manager) monitorConnection(ctx context.Context) func() bool {
 func (m *Manager) observeConnection(ctx context.Context, t *time.Timer) (exit bool) {
 	select {
 	case err := <-m.ReadMessageErrors:
-		isFault := errors.Is(err, errConnectionFault)
-		if isFault {
+		if errors.Is(err, errConnectionFault) {
 			log.Warnf(log.WebsocketMgr, "%v websocket has been disconnected. Reason: %v", m.exchangeName, err)
 			if m.IsConnected() {
-				m.dropConnections(ctx, err)
+				m.reportConnectionsDown(ctx, err)
+				if shutdownErr := m.Shutdown(); shutdownErr != nil {
+					log.Errorf(log.WebsocketMgr, "%v websocket: connectionMonitor shutdown err: %s", m.exchangeName, shutdownErr)
+				}
 			} else {
 				m.state.CompareAndSwap(connectingState, disconnectedState)
 			}
@@ -1476,7 +1437,7 @@ func (m *Manager) observeConnection(ctx context.Context, t *time.Timer) (exit bo
 				log.Errorln(log.WebsocketMgr, connectErr)
 			}
 		}
-		if !isFault {
+		if !errors.Is(err, errConnectionFault) {
 			if err := m.DataHandler.Send(ctx, err); err != nil {
 				log.Errorf(log.WebsocketMgr, "%v websocket: connectionMonitor data handler err: %s", m.exchangeName, err)
 			}
@@ -1519,8 +1480,12 @@ func (m *Manager) observeConnection(ctx context.Context, t *time.Timer) (exit bo
 func (m *Manager) monitorTraffic(ctx context.Context) func() bool {
 	return func() bool {
 		return m.observeTraffic(time.After(m.trafficTimeout), func() {
-			// The traffic monitor is tracked by m.Wg and the shared path waits on m.Wg in teardown.
-			go m.dropConnections(ctx, errTrafficTimeout)
+			go func() {
+				m.reportConnectionsDown(ctx, errTrafficTimeout)
+				if err := m.Shutdown(); err != nil {
+					log.Errorf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown err: %s", m.exchangeName, err)
+				}
+			}()
 		})
 	}
 }
