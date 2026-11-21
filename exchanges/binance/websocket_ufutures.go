@@ -351,7 +351,11 @@ func (e *Exchange) resubscribeUserData(ctx, keepAliveCtx context.Context, conn w
 		return true, nil
 	}
 	// Connecting records the subscriptions it makes against the connection, which tells a flush the connection is in use
-	return true, conn.Subscriptions().Add(s)
+	if err := conn.Subscriptions().Add(s); err != nil {
+		return true, err
+	}
+	e.reportUserDataStreamUp(ctx, conn)
+	return true, nil
 }
 
 func (e *Exchange) subscribeUserData(ctx context.Context, conn websocket.Connection, s *subscription.Subscription) error {
@@ -513,6 +517,7 @@ func (e *Exchange) renewUserDataStream(ctx context.Context, conn websocket.Conne
 	}
 	err := e.renewListenKey(ctx, conn, a, reason, subscribed)
 	if err == nil {
+		e.reportUserDataStreamUp(ctx, conn)
 		return
 	}
 	if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
@@ -523,8 +528,19 @@ func (e *Exchange) renewUserDataStream(ctx context.Context, conn websocket.Conne
 			return true, nil
 		}
 		err := e.renewListenKey(ctx, conn, a, reason, subscribed)
+		if err == nil {
+			e.reportUserDataStreamUp(ctx, conn)
+		}
 		return err == nil, err
 	})
+}
+
+// reportUserDataStreamUp reports the connection behind a renewed or resubscribed user data stream up, if it was
+// reported down. A failed keepalive's renewal finds the connection up and reports nothing.
+func (e *Exchange) reportUserDataStreamUp(ctx context.Context, conn websocket.Connection) {
+	if err := e.Websocket.ReportUp(ctx, conn); err != nil {
+		log.Errorf(log.WebsocketMgr, "%s: %s", e.Name, err)
+	}
 }
 
 // renewListenKey subscribes a connection to the account's active listen key for an asset, unless wanted reports once
@@ -1227,10 +1243,14 @@ func (e *Exchange) processListenKeyExpired(ctx context.Context, conn websocket.C
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
+	sendErr := e.Websocket.DataHandler.Send(ctx, resp)
+	if err := e.Websocket.ReportDown(ctx, conn, errListenKeyExpired); err != nil {
+		log.Errorf(log.WebsocketMgr, "%s: %s", e.Name, err)
+	}
 	e.Websocket.Wg.Go(func() {
 		e.renewUserDataStream(ctx, conn, a, errListenKeyExpired)
 	})
-	return e.Websocket.DataHandler.Send(ctx, resp)
+	return sendErr
 }
 
 // userDataPair returns the pair of a user data symbol. A COIN-M or options symbol listed since the available pairs were
