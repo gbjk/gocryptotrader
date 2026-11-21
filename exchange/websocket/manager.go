@@ -185,6 +185,9 @@ type websocket struct {
 	// manager's m
 	optionalReaderDone chan struct{}
 	downSince          time.Time // when the setup was reported down; zero while up
+	// reportedDown is set when reportConnectionsDown reports the setup down, so ReportUp ignores its old connection
+	// until teardown stops tracking it; guarded by connectionManagerMu
+	reportedDown bool
 }
 
 var globalReporter Reporter
@@ -875,7 +878,11 @@ func (m *Manager) reportConnectionsDown(ctx context.Context, reason error) {
 	m.connectionManagerMu.Lock()
 	if m.useMultiConnectionManagement {
 		for _, ws := range m.connectionManager {
-			if ws == nil || ws.setup == nil || len(ws.connections) == 0 || !ws.downSince.IsZero() {
+			if ws == nil || ws.setup == nil || ws.setup.Optional || len(ws.connections) == 0 {
+				continue
+			}
+			ws.reportedDown = true
+			if !ws.downSince.IsZero() {
 				continue
 			}
 			ws.downSince = now
@@ -977,7 +984,7 @@ func (m *Manager) ReportUp(ctx context.Context, conn Connection) error {
 	}
 	m.connectionManagerMu.Lock()
 	ws := m.connections[conn]
-	if ws == nil || ws.setup == nil || ws.setup.Optional || ws.downSince.IsZero() {
+	if ws == nil || ws.setup == nil || ws.setup.Optional || ws.reportedDown || ws.downSince.IsZero() {
 		m.connectionManagerMu.Unlock()
 		return nil
 	}
@@ -1115,6 +1122,7 @@ func (m *Manager) teardown() (nonFatalCloseConnectionErrors, err error) {
 			conn.Subscriptions().Clear()
 		}
 		ws.connections = nil
+		ws.reportedDown = false
 		// Flush any subscriptions from last connection across any managed connections
 		ws.subscriptions.Clear()
 	}

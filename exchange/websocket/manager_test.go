@@ -3276,6 +3276,65 @@ func TestReportDownAndUp(t *testing.T) {
 	requireNoConnectionReport(t, ws)
 }
 
+func TestReportUpIgnoresDroppedConnection(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+		}))
+		wsURL := "ws" + mock.URL[len("http"):] + "/ws"
+		ws := NewManager()
+		t.Cleanup(func() { cleanupManagerMonitors(t, ws) })
+		setup := newDefaultSetup()
+		setup.UseMultiConnectionManagement = true
+		setup.ExchangeConfig.ConnectionMonitorDelay = time.Second
+		require.NoError(t, ws.Setup(setup), "Setup must not error")
+		ws.trafficTimeout = time.Hour
+
+		const filter = "dropped"
+		require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{
+			URL:           wsURL,
+			MessageFilter: filter,
+			Connector: func(ctx context.Context, conn Connection) error {
+				return conn.Dial(ctx, dialer, nil, nil)
+			},
+			GenerateSubscriptions: func() (subscription.List, error) {
+				return subscription.List{{Channel: filter}}, nil
+			},
+			Subscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
+				return ws.AddSuccessfulSubscriptions(conn, subs...)
+			},
+			Unsubscriber: func(context.Context, Connection, subscription.List) error { return nil },
+			Handler:      func(context.Context, Connection, []byte) error { return nil },
+		}), "SetupNewConnection must not error")
+		require.NoError(t, ws.Connect(t.Context()), "Connect must not error")
+		requireNoConnectionReport(t, ws)
+
+		conn, err := ws.GetConnection(filter)
+		require.NoError(t, err, "GetConnection must not error")
+		require.NoError(t, ws.ReportDown(t.Context(), conn, errDastardlyReason), "ReportDown must not error")
+		payload := <-ws.DataHandler.C
+		down, ok := payload.Data.(ConnectionDown)
+		require.True(t, ok, "ReportDown must relay a ConnectionDown")
+		assert.ErrorIs(t, down.Err, errDastardlyReason, "the down must carry its reason")
+
+		ws.reportConnectionsDown(t.Context(), errConnectionFault)
+		requireNoConnectionReport(t, ws)
+		require.NoError(t, ws.ReportUp(t.Context(), conn), "ReportUp must not error for an old connection")
+		requireNoConnectionReport(t, ws)
+
+		require.NoError(t, ws.Shutdown(), "Shutdown must not error")
+		require.NoError(t, ws.Connect(t.Context()), "Connect must not error")
+		payload = <-ws.DataHandler.C
+		up, ok := payload.Data.(ConnectionUp)
+		require.True(t, ok, "the reconnect must relay a ConnectionUp")
+		assert.Equal(t, filter, up.MessageFilter, "the up must name the reconnected setup")
+		synctest.Wait()
+		requireNoConnectionReport(t, ws)
+	})
+}
+
 func TestOptionalConnectionNotReported(t *testing.T) {
 	t.Parallel()
 
