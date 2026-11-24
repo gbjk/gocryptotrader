@@ -864,7 +864,10 @@ func (m *Manager) reportConnectionsLost(ctx context.Context, reason error) {
 	m.connectionManagerMu.Lock()
 	if m.useMultiConnectionManagement {
 		for _, ws := range m.connectionManager {
-			if ws == nil || ws.setup == nil || len(ws.connections) == 0 || !ws.downSince.IsZero() {
+			if ws == nil || ws.setup == nil || ws.setup.Optional || len(ws.connections) == 0 {
+				continue
+			}
+			if !ws.downSince.IsZero() {
 				continue
 			}
 			ws.downSince = now
@@ -899,7 +902,7 @@ func (m *Manager) reportConnectionsRestored(ctx context.Context) {
 	var reports []ConnectionRestored
 	m.connectionManagerMu.Lock()
 	for _, ws := range m.connectionManager {
-		if ws == nil || ws.setup == nil || ws.downSince.IsZero() || len(ws.connections) == 0 {
+		if ws == nil || ws.setup == nil || ws.setup.Optional || ws.downSince.IsZero() || len(ws.connections) == 0 {
 			continue
 		}
 		reports = append(reports, ConnectionRestored{
@@ -930,6 +933,52 @@ func (m *Manager) reportConnectionRestored(ctx context.Context) {
 		Subscriptions: m.subscriptions.List(),
 		Downtime:      time.Since(downSince),
 	}})
+}
+
+// ReportLost marks a managed connection lost.
+// Informs DataHandler consumers of the outage.
+func (m *Manager) ReportLost(ctx context.Context, conn Connection, reason error) error {
+	if m == nil || conn == nil {
+		return nil
+	}
+	m.connectionManagerMu.Lock()
+	ws := m.connections[conn]
+	if ws == nil || ws.setup == nil || ws.setup.Optional || !ws.downSince.IsZero() {
+		m.connectionManagerMu.Unlock()
+		return nil
+	}
+	ws.downSince = time.Now()
+	report := ConnectionLost{
+		URL:           ws.setup.URL,
+		MessageFilter: ws.setup.MessageFilter,
+		Subscriptions: ws.subscriptions.List(),
+		Err:           reason,
+	}
+	m.connectionManagerMu.Unlock()
+	return m.DataHandler.Send(ctx, report)
+}
+
+// ReportRestored marks a managed connection restored.
+// Informs DataHandler consumers of the restoration.
+func (m *Manager) ReportRestored(ctx context.Context, conn Connection) error {
+	if m == nil || conn == nil {
+		return nil
+	}
+	m.connectionManagerMu.Lock()
+	ws := m.connections[conn]
+	if ws == nil || ws.setup == nil || ws.setup.Optional || ws.downSince.IsZero() {
+		m.connectionManagerMu.Unlock()
+		return nil
+	}
+	report := ConnectionRestored{
+		URL:           ws.setup.URL,
+		MessageFilter: ws.setup.MessageFilter,
+		Subscriptions: ws.subscriptions.List(),
+		Downtime:      time.Since(ws.downSince),
+	}
+	ws.downSince = time.Time{}
+	m.connectionManagerMu.Unlock()
+	return m.DataHandler.Send(ctx, report)
 }
 
 func (m *Manager) sendConnectionsRestored(ctx context.Context, reports []ConnectionRestored) {
