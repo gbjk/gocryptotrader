@@ -3,6 +3,7 @@ package binance
 import (
 	"github.com/thrasher-corp/gocryptotrader/currency"
 	"github.com/thrasher-corp/gocryptotrader/encoding/json"
+	"github.com/thrasher-corp/gocryptotrader/exchanges/asset"
 	"github.com/thrasher-corp/gocryptotrader/exchanges/orderbook"
 	"github.com/thrasher-corp/gocryptotrader/types"
 )
@@ -584,6 +585,11 @@ type ListenKeyExpired struct {
 	EventType string     `json:"e"`
 	EventTime types.Time `json:"E"`
 	ListenKey string     `json:"listenKey"`
+}
+
+// ListenKeyRenewed reports that a user data stream's listen key has been renewed.
+type ListenKeyRenewed struct {
+	Asset asset.Item
 }
 
 // OptionsDepthUpdate is an order book update from the options diff and partial book depth streams
