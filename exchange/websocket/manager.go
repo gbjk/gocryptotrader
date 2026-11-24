@@ -864,10 +864,7 @@ func (m *Manager) reportConnectionsLost(ctx context.Context, reason error) {
 	m.connectionManagerMu.Lock()
 	if m.useMultiConnectionManagement {
 		for _, ws := range m.connectionManager {
-			if ws == nil || ws.setup == nil || ws.setup.Optional || len(ws.connections) == 0 {
-				continue
-			}
-			if !ws.downSince.IsZero() {
+			if ws == nil || ws.setup == nil || ws.setup.Optional || len(ws.connections) == 0 || !ws.downSince.IsZero() {
 				continue
 			}
 			ws.downSince = now
