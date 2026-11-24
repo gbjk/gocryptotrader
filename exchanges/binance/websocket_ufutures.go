@@ -533,7 +533,8 @@ func (e *Exchange) renewUserDataStream(ctx context.Context, conn websocket.Conne
 func (e *Exchange) renewListenKey(ctx context.Context, conn websocket.Connection, a asset.Item, reason error, wanted func() bool) error {
 	listenKey, err := e.startUserDataStream(ctx, a)
 	if err == nil && wanted() {
-		if err = e.sendDerivativesStreamCommand(ctx, conn, wsSubscribeMethod, []any{listenKey}); err == nil && errors.Is(reason, errListenKeyExpired) {
+		err = e.sendDerivativesStreamCommand(ctx, conn, wsSubscribeMethod, []any{listenKey})
+		if err == nil && errors.Is(reason, errListenKeyExpired) {
 			if errSend := e.Websocket.DataHandler.Send(ctx, ListenKeyRenewed{Asset: a}); errSend != nil {
 				log.Errorf(log.WebsocketMgr, "%s %s: %s", e.Name, errSend, errListenKeyExpired)
 			}
