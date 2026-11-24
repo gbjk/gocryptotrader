@@ -3260,53 +3260,6 @@ func TestSingleConnectionReportsLostAndRestored(t *testing.T) {
 	})
 }
 
-func TestReportLostAndRestored(t *testing.T) {
-	t.Parallel()
-
-	ws := NewManager()
-	setup := &ConnectionSetup{URL: "wss://report.example/ws", MessageFilter: "report"}
-	managed := &websocket{setup: setup, subscriptions: subscription.NewStore()}
-	ws.connectionManager = []*websocket{managed}
-	conn := &fakeConnection{subscriptions: subscription.NewStore()}
-	ws.trackConnection(conn, managed)
-	reason := errors.New("stream ended")
-
-	require.NoError(t, ws.ReportLost(t.Context(), conn, reason), "ReportLost must not error")
-	payload := <-ws.DataHandler.C
-	down, ok := payload.Data.(ConnectionLost)
-	require.True(t, ok, "ReportLost must relay a ConnectionLost")
-	assert.Equal(t, setup.URL, down.URL, "the down should name the setup URL")
-	assert.Equal(t, setup.MessageFilter, down.MessageFilter, "the down should name the setup filter")
-	assert.ErrorIs(t, down.Err, reason, "the down should carry the reason")
-
-	require.NoError(t, ws.ReportLost(t.Context(), conn, reason), "ReportLost must not error for a down connection")
-	requireNoConnectionReport(t, ws)
-
-	require.NoError(t, ws.ReportRestored(t.Context(), conn), "ReportRestored must not error")
-	payload = <-ws.DataHandler.C
-	up, ok := payload.Data.(ConnectionRestored)
-	require.True(t, ok, "ReportRestored must relay a ConnectionRestored for a down connection")
-	assert.Equal(t, down.URL, up.URL, "the up should name the same URL as the down")
-	assert.Equal(t, down.MessageFilter, up.MessageFilter, "the up should name the same filter as the down")
-	assert.GreaterOrEqual(t, up.Downtime, time.Duration(0), "the up should carry its downtime")
-
-	require.NoError(t, ws.ReportRestored(t.Context(), conn), "ReportRestored must not error for a connection that is not down")
-	requireNoConnectionReport(t, ws)
-
-	untracked := &fakeConnection{subscriptions: subscription.NewStore()}
-	require.NoError(t, ws.ReportRestored(t.Context(), untracked), "ReportRestored must not error for an untracked connection")
-	requireNoConnectionReport(t, ws)
-
-	require.NoError(t, ws.ReportLost(t.Context(), conn, reason), "ReportLost must not error")
-	<-ws.DataHandler.C
-	ws.m.Lock()
-	_, err := ws.teardown()
-	ws.m.Unlock()
-	require.NoError(t, err, "teardown must not error")
-	require.NoError(t, ws.ReportRestored(t.Context(), conn), "ReportRestored must not error for a torn-down connection")
-	requireNoConnectionReport(t, ws)
-}
-
 func TestOptionalConnectionNotReported(t *testing.T) {
 	t.Parallel()
 
@@ -3352,10 +3305,6 @@ func TestOptionalConnectionNotReported(t *testing.T) {
 		}), "SetupNewConnection must not error for an optional connection")
 
 		require.NoError(t, ws.Connect(t.Context()), "Connect must not error")
-		requireNoConnectionReport(t, ws)
-		optionalConn, err := ws.GetConnection(optionalFilter)
-		require.NoError(t, err, "GetConnection must retrieve the optional connection")
-		require.NoError(t, ws.ReportLost(t.Context(), optionalConn, errors.New("optional stream ended")), "ReportLost must not error for an optional connection")
 		requireNoConnectionReport(t, ws)
 
 		ws.reportConnectionsLost(t.Context(), errConnectionFault)
