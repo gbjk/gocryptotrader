@@ -513,6 +513,7 @@ func (e *Exchange) renewUserDataStream(ctx context.Context, conn websocket.Conne
 	}
 	err := e.renewListenKey(ctx, conn, a, reason, subscribed)
 	if err == nil {
+		e.reportUserDataStreamRestored(ctx, conn)
 		return
 	}
 	if errSend := e.Websocket.DataHandler.Send(ctx, err); errSend != nil {
@@ -523,8 +524,19 @@ func (e *Exchange) renewUserDataStream(ctx context.Context, conn websocket.Conne
 			return true, nil
 		}
 		err := e.renewListenKey(ctx, conn, a, reason, subscribed)
+		if err == nil {
+			e.reportUserDataStreamRestored(ctx, conn)
+		}
 		return err == nil, err
 	})
+}
+
+// reportUserDataStreamRestored reports the connection behind a renewed or resubscribed user data stream restored, if it was
+// reported lost. A failed keepalive's renewal finds the connection restored and reports nothing.
+func (e *Exchange) reportUserDataStreamRestored(ctx context.Context, conn websocket.Connection) {
+	if err := e.Websocket.ReportRestored(ctx, conn); err != nil {
+		log.Errorf(log.WebsocketMgr, "%s: %s", e.Name, err)
+	}
 }
 
 // renewListenKey subscribes a connection to the account's active listen key for an asset, unless wanted reports once
@@ -1227,10 +1239,14 @@ func (e *Exchange) processListenKeyExpired(ctx context.Context, conn websocket.C
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
+	sendErr := e.Websocket.DataHandler.Send(ctx, resp)
+	if err := e.Websocket.ReportLost(ctx, conn, errListenKeyExpired); err != nil {
+		log.Errorf(log.WebsocketMgr, "%s: %s", e.Name, err)
+	}
 	e.Websocket.Wg.Go(func() {
 		e.renewUserDataStream(ctx, conn, a, errListenKeyExpired)
 	})
-	return e.Websocket.DataHandler.Send(ctx, resp)
+	return sendErr
 }
 
 // userDataPair returns the pair of a user data symbol. A COIN-M or options symbol listed since the available pairs were
