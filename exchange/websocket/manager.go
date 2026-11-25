@@ -746,7 +746,11 @@ func (m *Manager) reportConnectionsRestored(ctx context.Context) {
 		ws.downSince = time.Time{}
 	}
 	m.connectionManagerMu.Unlock()
-	m.sendConnectionsRestored(ctx, reports)
+	for _, report := range reports {
+		if err := m.DataHandler.Send(ctx, report); err != nil {
+			log.Errorf(log.WebsocketMgr, "%v websocket: reporting connection up: %s", m.exchangeName, err)
+		}
+	}
 }
 
 // reportConnectionRestored reports the single-connection websocket restored.
@@ -760,18 +764,13 @@ func (m *Manager) reportConnectionRestored(ctx context.Context) {
 	downSince := m.downSince
 	m.downSince = time.Time{}
 	m.connectionManagerMu.Unlock()
-	m.sendConnectionsRestored(ctx, []ConnectionRestored{{
+	report := ConnectionRestored{
 		URL:           m.defaultURL,
 		Subscriptions: m.subscriptions.List(),
 		Downtime:      time.Since(downSince),
-	}})
-}
-
-func (m *Manager) sendConnectionsRestored(ctx context.Context, reports []ConnectionRestored) {
-	for _, report := range reports {
-		if err := m.DataHandler.Send(ctx, report); err != nil {
-			log.Errorf(log.WebsocketMgr, "%v websocket: reporting connection up: %s", m.exchangeName, err)
-		}
+	}
+	if err := m.DataHandler.Send(ctx, report); err != nil {
+		log.Errorf(log.WebsocketMgr, "%v websocket: reporting connection up: %s", m.exchangeName, err)
 	}
 }
 
@@ -856,6 +855,17 @@ func (m *Manager) Enable(ctx context.Context) error {
 func (m *Manager) Shutdown() error {
 	m.m.Lock()
 	defer m.m.Unlock()
+	return m.shutdown()
+}
+
+// shutdownLost reports the connections lost and shuts them down under one hold of m.m, so a Connect cannot report them
+// restored in between
+func (m *Manager) shutdownLost(ctx context.Context, reason error) error {
+	m.m.Lock()
+	defer m.m.Unlock()
+	if m.IsConnected() {
+		m.reportConnectionsLost(ctx, reason)
+	}
 	return m.shutdown()
 }
 
@@ -1216,8 +1226,7 @@ func (m *Manager) observeConnection(ctx context.Context, t *time.Timer) (exit bo
 		if errors.Is(err, errConnectionFault) {
 			log.Warnf(log.WebsocketMgr, "%v websocket has been disconnected. Reason: %v", m.exchangeName, err)
 			if m.IsConnected() {
-				m.reportConnectionsLost(ctx, err)
-				if shutdownErr := m.Shutdown(); shutdownErr != nil {
+				if shutdownErr := m.shutdownLost(ctx, err); shutdownErr != nil {
 					log.Errorf(log.WebsocketMgr, "%v websocket: connectionMonitor shutdown err: %s", m.exchangeName, shutdownErr)
 				}
 			} else {
@@ -1272,8 +1281,7 @@ func (m *Manager) monitorTraffic(ctx context.Context) func() bool {
 	return func() bool {
 		return m.observeTraffic(time.After(m.trafficTimeout), func() {
 			go func() {
-				m.reportConnectionsLost(ctx, errTrafficTimeout)
-				if err := m.Shutdown(); err != nil {
+				if err := m.shutdownLost(ctx, errTrafficTimeout); err != nil {
 					log.Errorf(log.WebsocketMgr, "%v websocket: trafficMonitor shutdown err: %s", m.exchangeName, err)
 				}
 			}()
