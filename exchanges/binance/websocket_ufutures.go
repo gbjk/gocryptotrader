@@ -576,11 +576,17 @@ func (e *Exchange) renewUserDataStream(ctx context.Context, conn websocket.Conne
 }
 
 // renewListenKey subscribes a connection to the account's active listen key for an asset, unless wanted reports once
-// the key arrives that the stream is no longer wanted, as subscribing then would undo an unsubscription made meanwhile
+// the key arrives that the stream is no longer wanted, as subscribing then would undo an unsubscription made meanwhile.
+// Once an expired key has been renewed, it relays ListenKeyRenewed to DataHandler consumers.
 func (e *Exchange) renewListenKey(ctx context.Context, conn websocket.Connection, a asset.Item, reason error, wanted func() bool) error {
 	listenKey, err := e.startUserDataStream(ctx, a)
 	if err == nil && wanted() {
 		err = e.sendDerivativesStreamCommand(ctx, conn, wsSubscribeMethod, []any{listenKey})
+		if err == nil && errors.Is(reason, errListenKeyExpired) {
+			if errSend := e.Websocket.DataHandler.Send(ctx, ListenKeyRenewed{Asset: a}); errSend != nil {
+				log.Errorf(log.WebsocketMgr, "%s %s: %s", e.Name, errSend, errListenKeyExpired)
+			}
+		}
 	}
 	if err != nil {
 		return fmt.Errorf("%s user data stream renewal after %w failed: %w", a, reason, err)

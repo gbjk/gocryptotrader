@@ -3455,6 +3455,69 @@ func TestSingleConnectionReportsLostAndRestored(t *testing.T) {
 	})
 }
 
+func TestOptionalConnectionNotReported(t *testing.T) {
+	t.Parallel()
+
+	synctest.Test(t, func(t *testing.T) {
+		mock, dialer := mockws.NewTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mockws.WsMockUpgrader(t, w, r, mockws.EchoHandler)
+		}))
+		wsURL := "ws" + mock.URL[len("http"):] + "/ws"
+		ws := NewManager()
+		t.Cleanup(func() { cleanupManagerMonitors(t, ws) })
+		setup := newDefaultSetup()
+		setup.UseMultiConnectionManagement = true
+		setup.ExchangeConfig.ConnectionMonitorDelay = time.Second
+		require.NoError(t, ws.Setup(setup), "Setup must not error")
+		ws.trafficTimeout = time.Hour
+
+		const normalFilter = "normal"
+		require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{
+			URL:           wsURL,
+			MessageFilter: normalFilter,
+			Connector: func(ctx context.Context, conn Connection) error {
+				return conn.Dial(ctx, dialer, nil, nil)
+			},
+			GenerateSubscriptions: func() (subscription.List, error) {
+				return subscription.List{{Channel: normalFilter}}, nil
+			},
+			Subscriber: func(_ context.Context, conn Connection, subs subscription.List) error {
+				return ws.AddSuccessfulSubscriptions(conn, subs...)
+			},
+			Unsubscriber: func(context.Context, Connection, subscription.List) error { return nil },
+			Handler:      func(context.Context, Connection, []byte) error { return nil },
+		}), "SetupNewConnection must not error")
+		const optionalFilter = "optional"
+		require.NoError(t, ws.SetupNewConnection(&ConnectionSetup{
+			URL:                      wsURL,
+			MessageFilter:            optionalFilter,
+			Optional:                 true,
+			SubscriptionsNotRequired: true,
+			Connector: func(ctx context.Context, conn Connection) error {
+				return conn.Dial(ctx, dialer, nil, nil)
+			},
+			Handler: func(context.Context, Connection, []byte) error { return nil },
+		}), "SetupNewConnection must not error for an optional connection")
+
+		require.NoError(t, ws.Connect(t.Context()), "Connect must not error")
+		requireNoConnectionReport(t, ws)
+
+		ws.reportConnectionsLost(t.Context(), errConnectionFault)
+		require.NoError(t, ws.Shutdown(), "Shutdown must not error")
+		payload := <-ws.DataHandler.C
+		down, ok := payload.Data.(ConnectionLost)
+		require.True(t, ok, "the fault must relay the normal connection's down")
+		assert.Equal(t, normalFilter, down.MessageFilter, "only the normal connection should be reported down")
+		require.NoError(t, ws.Connect(t.Context()), "Connect must not error")
+		payload = <-ws.DataHandler.C
+		up, ok := payload.Data.(ConnectionRestored)
+		require.True(t, ok, "the reconnect must relay the normal connection's up")
+		assert.Equal(t, normalFilter, up.MessageFilter, "only the normal connection should be reported up")
+		synctest.Wait()
+		requireNoConnectionReport(t, ws)
+	})
+}
+
 func TestSingleConnectionStalledSubscribeReportsRestored(t *testing.T) {
 	t.Parallel()
 

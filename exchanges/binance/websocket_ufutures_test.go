@@ -4048,6 +4048,52 @@ func TestKeepaliveUserDataSubscription(t *testing.T) { //nolint:tparallel // the
 	relayedErr, ok := payloads[0].(error)
 	require.True(t, ok, "the relayed payload must be an error")
 	assert.ErrorIs(t, relayedErr, asset.ErrNotSupported, "the renewal error should carry its cause")
+	for _, payload := range payloads {
+		_, ok := payload.(ListenKeyRenewed)
+		assert.False(t, ok, "a failed keepalive's renewal should not relay ListenKeyRenewed")
+	}
+
+	t.Run("failed keepalive renewal", func(t *testing.T) {
+		ex := newTradingTestExchange(t, func(w http.ResponseWriter, r *http.Request) {
+			if !assert.Equal(t, "/fapi/v1/listenKey", r.URL.Path, "only listen keys should be requested") {
+				return
+			}
+			switch r.Method {
+			case http.MethodPut:
+				w.WriteHeader(http.StatusBadRequest)
+				_, err := w.Write([]byte(`{"code":-1125,"msg":"This listenKey does not exist."}`))
+				assert.NoError(t, err, "Write should not error")
+			case http.MethodPost:
+				_, err := fmt.Fprintf(w, `{"listenKey":%q}`, testListenKey)
+				assert.NoError(t, err, "Write should not error")
+			default:
+				w.WriteHeader(http.StatusMethodNotAllowed)
+			}
+		})
+		recorder := &streamRequestRecorder{}
+		useMockWebsocket(t, ex, &websocket.ConnectionSetup{
+			MessageFilter:            usdtmPrivateFilter,
+			Connector:                ex.WebsocketDerivativesConnect,
+			Handler:                  ex.wsHandleUSDTMarginedFuturesUserData,
+			ResponseCheckTimeout:     ex.Config.WebsocketResponseCheckTimeout,
+			ResponseMaxLimit:         ex.Config.WebsocketResponseMaxLimit,
+			SubscriptionsNotRequired: true,
+		}, recorder.handle)
+		require.NoError(t, ex.Websocket.Connect(t.Context()), "Connect must not error")
+		conn, err := ex.Websocket.GetConnection(usdtmPrivateFilter)
+		require.NoError(t, err, "GetConnection must not error")
+		s := &subscription.Subscription{Channel: userDataStreamChannel, Asset: asset.USDTMarginedFutures, Authenticated: true}
+		require.NoError(t, ex.Websocket.AddSubscriptions(conn, s), "AddSubscriptions must not error")
+		require.NoError(t, s.SetState(subscription.SubscribedState), "SetState must not error")
+		assert.True(t, ex.keepaliveUserDataSubscription(t.Context(), conn, s), "keepaliveUserDataSubscription should keep the stream alive")
+		requests := recorder.recorded()
+		require.Len(t, requests, 1, "the renewal must subscribe the new listen key")
+		assert.Equal(t, "SUBSCRIBE", requests[0].Method, "the renewal should subscribe the new listen key")
+		for _, payload := range relayedPayloads(ex) {
+			_, ok := payload.(ListenKeyRenewed)
+			assert.False(t, ok, "a failed keepalive's renewal should not relay ListenKeyRenewed")
+		}
+	})
 }
 
 func TestProcessListenKeyExpired(t *testing.T) { //nolint:tparallel // the cases share ex and the recorder, so they run in order while the test runs in parallel
@@ -4079,20 +4125,40 @@ func TestProcessListenKeyExpired(t *testing.T) { //nolint:tparallel // the cases
 	}
 	// Each expiry starts a renewal that outlives its case, so the cases give the handlers the test's context
 	ctx := t.Context()
+	renewed := make(map[asset.Item]bool, len(expiries))
 	// The cases share ex and the recorder, whose renewals are counted after them, so they run in order
 	for _, tc := range expiries {
 		t.Run(subtestName(tc.filter), func(t *testing.T) {
 			conn, err := ex.Websocket.GetConnection(tc.filter)
 			require.NoErrorf(t, err, "GetConnection must not error for %s", tc.filter)
 			require.NoErrorf(t, tc.handle(ctx, conn, fixtureFrame(t, tc.fixture, "listenKeyExpired")), "handling listenKeyExpired must not error for %s", tc.filter)
-			assert.Equalf(t, []any{tc.exp}, relayedPayloads(ex), "listenKeyExpired should be relayed for %s", tc.filter)
+			payloads := relayedPayloads(ex)
+			remaining := make([]any, 0, len(payloads))
+			for _, payload := range payloads {
+				if event, ok := payload.(ListenKeyRenewed); ok {
+					renewed[event.Asset] = true
+					continue
+				}
+				remaining = append(remaining, payload)
+			}
+			assert.Equalf(t, []any{tc.exp}, remaining, "listenKeyExpired should be relayed for %s", tc.filter)
 		})
 	}
 	require.Eventually(t, func() bool { return len(recorder.recorded()) == 3 }, time.Second*30, time.Millisecond*10, "each expiry must renew its stream")
 	for _, req := range recorder.recorded() {
 		assert.Equal(t, DerivativesStreamRequest{Method: "SUBSCRIBE", Params: []any{testListenKey}, ID: req.ID}, req, "the renewal should subscribe the new listen key")
 	}
-	assert.Empty(t, relayedPayloads(ex), "a successful renewal should relay nothing")
+	require.Eventually(t, func() bool {
+		for _, payload := range relayedPayloads(ex) {
+			if event, ok := payload.(ListenKeyRenewed); ok {
+				renewed[event.Asset] = true
+			}
+		}
+		return len(renewed) == len(expiries)
+	}, time.Second*30, time.Millisecond*10, "each successful renewal must relay ListenKeyRenewed")
+	for _, tc := range expiries {
+		assert.Truef(t, renewed[tc.a], "the successful renewal should relay ListenKeyRenewed for %s", tc.a)
+	}
 
 	// A renewal whose listen key request fails relays the failure as the expiry's, beside the expiry itself, in either
 	// order, as the renewal runs in the background
@@ -4115,18 +4181,21 @@ func TestProcessListenKeyExpired(t *testing.T) { //nolint:tparallel // the cases
 		relayed = append(relayed, relayedPayloads(ex)...)
 		return len(relayed) >= 2*len(expiries)
 	}, time.Second*30, time.Millisecond*10, "each expiry and its failed renewal must be relayed")
-	var expired, failed int
+	var expired, failed, unexpectedRenewed int
 	for _, p := range relayed {
-		if err, ok := p.(error); ok {
+		switch payload := p.(type) {
+		case error:
 			failed++
-			assert.ErrorIs(t, err, errListenKeyExpired, "a failed renewal should relay its error as the listen key expiry's")
-			continue
+			assert.ErrorIs(t, payload, errListenKeyExpired, "a failed renewal should relay its error as the listen key expiry's")
+		case *ListenKeyExpired:
+			expired++
+		case ListenKeyRenewed:
+			unexpectedRenewed++
 		}
-		expired++
-		assert.IsType(t, &ListenKeyExpired{}, p, "the expiry should be relayed beside its failed renewal")
 	}
 	assert.Equal(t, len(expiries), failed, "each failed renewal should relay its error")
 	assert.Equal(t, len(expiries), expired, "each expiry should be relayed")
+	assert.Zero(t, unexpectedRenewed, "a failed renewal should relay no ListenKeyRenewed")
 	assert.Len(t, recorder.recorded(), 3, "a failed renewal should subscribe nothing")
 }
 
@@ -4226,6 +4295,15 @@ func TestRenewUserDataStream(t *testing.T) {
 			expire(t, ex, conn)
 			if tc.end == nil {
 				require.Eventually(t, func() bool { return len(recorder.recorded()) == 2 }, 30*time.Second, time.Millisecond, "the renewed listen key must be subscribed")
+				renewalEvents := 0
+				require.Eventually(t, func() bool {
+					for _, payload := range relayedPayloads(ex) {
+						if _, ok := payload.(ListenKeyRenewed); ok {
+							renewalEvents++
+						}
+					}
+					return renewalEvents == 1
+				}, 30*time.Second, time.Millisecond, "a renewal that succeeds on a retry must relay one ListenKeyRenewed")
 			} else {
 				require.Eventually(t, func() bool { return requests.Load() >= 4 }, 30*time.Second, time.Millisecond, "the failed renewal must be tried again")
 				tc.end(t, ex, conn, s)
@@ -4233,6 +4311,10 @@ func TestRenewUserDataStream(t *testing.T) {
 			require.Eventually(t, func() bool { return !renewing(ex) }, 30*time.Second, time.Millisecond, "the renewal must stop being tried")
 			if tc.end != nil {
 				assert.Len(t, recorder.recorded(), 1, "a stream no longer subscribed should not be subscribed again")
+				for _, payload := range relayedPayloads(ex) {
+					_, ok := payload.(ListenKeyRenewed)
+					assert.False(t, ok, "a renewal that does not subscribe should relay no ListenKeyRenewed")
+				}
 				return
 			}
 			assert.Equal(t, int32(3), requests.Load(), "the renewal should be tried until it succeeds, and no more")
@@ -4425,6 +4507,10 @@ func TestRenewUserDataStream(t *testing.T) {
 				methods = append(methods, req.Method)
 			}
 			assert.Equal(t, []string{"SUBSCRIBE", "UNSUBSCRIBE"}, methods, "the renewal should not subscribe the stream unsubscribed during its request")
+			for _, payload := range relayedPayloads(ex) {
+				_, ok := payload.(ListenKeyRenewed)
+				assert.False(t, ok, "a renewal whose key arrives after the stream was unsubscribed should relay no ListenKeyRenewed")
+			}
 		})
 	}
 }
