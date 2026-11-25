@@ -1843,20 +1843,29 @@ func TestProcessListenKeyExpired(t *testing.T) { //nolint:tparallel // the cases
 	}
 	// Each expiry starts a renewal that outlives its case, so the cases give the handlers the test's context
 	ctx := t.Context()
+	renewed := make(map[asset.Item]bool, len(expiries))
 	// The cases share ex and the recorder, whose renewals are counted after them, so they run in order
 	for _, tc := range expiries {
 		t.Run(subtestName(tc.filter), func(t *testing.T) {
 			conn, err := ex.Websocket.GetConnection(tc.filter)
 			require.NoErrorf(t, err, "GetConnection must not error for %s", tc.filter)
 			require.NoErrorf(t, tc.handle(ctx, conn, fixtureFrame(t, tc.fixture, "listenKeyExpired")), "handling listenKeyExpired must not error for %s", tc.filter)
-			assert.Equalf(t, []any{tc.exp}, relayedPayloads(ex), "listenKeyExpired should be relayed for %s", tc.filter)
+			payloads := relayedPayloads(ex)
+			remaining := make([]any, 0, len(payloads))
+			for _, payload := range payloads {
+				if event, ok := payload.(ListenKeyRenewed); ok {
+					renewed[event.Asset] = true
+					continue
+				}
+				remaining = append(remaining, payload)
+			}
+			assert.Equalf(t, []any{tc.exp}, remaining, "listenKeyExpired should be relayed for %s", tc.filter)
 		})
 	}
 	require.Eventually(t, func() bool { return len(recorder.recorded()) == 3 }, time.Second*30, time.Millisecond*10, "each expiry must renew its stream")
 	for _, req := range recorder.recorded() {
 		assert.Equal(t, DerivativesStreamRequest{Method: "SUBSCRIBE", Params: []any{testListenKey}, ID: req.ID}, req, "the renewal should subscribe the new listen key")
 	}
-	renewed := make(map[asset.Item]bool, len(expiries))
 	require.Eventually(t, func() bool {
 		for _, payload := range relayedPayloads(ex) {
 			if event, ok := payload.(ListenKeyRenewed); ok {
