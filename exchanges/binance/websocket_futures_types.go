@@ -580,11 +580,13 @@ type FuturesAlgoUpdateOrder struct {
 }
 
 // ListenKeyExpired is the listenKeyExpired user data event, after which no user data arrives until a valid listen key
-// is subscribed. Options sends the event time as a string
+// is subscribed. Options sends the event time as a string. Binance's payload does not name the asset, so the handler
+// sets Asset to the stream's asset.
 type ListenKeyExpired struct {
 	EventType string     `json:"e"`
 	EventTime types.Time `json:"E"`
 	ListenKey string     `json:"listenKey"`
+	Asset     asset.Item `json:"-"`
 }
 
 // ListenKeyRenewed reports that a user data stream's listen key has been renewed.

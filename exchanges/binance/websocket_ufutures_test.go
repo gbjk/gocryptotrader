@@ -4107,9 +4107,9 @@ func TestProcessListenKeyExpired(t *testing.T) { //nolint:tparallel // the cases
 		handle  func(context.Context, websocket.Connection, []byte) error
 		exp     *ListenKeyExpired
 	}{
-		{asset.USDTMarginedFutures, usdtmPrivateFilter, "testdata/wsUFuturesUserData.jsonl", ex.wsHandleUSDTMarginedFuturesUserData, &ListenKeyExpired{EventType: "listenKeyExpired", EventTime: fixtureTime(1736996475556), ListenKey: testListenKey}},
-		{asset.CoinMarginedFutures, coinmPrivateFilter, "testdata/wsCFuturesUserData.jsonl", ex.wsHandleCoinMarginedFuturesUserData, &ListenKeyExpired{EventType: "listenKeyExpired", EventTime: fixtureTime(1576653824250), ListenKey: testListenKey}},
-		{asset.Options, optionsPrivateFilter, "testdata/wsOptionsUserData.jsonl", ex.wsHandleOptionsUserData, &ListenKeyExpired{EventType: "listenKeyExpired", EventTime: fixtureTime(1736996475556), ListenKey: testListenKey}},
+		{asset.USDTMarginedFutures, usdtmPrivateFilter, "testdata/wsUFuturesUserData.jsonl", ex.wsHandleUSDTMarginedFuturesUserData, &ListenKeyExpired{EventType: "listenKeyExpired", EventTime: fixtureTime(1736996475556), ListenKey: testListenKey, Asset: asset.USDTMarginedFutures}},
+		{asset.CoinMarginedFutures, coinmPrivateFilter, "testdata/wsCFuturesUserData.jsonl", ex.wsHandleCoinMarginedFuturesUserData, &ListenKeyExpired{EventType: "listenKeyExpired", EventTime: fixtureTime(1576653824250), ListenKey: testListenKey, Asset: asset.CoinMarginedFutures}},
+		{asset.Options, optionsPrivateFilter, "testdata/wsOptionsUserData.jsonl", ex.wsHandleOptionsUserData, &ListenKeyExpired{EventType: "listenKeyExpired", EventTime: fixtureTime(1736996475556), ListenKey: testListenKey, Asset: asset.Options}},
 	}
 	// A listen key expires on a connection subscribed to its user data stream. A failed renewal of a subscribed stream is
 	// tried again, which the test's counts leave out by waiting longer than the test lasts
