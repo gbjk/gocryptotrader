@@ -583,7 +583,7 @@ type FuturesAlgoUpdateOrder struct {
 // is subscribed.
 type ListenKeyExpired struct {
 	EventType string     `json:"e"`
-	EventTime types.Time `json:"E"`
+	EventTime types.Time `json:"E"` // options sends the event time as a string
 	ListenKey string     `json:"listenKey"`
 	Asset     asset.Item `json:"-"`
 }
