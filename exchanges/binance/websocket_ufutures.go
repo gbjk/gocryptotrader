@@ -1321,6 +1321,7 @@ func (e *Exchange) processListenKeyExpired(ctx context.Context, conn websocket.C
 	if err := json.Unmarshal(data, &resp); err != nil {
 		return err
 	}
+	resp.Asset = a
 	e.Websocket.Wg.Go(func() {
 		e.renewUserDataStream(ctx, conn, a, errListenKeyExpired)
 	})
